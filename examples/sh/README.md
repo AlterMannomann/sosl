@@ -1,0 +1,1 @@
+This folder contains the bash examples for the Simple Oracle Script Loader.

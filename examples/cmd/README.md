@@ -1,0 +1,1 @@
+This folder contains the CMD examples for the Simple Oracle Script Loader.

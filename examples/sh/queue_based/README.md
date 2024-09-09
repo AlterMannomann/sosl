@@ -1,0 +1,1 @@
+This folder contains the Oracle AQ queue based examples for the Simple Oracle Script Loader.

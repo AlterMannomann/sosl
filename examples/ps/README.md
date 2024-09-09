@@ -1,0 +1,1 @@
+This folder contains the PowerShell examples for the Simple Oracle Script Loader.

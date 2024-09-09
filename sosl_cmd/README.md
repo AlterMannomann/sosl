@@ -1,0 +1,1 @@
+This folder contains the CMD script components.

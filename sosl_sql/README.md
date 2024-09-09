@@ -1,0 +1,1 @@
+This folder contains the SQLPlus scripts used and needed.

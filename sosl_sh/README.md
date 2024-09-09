@@ -1,0 +1,1 @@
+This folder contains the bash script components which work also with reduced git bash.

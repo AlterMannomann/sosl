@@ -1,0 +1,1 @@
+This folder contains the table based examples for the Simple Oracle Script Loader.
