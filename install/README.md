@@ -1,0 +1,1 @@
+This folder contains the SQL install/remove scripts for the Simple Oracle Script Loader.

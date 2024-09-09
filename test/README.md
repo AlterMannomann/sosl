@@ -1,0 +1,1 @@
+This folder contains the test scripts for the Simple Oracle Script Loader.
