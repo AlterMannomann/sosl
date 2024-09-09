@@ -8,3 +8,5 @@ Basic components are database packages and OS script files. Basically an OS scri
 - working Oracle Client including SQLPlus installed on the preferred OS
 - Access to shell or command console (may require admin rights)
 - Sufficient rights on the schema of the database, for which scripts should run
+## Design
+The project is designed for running directly from the repository. Directories for temporary and log files can be configured and will be, be default using the upper directory of the repository.
