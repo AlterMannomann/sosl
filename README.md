@@ -9,12 +9,14 @@ Basic components are database packages and OS script files. Basically an OS scri
 - Access to shell or command console (may require admin rights)
 - Sufficient rights on the schema of the database, for which scripts should run
   - Rights to install packages, tables, views and other database objects (complete list will be available if project has state published)
+  - Sufficient rights that SQLPlus can install and use the table SOSLERRORLOG with the provided login
 ## Design
 The project is designed for running directly from the repository. Directories for temporary and log files can be configured and will be, by default using the upper directory of the repository.
 The Oracle part can be configured to use a pure table based solution or a queue solution, using Oracle AQ for triggering new script file executions.
 ## Security
-First, it is difficult to obtain a minimum of security as Oracle on the command line requires username and password unless you are an authenticated system user like oracle on the db server, where you can login with slash (/).
-The basic solution will read a login file using the format
+First, it is difficult to obtain a minimum of security as Oracle, on the command line, requires username and password unless you are an authenticated system user like oracle on the db server, where you can login with slash (/).
+
+The basic solution will read a login file as input for sqlplus using the following format to guarantee that Oracle ends the session on invalid logins with a proper exit code.
 
     username/password@db_name_or_tns_name
     --/--
@@ -27,3 +29,5 @@ The script call then will use basically
 This will at least avoid that the user and password can be seen in the executed command line or in the oracle session. The sosl_login.cmd will just execute a TYPE on the defined login file and can be used to inject there any programm that results in the output of the three needed lines for the login.
 
 However, if there is still some sort of file, the content is visible to those, who have the necessary rights. Thus anyone with this rights, also if hacked, can see the password and user. The default version will use files and can't be declared as secure therefore.
+
+Database security, regarding executed srcipts, can be improved, if SOSL is installed in a separate schema and has sufficient rights to other schemas, that are accessed by scripts. In this case, the used database objects in the scripts should be qualified (schema.object).
