@@ -31,3 +31,12 @@ This will at least avoid that the user and password can be seen in the executed 
 However, if there is still some sort of file, the content is visible to those, who have the necessary rights. Thus anyone with this rights, also if hacked, can see the password and user. The default version will use files and can't be declared as secure therefore.
 
 Database security, regarding executed srcipts, can be improved, if SOSL is installed in a separate schema and has sufficient rights to other schemas, that are accessed by scripts. In this case, the used database objects in the scripts should be qualified (schema.object).
+
+Nevertheless, running any script from any source system is a high risk and only applicable in very rare cases, like testing.
+
+**DO NOT USE SOSL FOR PRODUCTION SYSTEMS**
+
+Find a better solution. If you know what scripts to execute, put them in the database. You should not quick fix production systems as they have an reliable and accepted state. Use a hotfix for those issues and avoid those issues before going to production due to proper testing.
+
+## Disclaimer
+Use this software at your own risk. No warranties are given, no support is guaranteed. Any error or misbehavior is under the responsibility of the legal entity using this software.
