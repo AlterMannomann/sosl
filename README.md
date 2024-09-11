@@ -39,4 +39,4 @@ Nevertheless, running any script from any source system is a high risk and only 
 Find a better solution. If you know what scripts to execute, put them in the database. You should not quick fix production systems as they have an reliable and accepted state. Use a hotfix for those issues and avoid those issues before going to production due to proper testing.
 
 ## Disclaimer
-Use this software at your own risk. No warranties are given, no support is guaranteed. Any error or misbehavior is under the responsibility of the legal entity using this software.
+Use this software at your own risk. No liabilities or warranties are given, no support is guaranteed. Any result of executing this software is under the responsibility of the legal entity using this software.
