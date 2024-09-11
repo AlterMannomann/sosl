@@ -4,6 +4,12 @@ Current state: Define repository structure
 # SOSL - Simple Oracle Script Loader
 This is a very simple solution for loading and executing scripts from anywhere that has an Oracle Client and sqlplus installed. It will come in the flavors CMD, PowerShell and Bash.
 Basic components are database packages and OS script files. Basically an OS script acts as a server and loops over a list of files, that is given by package functions and configuration tables.
+## What it is not
+This project is not a click here and there, fire and forget application. You will have to setup your environment and server or need a working connection to a server with SQLPlus from your machine. You may need to setup TNSNAMES.ORA. You have to setup the login (file based or own solution) and your schema. You may need to integrate this into another application.
+
+**Remember, this is not an out-of-the-box application**
+## What it is
+This is an interface application that can be integrated into your projects to load scripts from a defined location triggered by the database. It can be used to run for example test scripts by database triggers or maintenance check scripts on events. The integration framework cannot be covered by this project, you will have to create it on your own depending on your system and application.
 ## Requirements
 - A working Oracle Client including SQLPlus installed on the preferred OS
 - Access to shell or command console (may require admin rights)
