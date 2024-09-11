@@ -1,1 +1,1 @@
-This folder contains the CMD script components.
+This folder contains the CMD script components of the Simple Oracle Script Loader.

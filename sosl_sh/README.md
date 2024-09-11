@@ -1,1 +1,1 @@
-This folder contains the bash script components which work also with reduced git bash.
+This folder contains the bash script components which work also with reduced git bash for the Simple Oracle Script Loader.

@@ -1,1 +1,1 @@
-This folder contains the DDL scripts to setup SOSL.
+This folder contains the DDL scripts to setup the Simple Oracle Script Loader.

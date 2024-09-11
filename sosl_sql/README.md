@@ -1,1 +1,1 @@
-This folder contains the SQLPlus scripts used and needed.
+This folder contains the SQLPlus scripts used and needed by the Simple Oracle Script Loader.

@@ -1,1 +1,1 @@
-This folder contains the PowerShell script components.
+This folder contains the PowerShell script components of the Simple Oracle Script Loader.
