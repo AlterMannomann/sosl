@@ -1,0 +1,1 @@
+This folder contains the DDL scripts to setup SOSL.
