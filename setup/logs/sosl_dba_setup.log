@@ -1,0 +1,37 @@
+Password for SOSL: 
+SOSL_MSG
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Create user/schema SOSL with a password of length 4? The tablespace SOSL_TABLESPACE with 100M, data sosl.dbf is created in the default directory. Use Ctrl-C to stop the script in sqlplus, Enter to continue.
+Create user/schema SOSL with a password of length 4? The tablespace SOSL_TABLESPACE with 100M, data sosl.dbf is created in the default directory. Use Ctrl-C to stop the script in sqlplus, Enter to continue.
+
+SQL> -- tablespace
+SQL> CREATE TABLESPACE sosl_tablespace
+  2    DATAFILE 'sosl.dbf'
+  3  	 SIZE 100M
+  4  	 AUTOEXTEND ON
+  5  ;
+SQL> -- user creation
+SQL> CREATE USER sosl IDENTIFIED BY &SOSL_PASS;
+SQL> -- assign tablespace
+SQL> ALTER USER sosl
+  2    DEFAULT TABLESPACE sosl_tablespace
+  3    ACCOUNT UNLOCK;
+SQL> -- quotas
+SQL> ALTER USER sosl QUOTA UNLIMITED ON sosl_tablespace;
+SQL> -- basic grants
+SQL> GRANT CREATE VIEW TO sosl;
+SQL> GRANT GATHER_SYSTEM_STATISTICS TO sosl;
+SQL> GRANT CONNECT TO sosl;
+SQL> GRANT RESOURCE TO sosl;
+SQL> SET ECHO OFF
+INFO
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Executed: 12-SEP-24 12.41.59.506915 AM +00:00
+Created user SOSL with unlimited quota on
+tablespace SOSL_TABLESPACE, 100 MB, data file sosl.dbf
+Granted CREATE VIEW, CONNECT, RESSOURCE, GATHER_SYSTEM_STATISTICS
+by Adi
+using SYS
+on database FREEPDB1
+from terminal ALIEN_M18
+
