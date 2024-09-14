@@ -1,10 +1,87 @@
 REM @ECHO OFF - disabled during testing
-REM basically define variable defaults on highest level to be accessible for all called CMD files
+REM CMD must be called in this directory to make relative paths work. You may use START /D or task
+REM scheduler to set the correct path the CMD is running in.
+REM Basically define variable defaults on highest level to be accessible for all called CMD files
 REM you may change this variables using sosl_config.cmd, no need to touch this file. See also for
 REM description of used variables.
-SET SOSL_PATH_TMP=..\..\tmp
-SET SOSL_PATH_LOG=..\..\log
-REM This is a fallback using the repository directory, if path is not configured. Must be configured in sosl_config.cmd.
-SET SOSL_PATH_CFG=..\sosl_templates
+REM *****************************************************************************************************
+REM Variables that can be manipulated by sosl_config.cmd or loaded from database.
+REM This is a fallback using the repository directory, if path is not configured. SHOULD be configured in
+REM sosl_config.cmd or the database.
+SET SOSL_PATH_CFG=..\sosl_templates\
+REM Default path to temporary files of SOSL.
+SET SOSL_PATH_TMP=..\..\tmp\
+REM Default path to logging files of SOSL.
+SET SOSL_PATH_LOG=..\..\log\
+REM Default log file extension.
+SET SOSL_EXT_LOG=log
+REM Default process lock file extension.
+SET SOSL_EXT_LOCK=lock
+REM Default log filename for start and end of SOSL server CMD.
+SET SOSL_START_LOG=sosl_server
+REM Default log filename for single job runs.
+SET SOSL_BASE_LOG=sosl_job_
+REM The maximum of parallel started scripts. After this amount if scripts is started, next scripts are
+REM only loaded, if the run count is below this value.
+SET SOSL_MAX_PARALLEL=8
+REM *****************************************************************************************************
+REM Variables used in the script and loaded by called CMDs.
+REM Variable to hold GUIDs produced for each session. Used to create unique identifiers for SOSLERRORLOG
+REM by calling sosl_guid.cmd.
+SET SOSL_GUID=undefined
+REM Variable to hold timestamp for logging, can be fetched by calling sosl_timestamp.cmd.
+SET SOSL_DATETIME=undefined
+REM Variable to store current error information.
+SET SOSL_ERRMSG=undefined
+REM Variable for storing exit codes from ERRORLEVEL.
+SET SOSL_EXITCODE=-1
+REM Variable to store the current count of running processes.
+SET SOSL_RUNCOUNT=0
+REM Get the full path of the run directory
+SET SOSL_RUNDIR=%CD%
+REM Get the full path of the base git directory
+CD ..
+SET SOSL_GITDIR=%CD%
+CD %SOSL_RUNDIR%
 REM Fetch configured variables and overwrite definition if needed
 CALL sosl_config.cmd
+SET SOSL_EXITCODE=%ERRORLEVEL%
+IF NOT %SOSL_EXITCODE%==0 (
+  SET SOSL_ERRMSG=Error executing sosl_config.cmd
+  GOTO :SOSL_ERROR
+)
+REM Create log and tmp directories if they do not exist, ignore config directory, user responsibility
+MKDIR %SOSL_PATH_LOG% 2>NUL
+MKDIR %SOSL_PATH_TMP% 2>NUL
+REM Create log entry
+CALL sosl_timestamp.cmd
+SET SOSL_EXITCODE=%ERRORLEVEL%
+IF NOT %SOSL_EXITCODE%==0 (
+  SET SOSL_ERRMSG=Error executing sosl_timestamp.cmd
+  GOTO :SOSL_ERROR
+)
+ECHO %SOSL_DATETIME% SOSL configuration loaded >> %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
+REM fetch a guid for the start process
+CALL sosl_guid.cmd
+SET SOSL_EXITCODE=%ERRORLEVEL%
+IF NOT %SOSL_EXITCODE%==0 (
+  SET SOSL_ERRMSG=Error executing sosl_guid.cmd
+  GOTO :SOSL_ERROR
+)
+CALL sosl_timestamp.cmd
+ECHO %SOSL_DATETIME% Current GUID for session start: %SOSL_GUID% >> %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
+CALL sosl_timestamp.cmd
+(TYPE %SOSL_PATH_CFG%sosl_login.cfg && ECHO @@..\sosl_sql\sosl_whoami.sql "%SOSL_GUID%_whoami" "%SOSL_DATETIME%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%") | sqlplus
+SET SOSL_EXITCODE=%ERRORLEVEL%
+IF NOT %SOSL_EXITCODE%==0 (
+  SET SOSL_ERRMSG=Error executing sosl_whoami.sql
+  GOTO :SOSL_ERROR
+)
+
+REM Skip error handling
+GOTO SOSL_EXIT
+:SOSL_ERROR
+REM do not care if SOSL_DATETIME is correct or undefined
+ECHO %SOSL_DATETIME% %SOSL_ERRMSG% >> %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
+
+:SOSL_EXIT
