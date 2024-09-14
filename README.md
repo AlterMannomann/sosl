@@ -32,7 +32,7 @@ The script call then will use basically
 
     (TYPE %SOSL_PATH_CFG%sosl_login.cfg && ECHO @@script_to_call.sql "Parameter") | sqlplus
 
-This will at least avoid that the user and password can be seen in the executed command line or in the oracle session. If want to inject a programm, you have to replace the TYPE with a DOS program that results in the output of the three needed lines for the login.
+This will at least avoid that the user and password can be seen in the executed command line or in the oracle session. If want to inject a programm, you have to replace the TYPE with a DOS program that results in the output of the three needed lines for the login. Calling a CMD at this point doesn't work well at least with Windows 11.
 
 However, if there is still some sort of file, the content is visible to those, who have the necessary rights. Thus anyone with this rights, also if hacked, can see the password and user. The default version will use files and can't be declared as secure therefore.
 
