@@ -71,7 +71,8 @@ IF NOT %SOSL_EXITCODE%==0 (
 CALL sosl_timestamp.cmd
 ECHO %SOSL_DATETIME% Current GUID for session start: %SOSL_GUID% >> %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
 CALL sosl_timestamp.cmd
-(TYPE %SOSL_PATH_CFG%sosl_login.cfg && ECHO @@..\sosl_sql\sosl_whoami.sql "%SOSL_GUID%_whoami" "%SOSL_DATETIME%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%") | sqlplus
+REM Add an extra line echo if last empty line is missing
+(TYPE %SOSL_PATH_CFG%sosl_login.cfg && ECHO. && ECHO @@..\sosl_sql\sosl_whoami.sql "%SOSL_GUID%_whoami" "%SOSL_DATETIME%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%") | sqlplus
 SET SOSL_EXITCODE=%ERRORLEVEL%
 IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_whoami.sql

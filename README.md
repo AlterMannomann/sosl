@@ -30,7 +30,7 @@ The basic solution will read a login file as input for sqlplus using the followi
 
 The script call then will use basically
 
-    (sosl_login.cmd && ECHO @@script_to_call.sql "Parameter") | sqlplus
+    (TYPE %SOSL_PATH_CFG%sosl_login.cfg && ECHO @@script_to_call.sql "Parameter") | sqlplus
 
 This will at least avoid that the user and password can be seen in the executed command line or in the oracle session. The sosl_login.cmd will just execute a TYPE on the defined login file and can be used to inject there any programm that results in the output of the three needed lines for the login.
 

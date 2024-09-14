@@ -1,4 +1,4 @@
-@ECHO OFF
+REM @ECHO OFF
 REM Create a unique id, variable SOSL_GUID should be defined by the caller
 REM Using BITSADMIN to create a GUID for a job and then cancel the job
 FOR /f "delims={}" %%I IN ('bitsadmin /rawreturn /create guid') DO (

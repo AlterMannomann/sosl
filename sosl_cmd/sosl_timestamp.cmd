@@ -1,4 +1,4 @@
-@ECHO OFF
+REM @ECHO OFF
 REM get region independent timestamp for logs, DATETIME should be defined on caller level
 REM SQL format equivalent is TO_CHAR(SYSTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS.FF6 -')
 FOR /f %%a IN ('WMIC OS GET LocalDateTime ^| FIND "."') DO (
