@@ -10,6 +10,7 @@ SET ERRORLOGGING ON
 SET ERRORLOGGING ON IDENTIFIER &IDENT
 SPOOL logs/sosl_setup.log
 @@../sosl_ddl/tables/soslerrorlog.sql
+@@../sosl_ddl/tables/sosl_server_log.sql
 @@../sosl_ddl/tables/sosl_config.sql
 @@../sosl_ddl/tables/sosl_scripts.sql
 @@../sosl_sql/util/log_silent.sql

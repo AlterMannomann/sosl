@@ -40,6 +40,108 @@ SQL> COMMENT ON COLUMN soslerrorlog.statement IS 'The statement causing the erro
 
 Comment created.
 
+SQL> @@../sosl_ddl/tables/sosl_server_log.sql
+SQL> CREATE TABLE sosl_server_log
+  2    ( exec_timestamp    TIMESTAMP	   DEFAULT SYSTIMESTAMP  NOT NULL
+  3    , log_type	   VARCHAR2(30)    DEFAULT 'INFO'	 NOT NULL
+  4    , message	   VARCHAR2(4000)  NOT NULL
+  5    , full_message	   CLOB
+  6    , guid		   VARCHAR2(64)
+  7    , sosl_identifier   VARCHAR2(256)
+  8    , caller 	   VARCHAR2(256)
+  9    )
+ 10    -- monthly partitions
+ 11    PARTITION BY RANGE (exec_timestamp)
+ 12    INTERVAL (NUMTOYMINTERVAL(1, 'MONTH'))
+ 13    (PARTITION P_OLD
+ 14  	   VALUES LESS THAN (TO_TIMESTAMP('01-01-2024','DD-MM-YYYY'))
+ 15    )
+ 16  ;
+
+Table created.
+
+SQL> COMMENT ON TABLE sosl_server_log IS 'Holds the log events of the SOSL server CMD and interaction with the database. Update is not allowed. Will use the alias slog.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.exec_timestamp IS 'The timestamp of the event. Automatically set by trigger, no update allowed.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.log_type IS 'The logging type, supports INFO, WARNING, ERROR, FATAL, SUCCESS. Mandatory.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.message IS 'The shortend log message. Mandatory. If only a CLOB is passed, the short message is build from the CLOB.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.full_message IS 'The full log message. For messages longer than 4000 bytes or char.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.guid IS 'The GUID the process is running with. Can be used as LIKE reference on SOSLERRORLOG.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.sosl_identifier IS 'The exact identifier for SOSLERRORLOG if available.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.caller IS 'Caller identification if available, to distinguish database processes from SOSL CMD server processes.';
+
+Comment created.
+
+SQL> -- no primary key, only index
+SQL> CREATE INDEX sosl_server_log_idx
+  2    ON sosl_server_log (exec_timestamp)
+  3  ;
+
+Index created.
+
+SQL> -- constraints
+SQL> ALTER TABLE sosl_server_log
+  2    ADD CONSTRAINT sosl_server_log_chk_type
+  3    CHECK (log_type IN ('INFO', 'WARNING', 'ERROR', 'FATAL', 'SUCCESS'))
+  4  ;
+
+Table altered.
+
+SQL> -- trigger
+SQL> CREATE OR REPLACE TRIGGER sosl_server_log_ins_trg
+  2    BEFORE INSERT ON sosl_server_log
+  3    FOR EACH ROW
+  4  BEGIN
+  5    :NEW.exec_timestamp := SYSTIMESTAMP;
+  6    IF (:NEW.message IS NULL)
+  7    THEN
+  8  	 IF :NEW.full_message IS NOT NULL
+  9  	 THEN
+ 10  	   IF LENGTH(TRIM(:NEW.full_message)) > 4000
+ 11  	   THEN
+ 12  	     :NEW.message := TO_CHAR(SUBSTR(TRIM(:NEW.full_message), 1, 3996)) || ' ...';
+ 13  	   ELSE
+ 14  	     :NEW.message := TO_CHAR(TRIM(:NEW.full_message));
+ 15  	   END IF;
+ 16  	 ELSE
+ 17  	   RAISE_APPLICATION_ERROR(-20003, 'Full message must be given, if message is NULL.');
+ 18  	 END IF;
+ 19    END IF;
+ 20  END;
+ 21  /
+
+Trigger created.
+
+SQL> CREATE OR REPLACE TRIGGER sosl_server_log_upd_trg
+  2    BEFORE UPDATE ON sosl_server_log
+  3    FOR EACH ROW
+  4  BEGIN
+  5    RAISE_APPLICATION_ERROR(-20004, 'No updates allowed on a log table.');
+  6  END;
+  7  /
+
+Trigger created.
+
 SQL> @@../sosl_ddl/tables/sosl_config.sql
 SQL> CREATE TABLE sosl_config
   2    ( config_name	     VARCHAR2(128)		     NOT NULL
@@ -102,8 +204,8 @@ SQL> ALTER TABLE sosl_config
 Table altered.
 
 SQL> -- trigger
-SQL> CREATE OR REPLACE TRIGGER sosl_config_ins_trg
-  2    BEFORE INSERT ON sosl_config
+SQL> CREATE OR REPLACE TRIGGER sosl_config_ins_upd_trg
+  2    BEFORE INSERT OR UPDATE ON sosl_config
   3    FOR EACH ROW
   4  DECLARE
   5    l_ok    BOOLEAN;
@@ -169,7 +271,7 @@ SQL> -- load default values that can be configured in the database
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_description)
   3    VALUES
-  4    ('SOSL_PATH_CFG', '..\..\cfg\', 'Path to configuration files the SOSL server uses. As configuration files contain credentials and secrets the path should be in a safe space with controlled user rights.')
+  4    ('SOSL_PATH_CFG', '..\..\cfg\', 'Path to configuration files the SOSL server uses. Set by SOSL server. As configuration files contain credentials and secrets the path should be in a safe space with controlled user rights.')
   5  ;
 
 1 row created.
@@ -177,7 +279,7 @@ SQL> INSERT INTO sosl_config
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_max_length, config_description)
   3    VALUES
-  4    ('SOSL_PATH_TMP', '..\..\tmp\', 239, 'Path to temporary files the SOSL server uses. Parameter for sql files, limited to 239 chars.')
+  4    ('SOSL_PATH_TMP', '..\..\tmp\', 239, 'Path to temporary files the SOSL server uses. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
   5  ;
 
 1 row created.
@@ -185,7 +287,7 @@ SQL> INSERT INTO sosl_config
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_max_length, config_description)
   3    VALUES
-  4    ('SOSL_PATH_LOG', '..\..\log\', 239, 'Path to log files the SOSL server creates. Parameter for sql files, limited to 239 chars.')
+  4    ('SOSL_PATH_LOG', '..\..\log\', 239, 'Path to log files the SOSL server creates. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
   5  ;
 
 1 row created.
@@ -193,7 +295,7 @@ SQL> INSERT INTO sosl_config
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_description)
   3    VALUES
-  4    ('SOSL_EXT_LOG', 'log', 'Log file extension to use.')
+  4    ('SOSL_EXT_LOG', 'log', 'Log file extension to use. Set by SOSL server.')
   5  ;
 
 1 row created.
@@ -201,7 +303,7 @@ SQL> INSERT INTO sosl_config
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_description)
   3    VALUES
-  4    ('SOSL_EXT_LOCK', 'lock', 'Default process lock file extension.')
+  4    ('SOSL_EXT_LOCK', 'lock', 'Default process lock file extension. Set by SOSL server.')
   5  ;
 
 1 row created.
@@ -209,7 +311,7 @@ SQL> INSERT INTO sosl_config
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_description)
   3    VALUES
-  4    ('SOSL_START_LOG', 'sosl_server', 'Log filename for start and end of SOSL server CMD.')
+  4    ('SOSL_START_LOG', 'sosl_server', 'Log filename for start and end of SOSL server CMD. Set by SOSL server.')
   5  ;
 
 1 row created.
@@ -217,7 +319,7 @@ SQL> INSERT INTO sosl_config
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_description)
   3    VALUES
-  4    ('SOSL_BASE_LOG', 'sosl_job_', 'Base log filename for single job runs. Will be extended by GUID.')
+  4    ('SOSL_BASE_LOG', 'sosl_job_', 'Base log filename for single job runs. Will be extended by GUID. Set by SOSL server.')
   5  ;
 
 1 row created.
@@ -225,7 +327,15 @@ SQL> INSERT INTO sosl_config
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_type, config_description)
   3    VALUES
-  4    ('SOSL_MAX_PARALLEL', '8', 'NUMBER', 'The maximum of parallel started scripts. After this amount if scripts is started, next scripts are only loaded, if the run count is below this value.')
+  4    ('SOSL_MAX_PARALLEL', '8', 'NUMBER', 'The maximum of parallel started scripts. Read by the SOSL server. After this amount if scripts is started, next scripts are only loaded, if the run count is below this value.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_RUNMODE', 'RUN', 'CHAR', 'Determines if the server should RUN or STOP. Read by the SOSL server. RUN will cause the SOSL server, if started to run as long as it does not get a STOP signal from the database. Set it to STOP to stop the SOSL server.')
   5  ;
 
 1 row created.

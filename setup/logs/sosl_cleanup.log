@@ -8,6 +8,11 @@ SQL> DROP TABLE sosl_config PURGE;
 
 Table dropped.
 
+SQL> @@../sosl_ddl/tables/drop/drop_sosl_server_log.sql
+SQL> DROP TABLE sosl_server_log PURGE;
+
+Table dropped.
+
 SQL> @@../sosl_ddl/tables/drop/drop_soslerrorlog.sql
 SQL> DROP TABLE soslerrorlog PURGE;
 

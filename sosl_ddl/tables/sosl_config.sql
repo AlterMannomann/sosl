@@ -29,8 +29,8 @@ ALTER TABLE sosl_config
   CHECK (config_max_length = -1 OR config_max_length > 0)
 ;
 -- trigger
-CREATE OR REPLACE TRIGGER sosl_config_ins_trg
-  BEFORE INSERT ON sosl_config
+CREATE OR REPLACE TRIGGER sosl_config_ins_upd_trg
+  BEFORE INSERT OR UPDATE ON sosl_config
   FOR EACH ROW
 DECLARE
   l_ok    BOOLEAN;
@@ -90,41 +90,46 @@ END;
 INSERT INTO sosl_config
   (config_name, config_value, config_description)
   VALUES
-  ('SOSL_PATH_CFG', '..\..\cfg\', 'Path to configuration files the SOSL server uses. As configuration files contain credentials and secrets the path should be in a safe space with controlled user rights.')
+  ('SOSL_PATH_CFG', '..\..\cfg\', 'Path to configuration files the SOSL server uses. Set by SOSL server. As configuration files contain credentials and secrets the path should be in a safe space with controlled user rights.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_max_length, config_description)
   VALUES
-  ('SOSL_PATH_TMP', '..\..\tmp\', 239, 'Path to temporary files the SOSL server uses. Parameter for sql files, limited to 239 chars.')
+  ('SOSL_PATH_TMP', '..\..\tmp\', 239, 'Path to temporary files the SOSL server uses. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_max_length, config_description)
   VALUES
-  ('SOSL_PATH_LOG', '..\..\log\', 239, 'Path to log files the SOSL server creates. Parameter for sql files, limited to 239 chars.')
+  ('SOSL_PATH_LOG', '..\..\log\', 239, 'Path to log files the SOSL server creates. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_description)
   VALUES
-  ('SOSL_EXT_LOG', 'log', 'Log file extension to use.')
+  ('SOSL_EXT_LOG', 'log', 'Log file extension to use. Set by SOSL server.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_description)
   VALUES
-  ('SOSL_EXT_LOCK', 'lock', 'Default process lock file extension.')
+  ('SOSL_EXT_LOCK', 'lock', 'Default process lock file extension. Set by SOSL server.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_description)
   VALUES
-  ('SOSL_START_LOG', 'sosl_server', 'Log filename for start and end of SOSL server CMD.')
+  ('SOSL_START_LOG', 'sosl_server', 'Log filename for start and end of SOSL server CMD. Set by SOSL server.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_description)
   VALUES
-  ('SOSL_BASE_LOG', 'sosl_job_', 'Base log filename for single job runs. Will be extended by GUID.')
+  ('SOSL_BASE_LOG', 'sosl_job_', 'Base log filename for single job runs. Will be extended by GUID. Set by SOSL server.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_type, config_description)
   VALUES
-  ('SOSL_MAX_PARALLEL', '8', 'NUMBER', 'The maximum of parallel started scripts. After this amount if scripts is started, next scripts are only loaded, if the run count is below this value.')
+  ('SOSL_MAX_PARALLEL', '8', 'NUMBER', 'The maximum of parallel started scripts. Read by the SOSL server. After this amount if scripts is started, next scripts are only loaded, if the run count is below this value.')
+;
+INSERT INTO sosl_config
+  (config_name, config_value, config_type, config_description)
+  VALUES
+  ('SOSL_RUNMODE', 'RUN', 'CHAR', 'Determines if the server should RUN or STOP. Read by the SOSL server. RUN will cause the SOSL server, if started to run as long as it does not get a STOP signal from the database. Set it to STOP to stop the SOSL server.')
 ;
 COMMIT;

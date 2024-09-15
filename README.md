@@ -12,6 +12,7 @@ This project is not a click here and there, fire and forget application. You wil
 This is an interface application that can be integrated into your projects to load scripts from a defined location triggered by the database. It can be used to run for example test scripts by database triggers or maintenance check scripts on events. The integration framework cannot be covered by this project, you will have to create it on your own depending on your system and application.
 ## Requirements
 - A working Oracle Client including SQLPlus installed on the preferred OS
+- An Oracle version >= 12c, DDLs using IDENTITY column syntax
 - Access to shell or command console (may require admin rights)
 - Sufficient rights on the schema of the database, for which scripts should run
   - Rights to install packages, tables, views and other database objects (complete list will be available if project has state published)

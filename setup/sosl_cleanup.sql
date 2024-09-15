@@ -11,6 +11,7 @@ SET ERRORLOGGING ON IDENTIFIER &IDENT
 SPOOL logs/sosl_cleanup.log
 @@../sosl_ddl/tables/drop/drop_sosl_scripts.sql
 @@../sosl_ddl/tables/drop/drop_sosl_config.sql
+@@../sosl_ddl/tables/drop/drop_sosl_server_log.sql
 @@../sosl_ddl/tables/drop/drop_soslerrorlog.sql
 @@../sosl_sql/util/log_silent.sql
 -- check errors and display them, if so

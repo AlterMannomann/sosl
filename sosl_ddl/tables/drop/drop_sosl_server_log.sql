@@ -1,0 +1,1 @@
+DROP TABLE sosl_server_log PURGE;
