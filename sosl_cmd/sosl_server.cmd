@@ -50,8 +50,18 @@ REM Define variables fetched from database
 REM The maximum of parallel started scripts. After this amount if scripts is started, next scripts are
 REM only loaded, if the run count is below this value.
 SET SOSL_MAX_PARALLEL=8
-REM Defines the run mode of the server. Either RUN or STOP any other value will be interpreted as STOP.
+REM Defines the run mode of the server. Either RUN, SLEEP or STOP any other value will be interpreted as
+REM STOP.
 SET SOSL_RUNMODE=RUN
+REM Defines the wait time, if scripts are available for execution, by default 1 second. Remember to give
+REM always other processes a chance.
+SET SOSL_MIN_WAIT=1
+REM Defines the wait time, if scripts are not available for execution and RUNMODE is not SLEEP, by
+REM default 2 minutes.
+SET SOSL_DEF_WAIT=120
+REM Defines the wait time, if scripts are not available for execution and RUNMODE is SLEEP, by default 10
+REM minutes.
+SET SOSL_MAX_WAIT=600
 REM Variable to hold GUIDs produced for each session. Used to create unique identifiers for SOSLERRORLOG
 REM by calling sosl_guid.cmd.
 SET SOSL_GUID=undefined
