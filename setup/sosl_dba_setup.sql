@@ -2,8 +2,6 @@
 -- tested with SQLPlus and SQL Developer (execute as script)
 -- you may want to adjust tablespace
 @@../sosl_sql/util/log_silent.sql
--- load default log settings
-@@../sosl_sql/util/log_defaults.sql
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 WHENEVER OSERROR EXIT FAILURE ROLLBACK
 CLEAR COLUMNS
@@ -36,11 +34,12 @@ GRANT CREATE VIEW TO sosl;
 GRANT GATHER_SYSTEM_STATISTICS TO sosl;
 GRANT CONNECT TO sosl;
 GRANT RESOURCE TO sosl;
+GRANT SELECT ON v_$session TO sosl;
 SET ECHO OFF
 SELECT 'Executed: ' || TO_CHAR(SYSTIMESTAMP) || CHR(13) || CHR(10) ||
        'Created user SOSL with unlimited quota on' || CHR(13) || CHR(10) ||
        'tablespace SOSL_TABLESPACE, 100 MB, data file sosl.dbf' || CHR(13) || CHR(10) ||
-       'Granted CREATE VIEW, CONNECT, RESSOURCE, GATHER_SYSTEM_STATISTICS' || CHR(13) || CHR(10) ||
+       'Granted CREATE VIEW, CONNECT, RESSOURCE, GATHER_SYSTEM_STATISTICS, V$SESSION' || CHR(13) || CHR(10) ||
        'by ' || SYS_CONTEXT ('USERENV', 'OS_USER') || CHR(13) || CHR(10) ||
        'using ' || SYS_CONTEXT ('USERENV', 'SESSION_USER') || CHR(13) || CHR(10) ||
        'on database ' || SYS_CONTEXT ('USERENV', 'DB_NAME') || CHR(13) || CHR(10) ||

@@ -12,6 +12,7 @@ This project is not a click here and there, fire and forget application. You wil
 This is an interface application that can be integrated into your projects to load scripts from a defined location triggered by the database. It can be used to run for example test scripts by database triggers or maintenance check scripts on events. The integration framework cannot be covered by this project, you will have to create it on your own depending on your system and application.
 ## Requirements
 - A working Oracle Client including SQLPlus installed on the preferred OS
+- An Oracle version >= 12c, DDLs using IDENTITY column syntax
 - Access to shell or command console (may require admin rights)
 - Sufficient rights on the schema of the database, for which scripts should run
   - Rights to install packages, tables, views and other database objects (complete list will be available if project has state published)
@@ -30,9 +31,9 @@ The basic solution will read a login file as input for sqlplus using the followi
 
 The script call then will use basically
 
-    (sosl_login.cmd && ECHO @@script_to_call.sql "Parameter") | sqlplus
+    (TYPE %SOSL_PATH_CFG%sosl_login.cfg && ECHO @@script_to_call.sql "Parameter") | sqlplus
 
-This will at least avoid that the user and password can be seen in the executed command line or in the oracle session. The sosl_login.cmd will just execute a TYPE on the defined login file and can be used to inject there any programm that results in the output of the three needed lines for the login.
+This will at least avoid that the user and password can be seen in the executed command line or in the oracle session. If want to inject a programm, you have to replace the TYPE with a DOS program that results in the output of the three needed lines for the login. Calling a CMD at this point doesn't work well at least with Windows 11.
 
 However, if there is still some sort of file, the content is visible to those, who have the necessary rights. Thus anyone with this rights, also if hacked, can see the password and user. The default version will use files and can't be declared as secure therefore.
 

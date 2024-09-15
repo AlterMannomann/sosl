@@ -1,0 +1,23 @@
+SQL> @@../sosl_ddl/tables/drop/drop_sosl_scripts.sql
+SQL> DROP TABLE sosl_scripts PURGE;
+
+Table dropped.
+
+SQL> @@../sosl_ddl/tables/drop/drop_sosl_config.sql
+SQL> DROP TABLE sosl_config PURGE;
+
+Table dropped.
+
+SQL> @@../sosl_ddl/tables/drop/drop_sosl_server_log.sql
+SQL> DROP TABLE sosl_server_log PURGE;
+
+Table dropped.
+
+SQL> @@../sosl_ddl/tables/drop/drop_soslerrorlog.sql
+SQL> DROP TABLE soslerrorlog PURGE;
+
+Table dropped.
+
+SQL> @@../sosl_sql/util/log_silent.sql
+SQL> SET ECHO OFF
+SUCCESS - no errors found during setup          0
