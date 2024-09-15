@@ -4,7 +4,7 @@ Drop user/schema SOSL including tablespace SOSL_TABLESPACE and datafile? Use Ctr
 SQL> DROP USER sosl CASCADE;
 SQL> DROP TABLESPACE sosl_tablespace DROP QUOTA INCLUDING CONTENTS AND DATAFILES;
 SQL> SET ECHO OFF
-Executed: 15-SEP-24 03.52.58.291498 AM +00:00
+Executed: 15-SEP-24 10.51.43.957755 PM +00:00
 User SOSL dropped
 Tablespace SOSL_TABLESPACE and datafile dropped
 by Adi
