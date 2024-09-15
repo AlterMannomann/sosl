@@ -67,21 +67,40 @@ BEGIN
   END IF;
 END;
 /
+CREATE OR REPLACE TRIGGER sosl_config_del_trg
+  BEFORE DELETE ON sosl_config
+  FOR EACH ROW
+BEGIN
+  -- protect system parameters from delete
+  IF :OLD.config_name IN ( 'SOSL_PATH_CFG'
+                         , 'SOSL_PATH_TMP'
+                         , 'SOSL_PATH_LOG'
+                         , 'SOSL_EXT_LOG'
+                         , 'SOSL_EXT_LOCK'
+                         , 'SOSL_START_LOG'
+                         , 'SOSL_BASE_LOG'
+                         , 'SOSL_MAX_PARALLEL'
+                         )
+  THEN
+    RAISE_APPLICATION_ERROR(-20002, 'The given system config_name "' || :OLD.config_name || '" cannot be deleted.');
+  END IF;
+END;
+/
 -- load default values that can be configured in the database
 INSERT INTO sosl_config
   (config_name, config_value, config_description)
   VALUES
-  ('SOSL_PATH_CFG', '../../cfg/', 'Path to configuration files the SOSL server uses. As configuration files contain credentials and secrets the path should be in a safe space with controlled user rights.')
+  ('SOSL_PATH_CFG', '..\..\cfg\', 'Path to configuration files the SOSL server uses. As configuration files contain credentials and secrets the path should be in a safe space with controlled user rights.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_max_length, config_description)
   VALUES
-  ('SOSL_PATH_TMP', '../../tmp/', 239, 'Path to temporary files the SOSL server uses. Parameter for sql files, limited to 239 chars.')
+  ('SOSL_PATH_TMP', '..\..\tmp\', 239, 'Path to temporary files the SOSL server uses. Parameter for sql files, limited to 239 chars.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_max_length, config_description)
   VALUES
-  ('SOSL_PATH_LOG', '../../log/', 239, 'Path to log files the SOSL server creates. Parameter for sql files, limited to 239 chars.')
+  ('SOSL_PATH_LOG', '..\..\log\', 239, 'Path to log files the SOSL server creates. Parameter for sql files, limited to 239 chars.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_description)

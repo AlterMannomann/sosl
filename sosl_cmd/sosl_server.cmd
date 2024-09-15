@@ -43,17 +43,37 @@ REM Get the full path of the base git directory
 CD ..
 SET SOSL_GITDIR=%CD%
 CD %SOSL_RUNDIR%
-REM Fetch configured variables and overwrite definition if needed
+REM create at least a temporary log directory in the default place to be able to log early errors
+SET SOSL_TMP_LOG=%SOSL_PATH_LOG%
+MKDIR %SOSL_PATH_LOG% 2>NUL
+REM fetch a guid for the start process, check error for this CMD only once
+CALL sosl_guid.cmd
+SET SOSL_EXITCODE=%ERRORLEVEL%
+IF NOT %SOSL_EXITCODE%==0 (
+  SET SOSL_ERRMSG=Error executing sosl_guid.cmd
+  GOTO :SOSL_ERROR
+)
+REM fetch a timestamp, check error for timestamp CMD only once
+CALL sosl_timestamp.cmd
+SET SOSL_EXITCODE=%ERRORLEVEL%
+IF NOT %SOSL_EXITCODE%==0 (
+  SET SOSL_ERRMSG=Error executing sosl_timestamp.cmd
+  GOTO :SOSL_ERROR
+)
+REM Fetch configured variables and overwrite definition if needed, check error for this CMD only once
+REM Default is load configuration from database.
 CALL sosl_config.cmd
 SET SOSL_EXITCODE=%ERRORLEVEL%
 IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_config.cmd
   GOTO :SOSL_ERROR
 )
+REM If we have reached this point, we can delete temporary log path not needed
+IF NOT [%SOSL_PATH_LOG%]==[%SOSL_TMP_LOG%] RMDIR /S /Q %SOSL_TMP_LOG%
 REM Create log and tmp directories if they do not exist, ignore config directory, user responsibility
 MKDIR %SOSL_PATH_LOG% 2>NUL
 MKDIR %SOSL_PATH_TMP% 2>NUL
-REM Create log entry
+REM Create log entry, check error for timestamp CMD only once
 CALL sosl_timestamp.cmd
 SET SOSL_EXITCODE=%ERRORLEVEL%
 IF NOT %SOSL_EXITCODE%==0 (
@@ -61,7 +81,7 @@ IF NOT %SOSL_EXITCODE%==0 (
   GOTO :SOSL_ERROR
 )
 ECHO %SOSL_DATETIME% SOSL configuration loaded >> %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
-REM fetch a guid for the start process
+REM fetch a guid for the start process, check error for this CMD only once
 CALL sosl_guid.cmd
 SET SOSL_EXITCODE=%ERRORLEVEL%
 IF NOT %SOSL_EXITCODE%==0 (
@@ -70,15 +90,19 @@ IF NOT %SOSL_EXITCODE%==0 (
 )
 CALL sosl_timestamp.cmd
 ECHO %SOSL_DATETIME% Current GUID for session start: %SOSL_GUID% >> %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
-CALL sosl_timestamp.cmd
 REM Add an extra line echo if last empty line is missing
-(TYPE %SOSL_PATH_CFG%sosl_login.cfg && ECHO. && ECHO @@..\sosl_sql\sosl_whoami.sql "%SOSL_GUID%_whoami" "%SOSL_DATETIME%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%") | sqlplus
+REM (TYPE %SOSL_PATH_CFG%sosl_login.cfg && ECHO. && ECHO @@..\sosl_sql\sosl_whoami.sql "%SOSL_GUID%_whoami" "%SOSL_DATETIME%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%") | sqlplus
+CALL sosl_timestamp.cmd
+REM The scriptname should not contain whitespaces or - otherwise parameter is separated into to different parameters.
+REM All script parameter must be enclosed in ".
+REM CALL sosl_sql.cmd @@..\sosl_sql\sosl_whoami.sql "%SOSL_GUID%_whoami" "%SOSL_DATETIME%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
 SET SOSL_EXITCODE=%ERRORLEVEL%
 IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_whoami.sql
   GOTO :SOSL_ERROR
 )
-
+REM Log additional information on the current parameter
+REM CALL sosl_log_config.cmd
 REM Skip error handling
 GOTO SOSL_EXIT
 :SOSL_ERROR

@@ -1,0 +1,277 @@
+SQL> @@../sosl_ddl/tables/soslerrorlog.sql
+SQL> CREATE TABLE soslerrorlog
+  2    ( username    VARCHAR2(256)
+  3    , timestamp   TIMESTAMP
+  4  	 -- older versions than Oracle 23 use VARCHAR2(1024)
+  5    , script      CLOB	   -- VARCHAR2(1024)
+  6    , identifier  VARCHAR2(256)
+  7    , message     CLOB
+  8    , statement   CLOB
+  9    )
+ 10  ;
+
+Table created.
+
+SQL> COMMENT ON TABLE soslerrorlog IS 'Userdefined table for SQLPlus error logging';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN soslerrorlog.username IS 'Oracle account name';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN soslerrorlog.timestamp IS 'Time when the error occurred';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN soslerrorlog.script IS 'Name of the originating script if applicable';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN soslerrorlog.identifier IS 'User defined identifier string';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN soslerrorlog.message IS 'ORA, PLA or SP2 error message. No feed back messages are included. For example, "PL/SQL Block Created" is not recorded.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN soslerrorlog.statement IS 'The statement causing the error';
+
+Comment created.
+
+SQL> @@../sosl_ddl/tables/sosl_config.sql
+SQL> CREATE TABLE sosl_config
+  2    ( config_name	     VARCHAR2(128)		     NOT NULL
+  3    , config_value	     VARCHAR2(4000)		     NOT NULL
+  4    , config_type	     VARCHAR2(6)     DEFAULT 'CHAR'  NOT NULL
+  5    , config_max_length   NUMBER	     DEFAULT -1      NOT NULL
+  6    , config_description  VARCHAR2(4000)
+  7    )
+  8  ;
+
+Table created.
+
+SQL> -- description
+SQL> COMMENT ON TABLE sosl_config IS 'Holds the configuration used by SOSL. Will use the alias scfg.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_config.config_name IS 'The unique case sensitive name of the SOSL configuration object.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_config.config_value IS 'The configuration value always as VARCHAR2. Type handling and conversion must be done by the caller.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_config.config_type IS 'Defines how the config value has to be interpreted. Currently supports CHAR and NUMBER.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_config.config_max_length IS 'Defines a maximum length for CHAR type config values if set to a number > 0. Default is -1, do not not check length.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_config.config_description IS 'Optional description of the SOSL config object.';
+
+Comment created.
+
+SQL> -- primary key
+SQL> ALTER TABLE sosl_config
+  2    ADD CONSTRAINT sosl_config_pk
+  3    PRIMARY KEY (config_name)
+  4    ENABLE
+  5  ;
+
+Table altered.
+
+SQL> -- constraints
+SQL> ALTER TABLE sosl_config
+  2    ADD CONSTRAINT sosl_config_chk_type
+  3    CHECK (config_type IN ('CHAR', 'NUMBER'))
+  4  ;
+
+Table altered.
+
+SQL> ALTER TABLE sosl_config
+  2    ADD CONSTRAINT sosl_config_chk_max_length
+  3    CHECK (config_max_length = -1 OR config_max_length > 0)
+  4  ;
+
+Table altered.
+
+SQL> -- trigger
+SQL> CREATE OR REPLACE TRIGGER sosl_config_ins_trg
+  2    BEFORE INSERT ON sosl_config
+  3    FOR EACH ROW
+  4  DECLARE
+  5    l_ok    BOOLEAN;
+  6    l_date  DATE;
+  7  BEGIN
+  8    -- remove any leading and trailing blanks from config_value
+  9    :NEW.config_value := TRIM(:NEW.config_value);
+ 10    -- check max length if defined
+ 11    IF :NEW.config_type = 'CHAR'
+ 12    THEN
+ 13  	 IF :NEW.config_max_length > 0
+ 14  	 THEN
+ 15  	   IF LENGTH(:NEW.config_value) > :NEW.config_max_length
+ 16  	   THEN
+ 17  	     RAISE_APPLICATION_ERROR(-20000, 'The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value));
+ 18  	   END IF;
+ 19  	 END IF;
+ 20    END IF;
+ 21    -- check number type
+ 22    IF :NEW.config_type = 'NUMBER'
+ 23    THEN
+ 24  	 l_ok := TRUE;
+ 25  	 -- compare TO_NUMBER with implicite conversion, if it fails the config_value cannot be interpreted correctly
+ 26  	 BEGIN
+ 27  	   l_ok := (TO_NUMBER(:NEW.config_value) = :NEW.config_value);
+ 28  	 EXCEPTION
+ 29  	   WHEN OTHERS THEN
+ 30  	     l_ok := FALSE;
+ 31  	 END;
+ 32  	 IF NOT l_ok
+ 33  	 THEN
+ 34  	   RAISE_APPLICATION_ERROR(-20001, 'The given config_value "' || :NEW.config_value || '" could not be converted successfully to a number.');
+ 35  	 END IF;
+ 36    END IF;
+ 37  END;
+ 38  /
+
+Trigger created.
+
+SQL> CREATE OR REPLACE TRIGGER sosl_config_del_trg
+  2    BEFORE DELETE ON sosl_config
+  3    FOR EACH ROW
+  4  BEGIN
+  5    -- protect system parameters from delete
+  6    IF :OLD.config_name IN ( 'SOSL_PATH_CFG'
+  7  			      , 'SOSL_PATH_TMP'
+  8  			      , 'SOSL_PATH_LOG'
+  9  			      , 'SOSL_EXT_LOG'
+ 10  			      , 'SOSL_EXT_LOCK'
+ 11  			      , 'SOSL_START_LOG'
+ 12  			      , 'SOSL_BASE_LOG'
+ 13  			      , 'SOSL_MAX_PARALLEL'
+ 14  			      )
+ 15    THEN
+ 16  	 RAISE_APPLICATION_ERROR(-20002, 'The given system config_name "' || :OLD.config_name || '" cannot be deleted.');
+ 17    END IF;
+ 18  END;
+ 19  /
+
+Trigger created.
+
+SQL> -- load default values that can be configured in the database
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_description)
+  3    VALUES
+  4    ('SOSL_PATH_CFG', '..\..\cfg\', 'Path to configuration files the SOSL server uses. As configuration files contain credentials and secrets the path should be in a safe space with controlled user rights.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_max_length, config_description)
+  3    VALUES
+  4    ('SOSL_PATH_TMP', '..\..\tmp\', 239, 'Path to temporary files the SOSL server uses. Parameter for sql files, limited to 239 chars.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_max_length, config_description)
+  3    VALUES
+  4    ('SOSL_PATH_LOG', '..\..\log\', 239, 'Path to log files the SOSL server creates. Parameter for sql files, limited to 239 chars.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_description)
+  3    VALUES
+  4    ('SOSL_EXT_LOG', 'log', 'Log file extension to use.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_description)
+  3    VALUES
+  4    ('SOSL_EXT_LOCK', 'lock', 'Default process lock file extension.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_description)
+  3    VALUES
+  4    ('SOSL_START_LOG', 'sosl_server', 'Log filename for start and end of SOSL server CMD.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_description)
+  3    VALUES
+  4    ('SOSL_BASE_LOG', 'sosl_job_', 'Base log filename for single job runs. Will be extended by GUID.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_MAX_PARALLEL', '8', 'NUMBER', 'The maximum of parallel started scripts. After this amount if scripts is started, next scripts are only loaded, if the run count is below this value.')
+  5  ;
+
+1 row created.
+
+SQL> COMMIT;
+
+Commit complete.
+
+SQL> @@../sosl_ddl/tables/sosl_scripts.sql
+SQL> -- requires login with the correct schema, either SOSL or your on schema
+SQL> -- table is NOT qualified and created in the schema active at execution
+SQL> CREATE TABLE sosl_scripts
+  2    ( script_id	    NUMBER(38, 0)  GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
+  3    , script_name	    VARCHAR2(2000) NOT NULL
+  4    , script_description VARCHAR2(4000)
+  5    )
+  6  ;
+
+Table created.
+
+SQL> -- description
+SQL> COMMENT ON TABLE sosl_scripts IS 'Holds the script file names that should be executed by SOSL. Will use the alias scrt.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_scripts.script_id IS 'The generated unique id of the script file.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_scripts.script_name IS 'The name of the script file including full or relative path. Use relative path (relative to repository location) to ensure running scripts from different machines.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_scripts.script_description IS 'Optional description of the script file.';
+
+Comment created.
+
+SQL> -- primary key
+SQL> ALTER TABLE sosl_scripts
+  2    ADD CONSTRAINT sosl_scripts_pk
+  3    PRIMARY KEY (script_id)
+  4    ENABLE
+  5  ;
+
+Table altered.
+
+SQL> @@../sosl_sql/util/log_silent.sql
+SQL> SET ECHO OFF
+SUCCESS - no errors found during setup          0

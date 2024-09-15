@@ -7,7 +7,11 @@ SET ECHO OFF
 SET ERRORLOGGING ON TABLE soslerrorlog IDENTIFIER &1
 SPOOL &3 APPEND
 -- format output in log style, date format limited to possible OS format
-SELECT '&2. Simple Oracle Script Loader server started' AS info
+SELECT '&2. Simple Oracle Script Loader server started' ||
+       ' db name: ' || TRIM(SYS_CONTEXT('USERENV', 'DB_NAME')) ||
+       ' OS user: ' || TRIM(SYS_CONTEXT('USERENV', 'OS_USER')) ||
+       ' DB user: ' || TRIM(SYS_CONTEXT('USERENV', 'CURRENT_USER')) ||
+       ' schema: ' || TRIM(SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')) AS info
   FROM dual
 ;
 SPOOL OFF
@@ -19,4 +23,4 @@ SELECT CASE
        END AS EXITCODE
   FROM soslerrorlog
  WHERE identifier = '&1';
- EXIT &EXITCODE
+EXIT &EXITCODE

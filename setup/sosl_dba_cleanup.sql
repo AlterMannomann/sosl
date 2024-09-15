@@ -1,7 +1,5 @@
 -- simple drop script, not checking if the objects exist
 @@../sosl_sql/util/log_silent.sql
--- load default log settings
-@@../sosl_sql/util/log_defaults.sql
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 WHENEVER OSERROR EXIT FAILURE ROLLBACK
 CLEAR COLUMNS
@@ -13,7 +11,7 @@ SELECT 'Drop user/schema SOSL including tablespace SOSL_TABLESPACE and datafile?
 SET TERMOUT ON
 PAUSE &SOSL_MSG
 SET ECHO ON
-DROP USER sosl;
+DROP USER sosl CASCADE;
 DROP TABLESPACE sosl_tablespace DROP QUOTA INCLUDING CONTENTS AND DATAFILES;
 SET ECHO OFF
 SELECT 'Executed: ' || TO_CHAR(SYSTIMESTAMP) || CHR(13) || CHR(10) ||
