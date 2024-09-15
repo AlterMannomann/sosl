@@ -1,5 +1,5 @@
 # UNDER CONSTRUCTION
-Current state: Define repository structure
+Current state: Work on CMD solution
 
 # SOSL - Simple Oracle Script Loader
 This is a very simple solution for loading and executing scripts from anywhere that has an Oracle Client and sqlplus installed. It will come in the flavors CMD, PowerShell and Bash.
