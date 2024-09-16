@@ -41,22 +41,28 @@ SQL> COMMENT ON COLUMN soslerrorlog.statement IS 'The statement causing the erro
 Comment created.
 
 SQL> @@../sosl_ddl/tables/sosl_server_log.sql
+SQL> -- requires login with the correct schema, either SOSL or your on schema
+SQL> -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
 SQL> CREATE TABLE sosl_server_log
-  2    ( exec_timestamp    TIMESTAMP	   DEFAULT SYSTIMESTAMP  NOT NULL
-  3    , log_type	   VARCHAR2(30)    DEFAULT 'INFO'	 NOT NULL
-  4    , message	   VARCHAR2(4000)  NOT NULL
-  5    , full_message	   CLOB
-  6    , guid		   VARCHAR2(64)
-  7    , sosl_identifier   VARCHAR2(256)
-  8    , caller 	   VARCHAR2(256)
-  9    )
- 10    -- monthly partitions
- 11    PARTITION BY RANGE (exec_timestamp)
- 12    INTERVAL (NUMTOYMINTERVAL(1, 'MONTH'))
- 13    (PARTITION P_OLD
- 14  	   VALUES LESS THAN (TO_TIMESTAMP('01-01-2024','DD-MM-YYYY'))
- 15    )
- 16  ;
+  2    ( exec_timestamp    TIMESTAMP	   DEFAULT SYSTIMESTAMP 		     NOT NULL
+  3    , log_type	   VARCHAR2(30)    DEFAULT 'INFO'			     NOT NULL
+  4    , message	   VARCHAR2(4000)					     NOT NULL
+  5    , script_id	   NUMBER(38, 0)
+  6    , batch_id	   NUMBER(38, 0)
+  7    , guid		   VARCHAR2(64)
+  8    , sosl_identifier   VARCHAR2(256)
+  9    , created_by	   VARCHAR2(256)   DEFAULT USER 			     NOT NULL
+ 10    , created_by_os	   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 11    , caller 	   VARCHAR2(256)
+ 12    , full_message	   CLOB
+ 13    )
+ 14    -- monthly partitions
+ 15    PARTITION BY RANGE (exec_timestamp)
+ 16    INTERVAL (NUMTOYMINTERVAL(1, 'MONTH'))
+ 17    (PARTITION P_OLD
+ 18  	   VALUES LESS THAN (TO_TIMESTAMP('01-01-2024','DD-MM-YYYY'))
+ 19    )
+ 20  ;
 
 Table created.
 
@@ -92,6 +98,15 @@ SQL> COMMENT ON COLUMN sosl_server_log.caller IS 'Caller identification if avail
 
 Comment created.
 
+SQL> COMMENT ON COLUMN sosl_server_log.created_by IS 'The logged in DB user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.created_by_os IS 'OS user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> 
 SQL> -- no primary key, only index
 SQL> CREATE INDEX sosl_server_log_idx
   2    ON sosl_server_log (exec_timestamp)
@@ -113,22 +128,24 @@ SQL> CREATE OR REPLACE TRIGGER sosl_server_log_ins_trg
   3    FOR EACH ROW
   4  BEGIN
   5    :NEW.exec_timestamp := SYSTIMESTAMP;
-  6    IF (:NEW.message IS NULL)
-  7    THEN
-  8  	 IF :NEW.full_message IS NOT NULL
-  9  	 THEN
- 10  	   IF LENGTH(TRIM(:NEW.full_message)) > 4000
- 11  	   THEN
- 12  	     :NEW.message := TO_CHAR(SUBSTR(TRIM(:NEW.full_message), 1, 3996)) || ' ...';
- 13  	   ELSE
- 14  	     :NEW.message := TO_CHAR(TRIM(:NEW.full_message));
- 15  	   END IF;
- 16  	 ELSE
- 17  	   RAISE_APPLICATION_ERROR(-20003, 'Full message must be given, if message is NULL.');
- 18  	 END IF;
- 19    END IF;
- 20  END;
- 21  /
+  6    :NEW.created_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+  7    :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+  8    IF (:NEW.message IS NULL)
+  9    THEN
+ 10  	 IF :NEW.full_message IS NOT NULL
+ 11  	 THEN
+ 12  	   IF LENGTH(TRIM(:NEW.full_message)) > 4000
+ 13  	   THEN
+ 14  	     :NEW.message := TO_CHAR(SUBSTR(TRIM(:NEW.full_message), 1, 3996)) || ' ...';
+ 15  	   ELSE
+ 16  	     :NEW.message := TO_CHAR(TRIM(:NEW.full_message));
+ 17  	   END IF;
+ 18  	 ELSE
+ 19  	   RAISE_APPLICATION_ERROR(-20003, 'Full message must be given, if message is NULL.');
+ 20  	 END IF;
+ 21    END IF;
+ 22  END;
+ 23  /
 
 Trigger created.
 
@@ -142,15 +159,33 @@ SQL> CREATE OR REPLACE TRIGGER sosl_server_log_upd_trg
 
 Trigger created.
 
+SQL> CREATE OR REPLACE TRIGGER sosl_server_log_del_trg
+  2    BEFORE DELETE ON sosl_server_log
+  3    FOR EACH ROW
+  4  BEGIN
+  5    RAISE_APPLICATION_ERROR(-20005, 'You should not delete records from a log table, even if technically possible.');
+  6  END;
+  7  /
+
+Trigger created.
+
 SQL> @@../sosl_ddl/tables/sosl_config.sql
+SQL> -- requires login with the correct schema, either SOSL or your on schema
+SQL> -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
 SQL> CREATE TABLE sosl_config
-  2    ( config_name	     VARCHAR2(128)		     NOT NULL
-  3    , config_value	     VARCHAR2(4000)		     NOT NULL
-  4    , config_type	     VARCHAR2(6)     DEFAULT 'CHAR'  NOT NULL
-  5    , config_max_length   NUMBER	     DEFAULT -1      NOT NULL
-  6    , config_description  VARCHAR2(4000)
-  7    )
-  8  ;
+  2    ( config_name	     VARCHAR2(128)					       NOT NULL
+  3    , config_value	     VARCHAR2(4000)					       NOT NULL
+  4    , config_max_length   NUMBER	     DEFAULT -1 			       NOT NULL
+  5    , config_type	     VARCHAR2(6)     DEFAULT 'CHAR'			       NOT NULL
+  6    , created	     DATE	     DEFAULT SYSDATE			       NOT NULL
+  7    , updated	     DATE	     DEFAULT SYSDATE			       NOT NULL
+  8    , created_by	     VARCHAR2(256)   DEFAULT USER			       NOT NULL
+  9    , created_by_os	     VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 10    , updated_by	     VARCHAR2(256)   DEFAULT USER			       NOT NULL
+ 11    , updated_by_os	     VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 12    , config_description  VARCHAR2(4000)
+ 13    )
+ 14  ;
 
 Table created.
 
@@ -179,6 +214,31 @@ SQL> COMMENT ON COLUMN sosl_config.config_description IS 'Optional description o
 
 Comment created.
 
+SQL> COMMENT ON COLUMN sosl_config.created IS 'Date created, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_config.updated IS 'Date updated, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_config.created_by IS 'DB user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_config.created_by_os IS 'OS user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_config.updated_by IS 'DB user who updated the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_config.updated_by_os IS 'OS user who updated the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> 
 SQL> -- primary key
 SQL> ALTER TABLE sosl_config
   2    ADD CONSTRAINT sosl_config_pk
@@ -212,36 +272,49 @@ SQL> CREATE OR REPLACE TRIGGER sosl_config_ins_upd_trg
   6    l_date  DATE;
   7  BEGIN
   8    -- remove any leading and trailing blanks from config_value
-  9    :NEW.config_value := TRIM(:NEW.config_value);
- 10    -- check max length if defined
- 11    IF :NEW.config_type = 'CHAR'
- 12    THEN
- 13  	 IF :NEW.config_max_length > 0
- 14  	 THEN
- 15  	   IF LENGTH(:NEW.config_value) > :NEW.config_max_length
- 16  	   THEN
- 17  	     RAISE_APPLICATION_ERROR(-20000, 'The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value));
- 18  	   END IF;
- 19  	 END IF;
- 20    END IF;
- 21    -- check number type
- 22    IF :NEW.config_type = 'NUMBER'
- 23    THEN
- 24  	 l_ok := TRUE;
- 25  	 -- compare TO_NUMBER with implicite conversion, if it fails the config_value cannot be interpreted correctly
- 26  	 BEGIN
- 27  	   l_ok := (TO_NUMBER(:NEW.config_value) = :NEW.config_value);
- 28  	 EXCEPTION
- 29  	   WHEN OTHERS THEN
- 30  	     l_ok := FALSE;
- 31  	 END;
- 32  	 IF NOT l_ok
- 33  	 THEN
- 34  	   RAISE_APPLICATION_ERROR(-20001, 'The given config_value "' || :NEW.config_value || '" could not be converted successfully to a number.');
- 35  	 END IF;
- 36    END IF;
- 37  END;
- 38  /
+  9    :NEW.config_value   := TRIM(:NEW.config_value);
+ 10    IF UPDATING
+ 11    THEN
+ 12  	 :NEW.created	     := :OLD.created;
+ 13  	 :NEW.created_by     := :OLD.created_by;
+ 14  	 :NEW.created_by_os  := :OLD.created_by_os;
+ 15    ELSE
+ 16  	 :NEW.created	     := SYSDATE;
+ 17  	 :NEW.created_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 18  	 :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+ 19    END IF;
+ 20    :NEW.updated	   := SYSDATE;
+ 21    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 22    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+ 23    -- check max length if defined
+ 24    IF :NEW.config_type = 'CHAR'
+ 25    THEN
+ 26  	 IF :NEW.config_max_length > 0
+ 27  	 THEN
+ 28  	   IF LENGTH(:NEW.config_value) > :NEW.config_max_length
+ 29  	   THEN
+ 30  	     RAISE_APPLICATION_ERROR(-20000, 'The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value));
+ 31  	   END IF;
+ 32  	 END IF;
+ 33    END IF;
+ 34    -- check number type
+ 35    IF :NEW.config_type = 'NUMBER'
+ 36    THEN
+ 37  	 l_ok := TRUE;
+ 38  	 -- compare TO_NUMBER with implicite conversion, if it fails the config_value cannot be interpreted correctly
+ 39  	 BEGIN
+ 40  	   l_ok := (TO_NUMBER(:NEW.config_value) = :NEW.config_value);
+ 41  	 EXCEPTION
+ 42  	   WHEN OTHERS THEN
+ 43  	     l_ok := FALSE;
+ 44  	 END;
+ 45  	 IF NOT l_ok
+ 46  	 THEN
+ 47  	   RAISE_APPLICATION_ERROR(-20001, 'The given config_value "' || :NEW.config_value || '" could not be converted successfully to a number.');
+ 48  	 END IF;
+ 49    END IF;
+ 50  END;
+ 51  /
 
 Trigger created.
 
@@ -344,43 +417,216 @@ SQL> COMMIT;
 
 Commit complete.
 
-SQL> @@../sosl_ddl/tables/sosl_scripts.sql
+SQL> @@../sosl_ddl/tables/sosl_script.sql
 SQL> -- requires login with the correct schema, either SOSL or your on schema
-SQL> -- table is NOT qualified and created in the schema active at execution
-SQL> CREATE TABLE sosl_scripts
+SQL> -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
+SQL> CREATE TABLE sosl_script
   2    ( script_id	    NUMBER(38, 0)  GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
-  3    , script_name	    VARCHAR2(2000) NOT NULL
-  4    , script_description VARCHAR2(4000)
-  5    )
-  6  ;
+  3    , script_name	    VARCHAR2(2000)					     NOT NULL
+  4    , created	    DATE	   DEFAULT SYSDATE			     NOT NULL
+  5    , updated	    DATE	   DEFAULT SYSDATE			     NOT NULL
+  6    , created_by	    VARCHAR2(256)  DEFAULT USER 			     NOT NULL
+  7    , created_by_os	    VARCHAR2(256)  DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+  8    , updated_by	    VARCHAR2(256)  DEFAULT USER 			     NOT NULL
+  9    , updated_by_os	    VARCHAR2(256)  DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 10    , script_description VARCHAR2(4000)
+ 11    )
+ 12  ;
 
 Table created.
 
 SQL> -- description
-SQL> COMMENT ON TABLE sosl_scripts IS 'Holds the script file names that should be executed by SOSL. Will use the alias scrt.';
+SQL> COMMENT ON TABLE sosl_script IS 'Holds the script file names that should be executed by SOSL. Will use the alias scrt.';
 
 Comment created.
 
-SQL> COMMENT ON COLUMN sosl_scripts.script_id IS 'The generated unique id of the script file.';
+SQL> COMMENT ON COLUMN sosl_script.script_id IS 'The generated unique id of the script file.';
 
 Comment created.
 
-SQL> COMMENT ON COLUMN sosl_scripts.script_name IS 'The name of the script file including full or relative path. Use relative path (relative to repository location) to ensure running scripts from different machines.';
+SQL> COMMENT ON COLUMN sosl_script.script_name IS 'The name of the script file including full or relative path. Use relative path (relative to repository location) to ensure running scripts from different machines.';
 
 Comment created.
 
-SQL> COMMENT ON COLUMN sosl_scripts.script_description IS 'Optional description of the script file.';
+SQL> COMMENT ON COLUMN sosl_script.script_description IS 'Optional description of the script file.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script.created IS 'Date created, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script.updated IS 'Date updated, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script.created_by IS 'DB user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script.created_by_os IS 'OS user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script.updated_by IS 'DB user who updated the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script.updated_by_os IS 'OS user who updated the record, managed by default and trigger.';
 
 Comment created.
 
 SQL> -- primary key
-SQL> ALTER TABLE sosl_scripts
-  2    ADD CONSTRAINT sosl_scripts_pk
+SQL> ALTER TABLE sosl_script
+  2    ADD CONSTRAINT sosl_script_pk
   3    PRIMARY KEY (script_id)
   4    ENABLE
   5  ;
 
 Table altered.
+
+SQL> -- trigger
+SQL> CREATE OR REPLACE TRIGGER sosl_script_ins_trg
+  2    BEFORE INSERT ON sosl_script
+  3    FOR EACH ROW
+  4  BEGIN
+  5    :NEW.created	   := SYSDATE;
+  6    :NEW.updated	   := SYSDATE;
+  7    :NEW.created_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+  8    :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+  9    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 10    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+ 11  END;
+ 12  /
+
+Trigger created.
+
+SQL> CREATE OR REPLACE TRIGGER sosl_script_upd_trg
+  2    BEFORE UPDATE ON sosl_script
+  3    FOR EACH ROW
+  4  BEGIN
+  5    -- make sure created is not changed
+  6    :NEW.created	   := :OLD.created;
+  7    :NEW.created_by	   := :OLD.created_by;
+  8    :NEW.created_by_os  := :OLD.created_by_os;
+  9    :NEW.updated	   := SYSDATE;
+ 10    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 11    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+ 12  END;
+ 13  /
+
+Trigger created.
+
+SQL> @@../sosl_ddl/tables/sosl_batch_group.sql
+SQL> CREATE TABLE sosl_batch_group
+  2    ( batch_group_id 	 NUMBER(38, 0)	GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
+  3    , batch_group_name	 VARCHAR2(256)						  NOT NULL
+  4    , created		 DATE		DEFAULT SYSDATE 			  NOT NULL
+  5    , updated		 DATE		DEFAULT SYSDATE 			  NOT NULL
+  6    , created_by		 VARCHAR2(256)	DEFAULT USER				  NOT NULL
+  7    , created_by_os		 VARCHAR2(256)	DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+  8    , updated_by		 VARCHAR2(256)	DEFAULT USER				  NOT NULL
+  9    , updated_by_os		 VARCHAR2(256)	DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 10    , batch_group_description VARCHAR2(4000)
+ 11    )
+ 12  ;
+
+Table created.
+
+SQL> -- description
+SQL> COMMENT ON TABLE sosl_batch_group IS 'Holds defined batch groups that can be associated with scripts. Will use the alias sbat.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_batch_group.batch_group_id IS 'The generated unique id of the batch group.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_batch_group.batch_group_name IS 'The name of the batch group.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_batch_group.batch_group_description IS 'Optional description of the batch group.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_batch_group.created IS 'Date created, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_batch_group.updated IS 'Date updated, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_batch_group.created_by IS 'DB user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_batch_group.created_by_os IS 'OS user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_batch_group.updated_by IS 'DB user who updated the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_batch_group.updated_by_os IS 'OS user who updated the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> -- primary key
+SQL> ALTER TABLE sosl_batch_group
+  2    ADD CONSTRAINT sosl_batch_group_pk
+  3    PRIMARY KEY (batch_group_id)
+  4    ENABLE
+  5  ;
+
+Table altered.
+
+SQL> -- trigger
+SQL> CREATE OR REPLACE TRIGGER sosl_batch_group_ins_trg
+  2    BEFORE INSERT ON sosl_batch_group
+  3    FOR EACH ROW
+  4  BEGIN
+  5    :NEW.created	   := SYSDATE;
+  6    :NEW.updated	   := SYSDATE;
+  7    :NEW.created_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+  8    :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+  9    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 10    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+ 11  END;
+ 12  /
+
+Trigger created.
+
+SQL> CREATE OR REPLACE TRIGGER sosl_batch_group_upd_trg
+  2    BEFORE UPDATE ON sosl_batch_group
+  3    FOR EACH ROW
+  4  BEGIN
+  5    -- make sure created is not changed
+  6    :NEW.created	   := :OLD.created;
+  7    :NEW.created_by	   := :OLD.created_by;
+  8    :NEW.created_by_os  := :OLD.created_by_os;
+  9    :NEW.updated	   := SYSDATE;
+ 10    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 11    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+ 12  END;
+ 13  /
+
+Trigger created.
+
+SQL> -- create basic entry
+SQL> INSERT INTO sosl_batch_group
+  2    (batch_group_name, batch_group_description)
+  3    VALUES
+  4    ('SOSL_BATCH_GROUP', 'The default batch group for SOSL if no other batch group is defined.')
+  5  ;
+
+1 row created.
+
+SQL> COMMIT;
+
+Commit complete.
 
 SQL> @@../sosl_sql/util/log_silent.sql
 SQL> SET ECHO OFF

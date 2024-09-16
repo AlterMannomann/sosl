@@ -1,0 +1,1 @@
+DROP TABLE sosl_batch_group PURGE;

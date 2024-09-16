@@ -62,6 +62,16 @@ SET SOSL_DEF_WAIT=120
 REM Defines the wait time, if scripts are not available for execution and RUNMODE is SLEEP, by default 10
 REM minutes.
 SET SOSL_MAX_WAIT=600
+REM Defines the start hour for the SOSL server in 24h format, if -1 SOSL server is active the whole time.
+SET SOSL_START_JOBS=8
+REM Defines the end hour for the SOSL server in 24h format, ignored if SOSL_START_JOBS is -1.
+REM After this hour, the SOSL server will not make any connections to the database until SOSL_START_JOBS
+REM hour is reached. Local log will be written with alive pings.
+SET SOSL_STOP_JOBS=18
+REM The mail server to connect.
+SET SOSL_MAIL_SERVER=undefined
+REM The mail server port to connect.
+SET SOSL_MAIL_PORT=undefined
 REM Variable to hold GUIDs produced for each session. Used to create unique identifiers for SOSLERRORLOG
 REM by calling sosl_guid.cmd.
 SET SOSL_GUID=undefined

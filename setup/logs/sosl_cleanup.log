@@ -1,5 +1,6 @@
-SQL> @@../sosl_ddl/tables/drop/drop_sosl_scripts.sql
-SQL> DROP TABLE sosl_scripts PURGE;
+SQL> --@@../sosl_ddl/tables/drop/drop_sosl_batch_group.sql
+SQL> @@../sosl_ddl/tables/drop/drop_sosl_script.sql
+SQL> DROP TABLE sosl_script PURGE;
 
 Table dropped.
 
@@ -18,6 +19,7 @@ SQL> DROP TABLE soslerrorlog PURGE;
 
 Table dropped.
 
+SQL> 
 SQL> @@../sosl_sql/util/log_silent.sql
 SQL> SET ECHO OFF
 SUCCESS - no errors found during setup          0

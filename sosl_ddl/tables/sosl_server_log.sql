@@ -1,11 +1,17 @@
+-- requires login with the correct schema, either SOSL or your on schema
+-- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
 CREATE TABLE sosl_server_log
-  ( exec_timestamp    TIMESTAMP       DEFAULT SYSTIMESTAMP  NOT NULL
-  , log_type          VARCHAR2(30)    DEFAULT 'INFO'        NOT NULL
-  , message           VARCHAR2(4000)  NOT NULL
-  , full_message      CLOB
+  ( exec_timestamp    TIMESTAMP       DEFAULT SYSTIMESTAMP                      NOT NULL
+  , log_type          VARCHAR2(30)    DEFAULT 'INFO'                            NOT NULL
+  , message           VARCHAR2(4000)                                            NOT NULL
+  , script_id         NUMBER(38, 0)
+  , batch_id          NUMBER(38, 0)
   , guid              VARCHAR2(64)
   , sosl_identifier   VARCHAR2(256)
+  , created_by        VARCHAR2(256)   DEFAULT USER                              NOT NULL
+  , created_by_os     VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
   , caller            VARCHAR2(256)
+  , full_message      CLOB
   )
   -- monthly partitions
   PARTITION BY RANGE (exec_timestamp)
@@ -22,6 +28,9 @@ COMMENT ON COLUMN sosl_server_log.full_message IS 'The full log message. For mes
 COMMENT ON COLUMN sosl_server_log.guid IS 'The GUID the process is running with. Can be used as LIKE reference on SOSLERRORLOG.';
 COMMENT ON COLUMN sosl_server_log.sosl_identifier IS 'The exact identifier for SOSLERRORLOG if available.';
 COMMENT ON COLUMN sosl_server_log.caller IS 'Caller identification if available, to distinguish database processes from SOSL CMD server processes.';
+COMMENT ON COLUMN sosl_server_log.created_by IS 'The logged in DB user who created the record, managed by default and trigger.';
+COMMENT ON COLUMN sosl_server_log.created_by_os IS 'OS user who created the record, managed by default and trigger.';
+
 -- no primary key, only index
 CREATE INDEX sosl_server_log_idx
   ON sosl_server_log (exec_timestamp)
@@ -37,6 +46,8 @@ CREATE OR REPLACE TRIGGER sosl_server_log_ins_trg
   FOR EACH ROW
 BEGIN
   :NEW.exec_timestamp := SYSTIMESTAMP;
+  :NEW.created_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+  :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
   IF (:NEW.message IS NULL)
   THEN
     IF :NEW.full_message IS NOT NULL
@@ -58,5 +69,12 @@ CREATE OR REPLACE TRIGGER sosl_server_log_upd_trg
   FOR EACH ROW
 BEGIN
   RAISE_APPLICATION_ERROR(-20004, 'No updates allowed on a log table.');
+END;
+/
+CREATE OR REPLACE TRIGGER sosl_server_log_del_trg
+  BEFORE DELETE ON sosl_server_log
+  FOR EACH ROW
+BEGIN
+  RAISE_APPLICATION_ERROR(-20005, 'You should not delete records from a log table, even if technically possible.');
 END;
 /

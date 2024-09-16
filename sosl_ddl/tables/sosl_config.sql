@@ -1,8 +1,16 @@
+-- requires login with the correct schema, either SOSL or your on schema
+-- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
 CREATE TABLE sosl_config
-  ( config_name         VARCHAR2(128)                   NOT NULL
-  , config_value        VARCHAR2(4000)                  NOT NULL
-  , config_type         VARCHAR2(6)     DEFAULT 'CHAR'  NOT NULL
-  , config_max_length   NUMBER          DEFAULT -1      NOT NULL
+  ( config_name         VARCHAR2(128)                                             NOT NULL
+  , config_value        VARCHAR2(4000)                                            NOT NULL
+  , config_max_length   NUMBER          DEFAULT -1                                NOT NULL
+  , config_type         VARCHAR2(6)     DEFAULT 'CHAR'                            NOT NULL
+  , created             DATE            DEFAULT SYSDATE                           NOT NULL
+  , updated             DATE            DEFAULT SYSDATE                           NOT NULL
+  , created_by          VARCHAR2(256)   DEFAULT USER                              NOT NULL
+  , created_by_os       VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+  , updated_by          VARCHAR2(256)   DEFAULT USER                              NOT NULL
+  , updated_by_os       VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
   , config_description  VARCHAR2(4000)
   )
 ;
@@ -13,6 +21,13 @@ COMMENT ON COLUMN sosl_config.config_value IS 'The configuration value always as
 COMMENT ON COLUMN sosl_config.config_type IS 'Defines how the config value has to be interpreted. Currently supports CHAR and NUMBER.';
 COMMENT ON COLUMN sosl_config.config_max_length IS 'Defines a maximum length for CHAR type config values if set to a number > 0. Default is -1, do not not check length.';
 COMMENT ON COLUMN sosl_config.config_description IS 'Optional description of the SOSL config object.';
+COMMENT ON COLUMN sosl_config.created IS 'Date created, managed by default and trigger.';
+COMMENT ON COLUMN sosl_config.updated IS 'Date updated, managed by default and trigger.';
+COMMENT ON COLUMN sosl_config.created_by IS 'DB user who created the record, managed by default and trigger.';
+COMMENT ON COLUMN sosl_config.created_by_os IS 'OS user who created the record, managed by default and trigger.';
+COMMENT ON COLUMN sosl_config.updated_by IS 'DB user who updated the record, managed by default and trigger.';
+COMMENT ON COLUMN sosl_config.updated_by_os IS 'OS user who updated the record, managed by default and trigger.';
+
 -- primary key
 ALTER TABLE sosl_config
   ADD CONSTRAINT sosl_config_pk
@@ -37,7 +52,20 @@ DECLARE
   l_date  DATE;
 BEGIN
   -- remove any leading and trailing blanks from config_value
-  :NEW.config_value := TRIM(:NEW.config_value);
+  :NEW.config_value   := TRIM(:NEW.config_value);
+  IF UPDATING
+  THEN
+    :NEW.created        := :OLD.created;
+    :NEW.created_by     := :OLD.created_by;
+    :NEW.created_by_os  := :OLD.created_by_os;
+  ELSE
+    :NEW.created        := SYSDATE;
+    :NEW.created_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+    :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+  END IF;
+  :NEW.updated        := SYSDATE;
+  :NEW.updated_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+  :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
   -- check max length if defined
   IF :NEW.config_type = 'CHAR'
   THEN
