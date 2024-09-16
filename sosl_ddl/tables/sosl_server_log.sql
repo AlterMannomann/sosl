@@ -27,6 +27,8 @@ COMMENT ON COLUMN sosl_server_log.message IS 'The shortend log message. Mandator
 COMMENT ON COLUMN sosl_server_log.full_message IS 'The full log message. For messages longer than 4000 bytes or char.';
 COMMENT ON COLUMN sosl_server_log.guid IS 'The GUID the process is running with. Can be used as LIKE reference on SOSLERRORLOG.';
 COMMENT ON COLUMN sosl_server_log.sosl_identifier IS 'The exact identifier for SOSLERRORLOG if available.';
+COMMENT ON COLUMN sosl_server_log.script_id IS 'The script id if available. Most likely inserted by database processes.';
+COMMENT ON COLUMN sosl_server_log.batch_id IS 'The batch id if available. Most likely inserted by database processes.';
 COMMENT ON COLUMN sosl_server_log.caller IS 'Caller identification if available, to distinguish database processes from SOSL CMD server processes.';
 COMMENT ON COLUMN sosl_server_log.created_by IS 'The logged in DB user who created the record, managed by default and trigger.';
 COMMENT ON COLUMN sosl_server_log.created_by_os IS 'OS user who created the record, managed by default and trigger.';
