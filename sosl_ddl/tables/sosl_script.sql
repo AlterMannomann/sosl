@@ -3,6 +3,7 @@
 CREATE TABLE sosl_script
   ( script_id          NUMBER(38, 0)  GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
   , script_name        VARCHAR2(2000)                                           NOT NULL
+  , script_schema      VARCHAR2(256)  DEFAULT 'SOSL'                            NOT NULL
   , created            DATE           DEFAULT SYSDATE                           NOT NULL
   , updated            DATE           DEFAULT SYSDATE                           NOT NULL
   , created_by         VARCHAR2(256)  DEFAULT USER                              NOT NULL
@@ -16,6 +17,7 @@ CREATE TABLE sosl_script
 COMMENT ON TABLE sosl_script IS 'Holds the script file names that should be executed by SOSL. Will use the alias scrt.';
 COMMENT ON COLUMN sosl_script.script_id IS 'The generated unique id of the script file.';
 COMMENT ON COLUMN sosl_script.script_name IS 'The name of the script file including full or relative path. Use relative path (relative to repository location) to ensure running scripts from different machines.';
+COMMENT ON COLUMN sosl_script.script_schema IS 'The schema the script should run in. Will cause an ALTER SESSION SET CURRENT_SCHEMA before executing the script.';
 COMMENT ON COLUMN sosl_script.script_description IS 'Optional description of the script file.';
 COMMENT ON COLUMN sosl_script.created IS 'Date created, managed by default and trigger.';
 COMMENT ON COLUMN sosl_script.updated IS 'Date updated, managed by default and trigger.';

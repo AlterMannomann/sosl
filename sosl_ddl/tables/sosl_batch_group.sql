@@ -1,6 +1,7 @@
 CREATE TABLE sosl_batch_group
   ( batch_group_id          NUMBER(38, 0)  GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
   , batch_group_name        VARCHAR2(256)                                            NOT NULL
+  , batch_base_path         VARCHAR2(2000)
   , created                 DATE           DEFAULT SYSDATE                           NOT NULL
   , updated                 DATE           DEFAULT SYSDATE                           NOT NULL
   , created_by              VARCHAR2(256)  DEFAULT USER                              NOT NULL
@@ -14,6 +15,7 @@ CREATE TABLE sosl_batch_group
 COMMENT ON TABLE sosl_batch_group IS 'Holds defined batch groups that can be associated with scripts. Will use the alias sbat.';
 COMMENT ON COLUMN sosl_batch_group.batch_group_id IS 'The generated unique id of the batch group.';
 COMMENT ON COLUMN sosl_batch_group.batch_group_name IS 'The name of the batch group.';
+COMMENT ON COLUMN sosl_batch_group.batch_base_path IS 'Optional full path to use as base for scripts in this batch group. If given SOSL will switch to the given directory before executing scripts of this batch group. The script path must be realtive to the base path.';
 COMMENT ON COLUMN sosl_batch_group.batch_group_description IS 'Optional description of the batch group.';
 COMMENT ON COLUMN sosl_batch_group.created IS 'Date created, managed by default and trigger.';
 COMMENT ON COLUMN sosl_batch_group.updated IS 'Date updated, managed by default and trigger.';

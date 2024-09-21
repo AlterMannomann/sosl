@@ -40,135 +40,6 @@ SQL> COMMENT ON COLUMN soslerrorlog.statement IS 'The statement causing the erro
 
 Comment created.
 
-SQL> @@../sosl_ddl/tables/sosl_server_log.sql
-SQL> -- requires login with the correct schema, either SOSL or your on schema
-SQL> -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
-SQL> CREATE TABLE sosl_server_log
-  2    ( exec_timestamp    TIMESTAMP	   DEFAULT SYSTIMESTAMP 		     NOT NULL
-  3    , log_type	   VARCHAR2(30)    DEFAULT 'INFO'			     NOT NULL
-  4    , message	   VARCHAR2(4000)					     NOT NULL
-  5    , script_id	   NUMBER(38, 0)
-  6    , batch_id	   NUMBER(38, 0)
-  7    , guid		   VARCHAR2(64)
-  8    , sosl_identifier   VARCHAR2(256)
-  9    , created_by	   VARCHAR2(256)   DEFAULT USER 			     NOT NULL
- 10    , created_by_os	   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 11    , caller 	   VARCHAR2(256)
- 12    , full_message	   CLOB
- 13    )
- 14    -- monthly partitions
- 15    PARTITION BY RANGE (exec_timestamp)
- 16    INTERVAL (NUMTOYMINTERVAL(1, 'MONTH'))
- 17    (PARTITION P_OLD
- 18  	   VALUES LESS THAN (TO_TIMESTAMP('01-01-2024','DD-MM-YYYY'))
- 19    )
- 20  ;
-
-Table created.
-
-SQL> COMMENT ON TABLE sosl_server_log IS 'Holds the log events of the SOSL server CMD and interaction with the database. Update is not allowed. Will use the alias slog.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.exec_timestamp IS 'The timestamp of the event. Automatically set by trigger, no update allowed.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.log_type IS 'The logging type, supports INFO, WARNING, ERROR, FATAL, SUCCESS. Mandatory.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.message IS 'The shortend log message. Mandatory. If only a CLOB is passed, the short message is build from the CLOB.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.full_message IS 'The full log message. For messages longer than 4000 bytes or char.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.guid IS 'The GUID the process is running with. Can be used as LIKE reference on SOSLERRORLOG.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.sosl_identifier IS 'The exact identifier for SOSLERRORLOG if available.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.caller IS 'Caller identification if available, to distinguish database processes from SOSL CMD server processes.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.created_by IS 'The logged in DB user who created the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.created_by_os IS 'OS user who created the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> 
-SQL> -- no primary key, only index
-SQL> CREATE INDEX sosl_server_log_idx
-  2    ON sosl_server_log (exec_timestamp)
-  3  ;
-
-Index created.
-
-SQL> -- constraints
-SQL> ALTER TABLE sosl_server_log
-  2    ADD CONSTRAINT sosl_server_log_chk_type
-  3    CHECK (log_type IN ('INFO', 'WARNING', 'ERROR', 'FATAL', 'SUCCESS'))
-  4  ;
-
-Table altered.
-
-SQL> -- trigger
-SQL> CREATE OR REPLACE TRIGGER sosl_server_log_ins_trg
-  2    BEFORE INSERT ON sosl_server_log
-  3    FOR EACH ROW
-  4  BEGIN
-  5    :NEW.exec_timestamp := SYSTIMESTAMP;
-  6    :NEW.created_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
-  7    :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
-  8    IF (:NEW.message IS NULL)
-  9    THEN
- 10  	 IF :NEW.full_message IS NOT NULL
- 11  	 THEN
- 12  	   IF LENGTH(TRIM(:NEW.full_message)) > 4000
- 13  	   THEN
- 14  	     :NEW.message := TO_CHAR(SUBSTR(TRIM(:NEW.full_message), 1, 3996)) || ' ...';
- 15  	   ELSE
- 16  	     :NEW.message := TO_CHAR(TRIM(:NEW.full_message));
- 17  	   END IF;
- 18  	 ELSE
- 19  	   RAISE_APPLICATION_ERROR(-20003, 'Full message must be given, if message is NULL.');
- 20  	 END IF;
- 21    END IF;
- 22  END;
- 23  /
-
-Trigger created.
-
-SQL> CREATE OR REPLACE TRIGGER sosl_server_log_upd_trg
-  2    BEFORE UPDATE ON sosl_server_log
-  3    FOR EACH ROW
-  4  BEGIN
-  5    RAISE_APPLICATION_ERROR(-20004, 'No updates allowed on a log table.');
-  6  END;
-  7  /
-
-Trigger created.
-
-SQL> CREATE OR REPLACE TRIGGER sosl_server_log_del_trg
-  2    BEFORE DELETE ON sosl_server_log
-  3    FOR EACH ROW
-  4  BEGIN
-  5    RAISE_APPLICATION_ERROR(-20005, 'You should not delete records from a log table, even if technically possible.');
-  6  END;
-  7  /
-
-Trigger created.
-
 SQL> @@../sosl_ddl/tables/sosl_config.sql
 SQL> -- requires login with the correct schema, either SOSL or your on schema
 SQL> -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
@@ -627,6 +498,231 @@ SQL> INSERT INTO sosl_batch_group
 SQL> COMMIT;
 
 Commit complete.
+
+SQL> @@../sosl_ddl/tables/sosl_script_group.sql
+SQL> CREATE TABLE sosl_script_group
+  2    ( batch_id	 NUMBER(38, 0)	 GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
+  3    , batch_group_id  NUMBER(38, 0)		   NOT NULL
+  4    , script_id	 NUMBER(38, 0)		   NOT NULL
+  5    , order_nr	 NUMBER(4, 0)	 DEFAULT 1 NOT NULL
+  6    , description	 VARCHAR2(4000)
+  7    )
+  8  ;
+
+Table created.
+
+SQL> 
+SQL> COMMENT ON TABLE sosl_script_group IS 'Relates scripts with a batch group. As long as order_nr is different, a script may be assigned multiple times to a batch group. Equal order_nr mean that those scripts can be executed in parallel. Will use the alias sgrp.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script_group.batch_id IS 'Generated unique id for a batch group to script assignement.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script_group.batch_group_id IS 'The unique batch group id for the script assignment.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script_group.script_id IS 'The unique script id to assign to a batch group.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script_group.order_nr IS 'Defines the order in which scripts are executed in a batch group. Scripts with the same order are executed in parallel. Maximum order is 9999. Batch group, script id and order must be unique.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script_group.description IS 'Optional description of this batch group script assignment.';
+
+Comment created.
+
+SQL> 
+SQL> -- primary key
+SQL> ALTER TABLE sosl_script_group
+  2    ADD CONSTRAINT sosl_script_group_pk
+  3    PRIMARY KEY (batch_id)
+  4    ENABLE
+  5  ;
+
+Table altered.
+
+SQL> -- constraints
+SQL> ALTER TABLE sosl_script_group
+  2    ADD CONSTRAINT sosl_script_group_chk_order_nr
+  3    CHECK (order_nr > 0)
+  4  ;
+
+Table altered.
+
+SQL> -- unique
+SQL> ALTER TABLE sosl_script_group
+  2    ADD CONSTRAINT sosl_script_group_uk
+  3    UNIQUE (batch_group_id, script_id, order_nr)
+  4    ENABLE
+  5  ;
+
+Table altered.
+
+SQL> -- foreign keys on script_id and batch_group_id
+SQL> ALTER TABLE sosl_script_group
+  2    ADD CONSTRAINT fk_sosl_script_group_script_id
+  3    FOREIGN KEY (script_id)
+  4    REFERENCES sosl_script (script_id)
+  5    ON DELETE CASCADE
+  6  ;
+
+Table altered.
+
+SQL> ALTER TABLE sosl_script_group
+  2    ADD CONSTRAINT fk_sosl_script_group_batch_group_id
+  3    FOREIGN KEY (batch_group_id)
+  4    REFERENCES sosl_batch_group (batch_group_id)
+  5    ON DELETE CASCADE
+  6  ;
+
+Table altered.
+
+SQL> @@../sosl_ddl/tables/sosl_server_log.sql
+SQL> -- requires login with the correct schema, either SOSL or your on schema
+SQL> -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
+SQL> CREATE TABLE sosl_server_log
+  2    ( exec_timestamp    TIMESTAMP	   DEFAULT SYSTIMESTAMP 		     NOT NULL
+  3    , log_type	   VARCHAR2(30)    DEFAULT 'INFO'			     NOT NULL
+  4    , message	   VARCHAR2(4000)					     NOT NULL
+  5    , batch_id	   NUMBER(38, 0)
+  6    , guid		   VARCHAR2(64)
+  7    , sosl_identifier   VARCHAR2(256)
+  8    , created_by	   VARCHAR2(256)   DEFAULT USER 			     NOT NULL
+  9    , created_by_os	   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 10    , caller 	   VARCHAR2(256)
+ 11    , full_message	   CLOB
+ 12    )
+ 13    -- monthly partitions
+ 14    PARTITION BY RANGE (exec_timestamp)
+ 15    INTERVAL (NUMTOYMINTERVAL(1, 'MONTH'))
+ 16    (PARTITION P_OLD
+ 17  	   VALUES LESS THAN (TO_TIMESTAMP('01-01-2024','DD-MM-YYYY'))
+ 18    )
+ 19  ;
+
+Table created.
+
+SQL> COMMENT ON TABLE sosl_server_log IS 'Holds the log events of the SOSL server CMD and interaction with the database. Update is not allowed. Will use the alias slog.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.exec_timestamp IS 'The timestamp of the event. Automatically set by trigger, no update allowed.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.log_type IS 'The logging type, supports INFO, WARNING, ERROR, FATAL, SUCCESS. Mandatory.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.message IS 'The shortend log message. Mandatory. If only a CLOB is passed, the short message is build from the CLOB.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.full_message IS 'The full log message. For messages longer than 4000 bytes or char.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.guid IS 'The GUID the process is running with. Can be used as LIKE reference on SOSLERRORLOG.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.sosl_identifier IS 'The exact identifier for SOSLERRORLOG if available. No foreign key as log entries may be deleted.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.batch_id IS 'The batch id if available. Most likely inserted by database processes.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.caller IS 'Caller identification if available, to distinguish database processes from SOSL CMD server processes.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.created_by IS 'The logged in DB user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.created_by_os IS 'OS user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> 
+SQL> -- no primary key, only index
+SQL> CREATE INDEX sosl_server_log_idx
+  2    ON sosl_server_log (exec_timestamp)
+  3  ;
+
+Index created.
+
+SQL> -- constraints
+SQL> ALTER TABLE sosl_server_log
+  2    ADD CONSTRAINT sosl_server_log_chk_type
+  3    CHECK (log_type IN ('INFO', 'WARNING', 'ERROR', 'FATAL', 'SUCCESS'))
+  4  ;
+
+Table altered.
+
+SQL> -- foreign keys on batch_id, if not NULL
+SQL> ALTER TABLE sosl_server_log
+  2    ADD CONSTRAINT fk_sosl_server_log_batch_id
+  3    FOREIGN KEY (batch_id)
+  4    REFERENCES sosl_script_group (batch_id)
+  5    ON DELETE SET NULL
+  6  ;
+
+Table altered.
+
+SQL> -- trigger
+SQL> CREATE OR REPLACE TRIGGER sosl_server_log_ins_trg
+  2    BEFORE INSERT ON sosl_server_log
+  3    FOR EACH ROW
+  4  BEGIN
+  5    :NEW.exec_timestamp := SYSTIMESTAMP;
+  6    :NEW.created_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+  7    :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+  8    IF (:NEW.message IS NULL)
+  9    THEN
+ 10  	 IF :NEW.full_message IS NOT NULL
+ 11  	 THEN
+ 12  	   IF LENGTH(TRIM(:NEW.full_message)) > 4000
+ 13  	   THEN
+ 14  	     :NEW.message := TO_CHAR(SUBSTR(TRIM(:NEW.full_message), 1, 3996)) || ' ...';
+ 15  	   ELSE
+ 16  	     :NEW.message := TO_CHAR(TRIM(:NEW.full_message));
+ 17  	   END IF;
+ 18  	 ELSE
+ 19  	   RAISE_APPLICATION_ERROR(-20003, 'Full message must be given, if message is NULL.');
+ 20  	 END IF;
+ 21    END IF;
+ 22  END;
+ 23  /
+
+Trigger created.
+
+SQL> CREATE OR REPLACE TRIGGER sosl_server_log_upd_trg
+  2    BEFORE UPDATE ON sosl_server_log
+  3    FOR EACH ROW
+  4  BEGIN
+  5    RAISE_APPLICATION_ERROR(-20004, 'No updates allowed on a log table.');
+  6  END;
+  7  /
+
+Trigger created.
+
+SQL> CREATE OR REPLACE TRIGGER sosl_server_log_del_trg
+  2    BEFORE DELETE ON sosl_server_log
+  3    FOR EACH ROW
+  4  BEGIN
+  5    RAISE_APPLICATION_ERROR(-20005, 'You should not delete records from a log table, even if technically possible.');
+  6  END;
+  7  /
+
+Trigger created.
 
 SQL> @@../sosl_sql/util/log_silent.sql
 SQL> SET ECHO OFF

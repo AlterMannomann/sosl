@@ -1,0 +1,1 @@
+DROP TABLE sosl_script_group PURGE;

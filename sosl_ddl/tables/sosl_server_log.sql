@@ -4,7 +4,6 @@ CREATE TABLE sosl_server_log
   ( exec_timestamp    TIMESTAMP       DEFAULT SYSTIMESTAMP                      NOT NULL
   , log_type          VARCHAR2(30)    DEFAULT 'INFO'                            NOT NULL
   , message           VARCHAR2(4000)                                            NOT NULL
-  , script_id         NUMBER(38, 0)
   , batch_id          NUMBER(38, 0)
   , guid              VARCHAR2(64)
   , sosl_identifier   VARCHAR2(256)
@@ -26,8 +25,7 @@ COMMENT ON COLUMN sosl_server_log.log_type IS 'The logging type, supports INFO, 
 COMMENT ON COLUMN sosl_server_log.message IS 'The shortend log message. Mandatory. If only a CLOB is passed, the short message is build from the CLOB.';
 COMMENT ON COLUMN sosl_server_log.full_message IS 'The full log message. For messages longer than 4000 bytes or char.';
 COMMENT ON COLUMN sosl_server_log.guid IS 'The GUID the process is running with. Can be used as LIKE reference on SOSLERRORLOG.';
-COMMENT ON COLUMN sosl_server_log.sosl_identifier IS 'The exact identifier for SOSLERRORLOG if available.';
-COMMENT ON COLUMN sosl_server_log.script_id IS 'The script id if available. Most likely inserted by database processes.';
+COMMENT ON COLUMN sosl_server_log.sosl_identifier IS 'The exact identifier for SOSLERRORLOG if available. No foreign key as log entries may be deleted.';
 COMMENT ON COLUMN sosl_server_log.batch_id IS 'The batch id if available. Most likely inserted by database processes.';
 COMMENT ON COLUMN sosl_server_log.caller IS 'Caller identification if available, to distinguish database processes from SOSL CMD server processes.';
 COMMENT ON COLUMN sosl_server_log.created_by IS 'The logged in DB user who created the record, managed by default and trigger.';
@@ -41,6 +39,13 @@ CREATE INDEX sosl_server_log_idx
 ALTER TABLE sosl_server_log
   ADD CONSTRAINT sosl_server_log_chk_type
   CHECK (log_type IN ('INFO', 'WARNING', 'ERROR', 'FATAL', 'SUCCESS'))
+;
+-- foreign keys on batch_id, if not NULL
+ALTER TABLE sosl_server_log
+  ADD CONSTRAINT fk_sosl_server_log_batch_id
+  FOREIGN KEY (batch_id)
+  REFERENCES sosl_script_group (batch_id)
+  ON DELETE SET NULL
 ;
 -- trigger
 CREATE OR REPLACE TRIGGER sosl_server_log_ins_trg
