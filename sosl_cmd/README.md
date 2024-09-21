@@ -14,7 +14,8 @@ To use the CMD solution, you have to start the CMD for the sosl server. You migh
     START sosl_server.cmd
     REM or with path from any location, where SOSLPATH reflects the local path where the SOSL repository root is located
     START /D %SOSLPATH%\sosl_cmd sosl_server.cmd
-
+## Testing
+The directory [sosl_tests\sosl_cmd](..\sosl_tests\sosl_cmd\README.md) contains some basic functional CMD testing scripts.
 ## Dev Notes:
 - rework to use CALL on labels, labels set SOSL_EXITCODE and SOSL_ERRMSG, will make file more readable
   - so the following should work

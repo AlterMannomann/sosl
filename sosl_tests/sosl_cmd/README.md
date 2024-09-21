@@ -1,0 +1,1 @@
+Contains test cmd files related to the CMD solution of the Simple Oracle Script Loader.
