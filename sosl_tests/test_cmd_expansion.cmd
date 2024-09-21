@@ -1,0 +1,8 @@
+@ECHO OFF
+VERIFY OTHER 2>NUL
+SETLOCAL ENABLEEXTENSIONS
+IF ERRORLEVEL 0 (
+  ECHO CMD expansion possible
+) ELSE (
+  ECHO No CMD expansion possible
+)

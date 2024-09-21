@@ -1,4 +1,6 @@
 REM @ECHO OFF - disabled during testing
+REM CMD expansion necessary
+SETLOCAL ENABLEEXTENSIONS
 REM CMD must be called in this directory to make relative paths work. You may use START /D or task
 REM scheduler to set the correct path the CMD is running in.
 REM Basically define variable defaults on highest level to be accessible for all called CMD files
@@ -127,3 +129,4 @@ REM do not care if SOSL_DATETIME is correct or undefined
 ECHO %SOSL_DATETIME% %SOSL_ERRMSG% >> %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
 
 :SOSL_EXIT
+ENDLOCAL
