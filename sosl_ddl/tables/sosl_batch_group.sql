@@ -19,9 +19,9 @@ COMMENT ON TABLE sosl_batch_group IS 'Holds defined batch groups that can be ass
 COMMENT ON COLUMN sosl_batch_group.batch_group_id IS 'The generated unique id of the batch group.';
 COMMENT ON COLUMN sosl_batch_group.batch_group_name IS 'The name of the batch group.';
 COMMENT ON COLUMN sosl_batch_group.batch_base_path IS 'Optional full path to use as base for scripts in this batch group. If given SOSL will switch to the given directory before executing scripts of this batch group. The script path must be relative to this base path.';
-COMMENT ON COLUMN sosl_batch_group.batch_cfg_path IS 'Optional relative path with delimiter at path end to the configuration file for this batch group. If no base path is given, configured sosl path is the default.'
-COMMENT ON COLUMN sosl_batch_group.batch_tmp_path IS 'Optional relative temporary path with delimiter at path end for this batch group. If no base path is given, configured sosl path is the default.'
-COMMENT ON COLUMN sosl_batch_group.batch_log_path IS 'Optional relative log file path with delimiter at path end for this batch group. If no base path is given, configured sosl path is the default.'
+COMMENT ON COLUMN sosl_batch_group.batch_cfg_path IS 'Optional relative path with delimiter at path end to the configuration file for this batch group. If no base path is given, configured sosl path is the default.';
+COMMENT ON COLUMN sosl_batch_group.batch_tmp_path IS 'Optional relative temporary path with delimiter at path end for this batch group. If no base path is given, configured sosl path is the default.';
+COMMENT ON COLUMN sosl_batch_group.batch_log_path IS 'Optional relative log file path with delimiter at path end for this batch group. If no base path is given, configured sosl path is the default.';
 COMMENT ON COLUMN sosl_batch_group.batch_group_description IS 'Optional description of the batch group.';
 COMMENT ON COLUMN sosl_batch_group.created IS 'Date created, managed by default and trigger.';
 COMMENT ON COLUMN sosl_batch_group.updated IS 'Date updated, managed by default and trigger.';

@@ -133,22 +133,32 @@ INSERT INTO sosl_config
 INSERT INTO sosl_config
   (config_name, config_value, config_description)
   VALUES
-  ('SOSL_EXT_LOG', 'log', 'Log file extension to use. Set by SOSL server.')
-;
-INSERT INTO sosl_config
-  (config_name, config_value, config_description)
-  VALUES
-  ('SOSL_EXT_LOCK', 'lock', 'Default process lock file extension. Set by SOSL server.')
-;
-INSERT INTO sosl_config
-  (config_name, config_value, config_description)
-  VALUES
   ('SOSL_START_LOG', 'sosl_server', 'Log filename for start and end of SOSL server CMD. Set by SOSL server.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_description)
   VALUES
   ('SOSL_BASE_LOG', 'sosl_job_', 'Base log filename for single job runs. Will be extended by GUID. Set by SOSL server.')
+;
+INSERT INTO sosl_config
+  (config_name, config_value, config_description)
+  VALUES
+  ('SOSL_EXT_LOG', 'log', 'Log file extension to use. Set by SOSL server.')
+;
+INSERT INTO sosl_config
+  (config_name, config_value, config_description)
+  VALUES
+  ('SOSL_EXT_TMP', 'tmp', 'Log file extension for temporary logs to use. On error those file extension will be renamed to SOSL_EXT_ERROR extension. Set by SOSL server.')
+;
+INSERT INTO sosl_config
+  (config_name, config_value, config_description)
+  VALUES
+  ('SOSL_EXT_LOCK', 'lock', 'Default process lock file extension. Lock files will always get deleted either on service start or after a run. Set by SOSL server.')
+;
+INSERT INTO sosl_config
+  (config_name, config_value, config_description)
+  VALUES
+  ('SOSL_EXT_ERROR', 'err', 'Default process error file extension. Set by SOSL server.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_type, config_description)
@@ -158,6 +168,21 @@ INSERT INTO sosl_config
 INSERT INTO sosl_config
   (config_name, config_value, config_type, config_description)
   VALUES
-  ('SOSL_RUNMODE', 'RUN', 'CHAR', 'Determines if the server should RUN or STOP. Read by the SOSL server. RUN will cause the SOSL server, if started to run as long as it does not get a STOP signal from the database. Set it to STOP to stop the SOSL server.')
+  ('SOSL_RUNMODE', 'RUN', 'CHAR', 'Determines if the server should RUN, WAIT or STOP. Read by the SOSL server. RUN will cause the SOSL server, if started to run as long as it does not get a STOP signal from the database. Set it to STOP to stop the SOSL server. Set to WAIT if the server should not call any script apart the check for the run mode. Can be locally overwritten.')
+;
+INSERT INTO sosl_config
+  (config_name, config_value, config_type, config_description)
+  VALUES
+  ('SOSL_DEFAULT_WAIT', '1', 'NUMBER', 'Determines the normal sleep time in seconds the sosl server has between calls if scripts are available for processing.')
+;
+INSERT INTO sosl_config
+  (config_name, config_value, config_type, config_description)
+  VALUES
+  ('SOSL_NOJOB_WAIT', '120', 'NUMBER', 'Determines the sleep time in seconds the sosl server has between calls if no scripts are available for processing.')
+;
+INSERT INTO sosl_config
+  (config_name, config_value, config_type, config_description)
+  VALUES
+  ('SOSL_PAUSE_WAIT', '3600', 'NUMBER', 'Determines the sleep time in seconds the sosl server has between calls if run mode is set to wait.')
 ;
 COMMIT;
