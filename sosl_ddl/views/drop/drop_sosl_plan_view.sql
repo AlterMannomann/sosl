@@ -1,0 +1,1 @@
+DROP VIEW sosl_plan_view;

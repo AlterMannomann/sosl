@@ -14,7 +14,11 @@ SPOOL logs/sosl_setup.log
 @@../sosl_ddl/tables/sosl_script.sql
 @@../sosl_ddl/tables/sosl_batch_group.sql
 @@../sosl_ddl/tables/sosl_script_group.sql
+@@../sosl_ddl/tables/sosl_batch_plan.sql
+@@../sosl_ddl/tables/sosl_group_plan.sql
+@@../sosl_ddl/tables/sosl_run_queues.sql
 @@../sosl_ddl/tables/sosl_server_log.sql
+@@../sosl_ddl/views/sosl_plan_view.sql
 @@../sosl_sql/util/log_silent.sql
 -- check errors and display them, if so
 COLUMN EXITCODE NEW_VAL EXITCODE

@@ -2,6 +2,9 @@ CREATE TABLE sosl_batch_group
   ( batch_group_id          NUMBER(38, 0)  GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
   , batch_group_name        VARCHAR2(256)                                            NOT NULL
   , batch_base_path         VARCHAR2(2000)
+  , batch_cfg_path          VARCHAR2(2000)
+  , batch_tmp_path          VARCHAR2(2000)
+  , batch_log_path          VARCHAR2(2000)
   , created                 DATE           DEFAULT SYSDATE                           NOT NULL
   , updated                 DATE           DEFAULT SYSDATE                           NOT NULL
   , created_by              VARCHAR2(256)  DEFAULT USER                              NOT NULL
@@ -15,7 +18,10 @@ CREATE TABLE sosl_batch_group
 COMMENT ON TABLE sosl_batch_group IS 'Holds defined batch groups that can be associated with scripts. Will use the alias sbat.';
 COMMENT ON COLUMN sosl_batch_group.batch_group_id IS 'The generated unique id of the batch group.';
 COMMENT ON COLUMN sosl_batch_group.batch_group_name IS 'The name of the batch group.';
-COMMENT ON COLUMN sosl_batch_group.batch_base_path IS 'Optional full path to use as base for scripts in this batch group. If given SOSL will switch to the given directory before executing scripts of this batch group. The script path must be realtive to the base path.';
+COMMENT ON COLUMN sosl_batch_group.batch_base_path IS 'Optional full path to use as base for scripts in this batch group. If given SOSL will switch to the given directory before executing scripts of this batch group. The script path must be relative to this base path.';
+COMMENT ON COLUMN sosl_batch_group.batch_cfg_path IS 'Optional relative path with delimiter at path end to the configuration file for this batch group. If no base path is given, configured sosl path is the default.'
+COMMENT ON COLUMN sosl_batch_group.batch_tmp_path IS 'Optional relative temporary path with delimiter at path end for this batch group. If no base path is given, configured sosl path is the default.'
+COMMENT ON COLUMN sosl_batch_group.batch_log_path IS 'Optional relative log file path with delimiter at path end for this batch group. If no base path is given, configured sosl path is the default.'
 COMMENT ON COLUMN sosl_batch_group.batch_group_description IS 'Optional description of the batch group.';
 COMMENT ON COLUMN sosl_batch_group.created IS 'Date created, managed by default and trigger.';
 COMMENT ON COLUMN sosl_batch_group.updated IS 'Date updated, managed by default and trigger.';
@@ -55,10 +61,3 @@ BEGIN
   :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
 END;
 /
--- create basic entry
-INSERT INTO sosl_batch_group
-  (batch_group_name, batch_group_description)
-  VALUES
-  ('SOSL_BATCH_GROUP', 'The default batch group for SOSL if no other batch group is defined.')
-;
-COMMIT;

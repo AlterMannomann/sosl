@@ -1,5 +1,25 @@
+SQL> @@../sosl_ddl/views/drop/drop_sosl_plan_view.sql
+SQL> DROP VIEW sosl_plan_view;
+
+View dropped.
+
 SQL> @@../sosl_ddl/tables/drop/drop_sosl_server_log.sql
 SQL> DROP TABLE sosl_server_log PURGE;
+
+Table dropped.
+
+SQL> @@../sosl_ddl/tables/drop/drop_sosl_run_queues.sql
+SQL> DROP TABLE sosl_run_queues PURGE;
+
+Table dropped.
+
+SQL> @@../sosl_ddl/tables/drop/drop_sosl_group_plan.sql
+SQL> DROP TABLE sosl_group_plan PURGE;
+
+Table dropped.
+
+SQL> @@../sosl_ddl/tables/drop/drop_sosl_batch_plan.sql
+SQL> DROP TABLE sosl_batch_plan PURGE;
 
 Table dropped.
 
@@ -28,7 +48,6 @@ SQL> DROP TABLE soslerrorlog PURGE;
 
 Table dropped.
 
-SQL> 
 SQL> @@../sosl_sql/util/log_silent.sql
 SQL> SET ECHO OFF
 SUCCESS - no errors found during setup          0

@@ -3,7 +3,7 @@ This folder contains templates of configuration files the Simple Oracle Script L
 The term configuration file is used only for files that contain sensitive data, credentials and secrets.
 
 ## Rule of the thumb
-- copy the file to the configured SOSL_PATH_CFG
+- copy the file to the configured SOSL_PATH_CFG or the configured batch group batch_cfg_path.
 - do not change the file name
 - change only credentials or login strings, do not change other parts
 

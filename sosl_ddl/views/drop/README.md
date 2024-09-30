@@ -1,0 +1,1 @@
+This folder contains the drop scripts for the objects in the upper folder.

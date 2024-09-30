@@ -1,0 +1,1 @@
+DROP TABLE sosl_run_queues PURGE;

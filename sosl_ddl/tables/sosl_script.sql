@@ -16,7 +16,7 @@ CREATE TABLE sosl_script
 -- description
 COMMENT ON TABLE sosl_script IS 'Holds the script file names that should be executed by SOSL. Will use the alias scrt.';
 COMMENT ON COLUMN sosl_script.script_id IS 'The generated unique id of the script file.';
-COMMENT ON COLUMN sosl_script.script_name IS 'The name of the script file including full or relative path. Use relative path (relative to repository location) to ensure running scripts from different machines.';
+COMMENT ON COLUMN sosl_script.script_name IS 'The name of the script file including full or relative path. Use relative path (relative to batch_base_path or repository location) to ensure running scripts from different machines.';
 COMMENT ON COLUMN sosl_script.script_schema IS 'The schema the script should run in. Will cause an ALTER SESSION SET CURRENT_SCHEMA before executing the script.';
 COMMENT ON COLUMN sosl_script.script_description IS 'Optional description of the script file.';
 COMMENT ON COLUMN sosl_script.created IS 'Date created, managed by default and trigger.';

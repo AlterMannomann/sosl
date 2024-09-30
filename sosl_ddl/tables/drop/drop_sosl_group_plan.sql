@@ -1,0 +1,1 @@
+DROP TABLE sosl_group_plan PURGE;

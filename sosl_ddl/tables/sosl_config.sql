@@ -118,17 +118,17 @@ END;
 INSERT INTO sosl_config
   (config_name, config_value, config_description)
   VALUES
-  ('SOSL_PATH_CFG', '..\..\cfg\', 'Path to configuration files the SOSL server uses. Set by SOSL server. As configuration files contain credentials and secrets the path should be in a safe space with controlled user rights.')
+  ('SOSL_PATH_CFG', '..\..\cfg\', 'Relative path with delimiter at path end to configuration files the SOSL server uses. Set by SOSL server. As configuration files contain credentials and secrets the path should be in a safe space with controlled user rights.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_max_length, config_description)
   VALUES
-  ('SOSL_PATH_TMP', '..\..\tmp\', 239, 'Path to temporary files the SOSL server uses. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
+  ('SOSL_PATH_TMP', '..\..\tmp\', 239, 'Relative path with delimiter at path end to temporary files the SOSL server uses. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_max_length, config_description)
   VALUES
-  ('SOSL_PATH_LOG', '..\..\log\', 239, 'Path to log files the SOSL server creates. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
+  ('SOSL_PATH_LOG', '..\..\log\', 239, 'Relative path with delimiter at path end to log files the SOSL server creates. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_description)

@@ -4,8 +4,12 @@ CREATE TABLE sosl_server_log
   ( exec_timestamp    TIMESTAMP       DEFAULT SYSTIMESTAMP                      NOT NULL
   , log_type          VARCHAR2(30)    DEFAULT 'INFO'                            NOT NULL
   , message           VARCHAR2(4000)                                            NOT NULL
-  , batch_id          NUMBER(38, 0)
+  , run_id            NUMBER(38, 0)
   , plan_id           NUMBER(38, 0)
+  , group_plan_id     NUMBER(38, 0)
+  , batch_group_id    NUMBER(38, 0)
+  , batch_id          NUMBER(38, 0)
+  , script_id         NUMBER(38, 0)
   , guid              VARCHAR2(64)
   , sosl_identifier   VARCHAR2(256)
   , created_by        VARCHAR2(256)   DEFAULT USER                              NOT NULL
@@ -27,8 +31,12 @@ COMMENT ON COLUMN sosl_server_log.message IS 'The shortend log message. Mandator
 COMMENT ON COLUMN sosl_server_log.full_message IS 'The full log message. For messages longer than 4000 bytes or char.';
 COMMENT ON COLUMN sosl_server_log.guid IS 'The GUID the process is running with. Can be used as LIKE reference on SOSLERRORLOG.';
 COMMENT ON COLUMN sosl_server_log.sosl_identifier IS 'The exact identifier for SOSLERRORLOG if available. No foreign key as log entries may be deleted.';
-COMMENT ON COLUMN sosl_server_log.batch_id IS 'The batch id if available. Most likely inserted by database processes.';
-COMMENT ON COLUMN sosl_server_log.plan_id IS 'The batch plan id if available. Most likely inserted by database processes.';
+COMMENT ON COLUMN sosl_server_log.run_id IS 'The associated run id if available.';
+COMMENT ON COLUMN sosl_server_log.plan_id IS 'The associated batch plan id if available.';
+COMMENT ON COLUMN sosl_server_log.group_plan_id IS 'The associated batch group plan id if available.';
+COMMENT ON COLUMN sosl_server_log.batch_group_id IS 'The associated batch group id if available.';
+COMMENT ON COLUMN sosl_server_log.batch_id IS 'The associated batch id if available.';
+COMMENT ON COLUMN sosl_server_log.script_id IS 'The associated script id if available.';
 COMMENT ON COLUMN sosl_server_log.caller IS 'Caller identification if available, to distinguish database processes from SOSL CMD server processes.';
 COMMENT ON COLUMN sosl_server_log.created_by IS 'The logged in DB user who created the record, managed by default and trigger.';
 COMMENT ON COLUMN sosl_server_log.created_by_os IS 'OS user who created the record, managed by default and trigger.';
@@ -44,13 +52,13 @@ ALTER TABLE sosl_server_log
 ;
 -- foreign keys on batch_id, if not NULL
 ALTER TABLE sosl_server_log
-  ADD CONSTRAINT fk_sosl_server_log_batch_id
+  ADD CONSTRAINT sosl_server_log_batch_id_fk
   FOREIGN KEY (batch_id)
   REFERENCES sosl_script_group (batch_id)
   ON DELETE SET NULL
 ;
 ALTER TABLE sosl_server_log
-  ADD CONSTRAINT fk_sosl_server_log_plan_id
+  ADD CONSTRAINT sosl_server_log_plan_id_fk
   FOREIGN KEY (plan_id)
   REFERENCES sosl_batch_plan (plan_id)
   ON DELETE SET NULL
@@ -76,6 +84,23 @@ BEGIN
     ELSE
       RAISE_APPLICATION_ERROR(-20003, 'Full message must be given, if message is NULL.');
     END IF;
+  END IF;
+  -- if a run id is provided, get the related ids
+  IF :NEW.run_id IS NOT NULL
+  THEN
+    SELECT plan_id
+         , group_plan_id
+         , batch_group_id
+         , batch_id
+         , script_id
+      INTO :NEW.plan_id
+         , :NEW.group_plan_id
+         , :NEW.batch_group_id
+         , :NEW.batch_id
+         , :NEW.script_id
+      FROM sosl_run_queues
+     WHERE run_id = :NEW.run_id
+    ;
   END IF;
 END;
 /

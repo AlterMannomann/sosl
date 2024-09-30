@@ -1,0 +1,1 @@
+This folder contains the view definitions for the Simple Oracle Script Loader.
