@@ -1,3 +1,4 @@
+REM (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 REM Must be called from this directory to work
 REM And example connection sosl/sosl@soslinstance must be set up for test
 ECHO Call the test script using template

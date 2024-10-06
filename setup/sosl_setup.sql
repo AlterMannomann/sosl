@@ -1,3 +1,4 @@
+-- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 -- setup the SOSL environment
 @@../sosl_sql/util/log_visible.sql
 CLEAR COLUMNS

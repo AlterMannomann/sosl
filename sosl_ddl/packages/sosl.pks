@@ -1,9 +1,30 @@
+-- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 -- main package of the Simple Oracle Script Loader
 CREATE OR REPLACE PACKAGE sosl
 AS
   /**
   * This package contains the main functions and procedures used by the Simple Oracle Script Loader.
   */
+
+  /** Function SOSL.SET_CONFIG
+  * Sets an existing configuration value for a given configuration name.
+  *
+  * @return Exit code, either 0 = successful or -1 on error.
+  */
+  FUNCTION set_config( p_config_name  IN VARCHAR2
+                     , p_config_value IN VARCHAR2
+                     )
+    RETURN NUMBER
+  ;
+
+  /** Function SOSL.GET_CONFIG
+  * Gets an existing configuration value for a given and existing case sensitive configuration name.
+  *
+  * @return The configured value as VARCHAR2 or -1 string on error.
+  */
+  FUNCTION get_config(p_config_name IN VARCHAR2)
+    RETURN VARCHAR2
+  ;
 
   /** Function SOSL.HAS_RUN_IDS
   * Determines if script run ids are available to be executed. Only run ids with run state enqueued
@@ -61,6 +82,13 @@ AS
   FUNCTION log_path(p_run_id IN NUMBER)
     RETURN VARCHAR2
   ;
+
+  /** Procedure SOSL.RUN_PLAN
+  * Main function of scheduled plans called with the plan id. Will run and execute the plan.
+  *
+  * @param p_plan_id The plan id of the plan to execute.
+  */
+  PROCEDURE run_plan(p_plan_id IN NUMBER);
 
 END;
 /

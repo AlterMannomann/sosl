@@ -1,3 +1,4 @@
+-- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 CREATE OR REPLACE VIEW sosl_plan_view
 AS
   SELECT spla.plan_name

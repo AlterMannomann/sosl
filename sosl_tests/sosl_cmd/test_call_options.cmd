@@ -1,4 +1,5 @@
 @ECHO OFF
+REM (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SET MYGOTO=:NEXT
 GOTO %MYGOTO%
 ECHO Did not work GOTO with variable

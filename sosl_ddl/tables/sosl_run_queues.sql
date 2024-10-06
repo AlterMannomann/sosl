@@ -1,3 +1,4 @@
+-- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 CREATE TABLE sosl_run_queues
   ( run_id          NUMBER(38, 0)   GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
   , plan_id         NUMBER(38, 0)

@@ -1,3 +1,4 @@
+-- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 -- no checks if table exists, cleanup SOSL objects
 @@../sosl_sql/util/log_visible.sql
 CLEAR COLUMNS

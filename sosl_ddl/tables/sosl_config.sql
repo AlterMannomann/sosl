@@ -1,3 +1,4 @@
+-- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 -- requires login with the correct schema, either SOSL or your on schema
 -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
 CREATE TABLE sosl_config
@@ -103,11 +104,21 @@ BEGIN
   IF :OLD.config_name IN ( 'SOSL_PATH_CFG'
                          , 'SOSL_PATH_TMP'
                          , 'SOSL_PATH_LOG'
-                         , 'SOSL_EXT_LOG'
-                         , 'SOSL_EXT_LOCK'
                          , 'SOSL_START_LOG'
                          , 'SOSL_BASE_LOG'
+                         , 'SOSL_EXT_LOG'
+                         , 'SOSL_EXT_TMP'
+                         , 'SOSL_EXT_LOCK'
+                         , 'SOSL_EXT_ERROR'
                          , 'SOSL_MAX_PARALLEL'
+                         , 'SOSL_RUNMODE'
+                         , 'SOSL_DEFAULT_WAIT'
+                         , 'SOSL_NOJOB_WAIT'
+                         , 'SOSL_PAUSE_WAIT'
+                         , 'SOSL_USE_MAIL'
+                         , 'SOSL_MAIL_SENDER'
+                         , 'SOSL_MAIL_RECIPIENT'
+                         , 'SOSL_MAIL_API'
                          )
   THEN
     RAISE_APPLICATION_ERROR(-20002, 'The given system config_name "' || :OLD.config_name || '" cannot be deleted.');
@@ -184,5 +195,25 @@ INSERT INTO sosl_config
   (config_name, config_value, config_type, config_description)
   VALUES
   ('SOSL_PAUSE_WAIT', '3600', 'NUMBER', 'Determines the sleep time in seconds the sosl server has between calls if run mode is set to wait.')
+;
+INSERT INTO sosl_config
+  (config_name, config_value, config_type, config_description)
+  VALUES
+  ('SOSL_USE_MAIL', 'NO', 'CHAR', 'Determines if sosl should use mail. Set to YES if you want to use mail.')
+;
+INSERT INTO sosl_config
+  (config_name, config_value, config_type, config_description)
+  VALUES
+  ('SOSL_MAIL_SENDER', 'NOT_SET', 'CHAR', 'The default sender mail address for sending mails.')
+;
+INSERT INTO sosl_config
+  (config_name, config_value, config_type, config_description)
+  VALUES
+  ('SOSL_MAIL_RECIPIENT', 'NOT_SET', 'CHAR', 'The default recipient mail address for sending mails.')
+;
+INSERT INTO sosl_config
+  (config_name, config_value, config_type, config_description)
+  VALUES
+  ('SOSL_MAIL_API', 'sosl.send_mail', 'CHAR', 'The name of an existing procedure that should handle mail. Must work for all plans as the wrapper function SOSL_SENDMAIL is created dynamically. The procedure must have four parameters: mail_sender IN VARCHAR2, mail_recipients IN VARCHAR2, mail_subject IN VARCHAR2, mail_text IN VARCHAR2. It may include a schema, if not sosl schema. Can be a package procedure or standalone procedure.')
 ;
 COMMIT;

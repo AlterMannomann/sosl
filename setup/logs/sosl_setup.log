@@ -704,23 +704,27 @@ SQL> CREATE TABLE sosl_batch_plan
   3    , plan_name	   VARCHAR2(256)					     NOT NULL
   4    , plan_active	   VARCHAR2(3)	   DEFAULT 'NO'
   5    , plan_accepted	   VARCHAR2(3)	   DEFAULT 'NO'
-  6    , created	   DATE 	   DEFAULT SYSDATE			     NOT NULL
-  7    , updated	   DATE 	   DEFAULT SYSDATE			     NOT NULL
-  8    , created_by	   VARCHAR2(256)   DEFAULT USER 			     NOT NULL
-  9    , created_by_os	   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 10    , updated_by	   VARCHAR2(256)   DEFAULT USER 			     NOT NULL
- 11    , updated_by_os	   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 12    , activated	   DATE
- 13    , deactivated	   DATE
- 14    , accepted	   DATE
- 15    , denied 	   DATE
- 16    , activated_by_os   VARCHAR2(256)
- 17    , deactivated_by_os VARCHAR2(256)
- 18    , accepted_by_os    VARCHAR2(256)
- 19    , denied_by_os	   VARCHAR2(256)
- 20    , plan_description  VARCHAR2(4000)
- 21    )
- 22  ;
+  6    , job_name	   VARCHAR2(128)
+  7    , start_date	   TIMESTAMP
+  8    , repeat_interval   VARCHAR2(4000)
+  9    , end_date	   TIMESTAMP
+ 10    , created	   DATE 	   DEFAULT SYSDATE			     NOT NULL
+ 11    , updated	   DATE 	   DEFAULT SYSDATE			     NOT NULL
+ 12    , created_by	   VARCHAR2(256)   DEFAULT USER 			     NOT NULL
+ 13    , created_by_os	   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 14    , updated_by	   VARCHAR2(256)   DEFAULT USER 			     NOT NULL
+ 15    , updated_by_os	   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 16    , activated	   DATE
+ 17    , deactivated	   DATE
+ 18    , accepted	   DATE
+ 19    , denied 	   DATE
+ 20    , activated_by_os   VARCHAR2(256)
+ 21    , deactivated_by_os VARCHAR2(256)
+ 22    , accepted_by_os    VARCHAR2(256)
+ 23    , denied_by_os	   VARCHAR2(256)
+ 24    , plan_description  VARCHAR2(4000)
+ 25    )
+ 26  ;
 
 Table created.
 
@@ -741,6 +745,22 @@ SQL> COMMENT ON COLUMN sosl_batch_plan.plan_active IS 'Defines if the plan is ac
 Comment created.
 
 SQL> COMMENT ON COLUMN sosl_batch_plan.plan_accepted IS 'Defines if the plan is accepted. Accepts NO and YES. Not accepted plans will not run but inform the log that an attempt was made to start the plan.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_batch_plan.job_name IS 'If the plan should be scheduled, provide an valid name for the job. Only normal uppercase characters A-Z, numbers and underscore allowed. Trigger will convert lower case to upper case, disable the job if it exists and create or update the job. If job name changes the old job is dropped. Equivalent to parameter in DBMS_SCHEDULER.CREATE_JOB.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_batch_plan.start_date IS 'The desired start date of the scheduled job. Equivalent to parameter in DBMS_SCHEDULER.CREATE_JOB.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_batch_plan.repeat_interval IS 'The repeat interval for the scheduler, if a scheduler name is defined. Equivalent to parameter in DBMS_SCHEDULER.CREATE_JOB.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_batch_plan.end_date IS 'The desired end date of the scheduled job or NULL. Equivalent to parameter in DBMS_SCHEDULER.CREATE_JOB.';
 
 Comment created.
 
@@ -839,40 +859,207 @@ SQL> ALTER TABLE sosl_batch_plan
 
 Table altered.
 
+SQL> ALTER TABLE sosl_batch_plan
+  2    ADD CONSTRAINT sosl_batch_plan_chk_job_name
+  3    CHECK (REGEXP_INSTR(job_name, '^[A-Z0-9_]*$') > 0)
+  4    ENABLE
+  5  ;
+
+Table altered.
+
 SQL> -- trigger
 SQL> CREATE OR REPLACE TRIGGER sosl_batch_plan_ins_upd_trg
   2    BEFORE INSERT OR UPDATE ON sosl_batch_plan
   3    FOR EACH ROW
-  4  BEGIN
-  5    IF INSERTING
-  6    THEN
-  7  	 :NEW.created	     := SYSDATE;
-  8  	 :NEW.created_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
-  9  	 :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
- 10    END IF;
- 11    :NEW.updated	   := SYSDATE;
- 12    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 13    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
- 14    IF :NEW.plan_active = 'NO'
- 15    THEN
- 16  	 :NEW.deactivated	:= SYSDATE;
- 17  	 :NEW.deactivated_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
- 18    ELSIF :NEW.plan_active = 'YES'
- 19    THEN
- 20  	 :NEW.activated       := SYSDATE;
- 21  	 :NEW.activated_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
- 22    END IF;
- 23    IF :NEW.plan_accepted = 'NO'
- 24    THEN
- 25  	 :NEW.denied	   := SYSDATE;
- 26  	 :NEW.denied_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
- 27    ELSIF :NEW.plan_accepted = 'YES'
- 28    THEN
- 29  	 :NEW.accepted	     := SYSDATE;
- 30  	 :NEW.accepted_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
- 31    END IF;
- 32  END;
- 33  /
+  4  DECLARE
+  5    l_has_job NUMBER;
+  6  BEGIN
+  7    IF INSERTING
+  8    THEN
+  9  	 :NEW.created	     := SYSDATE;
+ 10  	 :NEW.created_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 11  	 :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+ 12    END IF;
+ 13    :NEW.updated	   := SYSDATE;
+ 14    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 15    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+ 16    IF :NEW.plan_active = 'NO'
+ 17    THEN
+ 18  	 :NEW.deactivated	:= SYSDATE;
+ 19  	 :NEW.deactivated_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
+ 20    ELSIF :NEW.plan_active = 'YES'
+ 21    THEN
+ 22  	 :NEW.activated       := SYSDATE;
+ 23  	 :NEW.activated_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
+ 24    END IF;
+ 25    IF :NEW.plan_accepted = 'NO'
+ 26    THEN
+ 27  	 :NEW.denied	   := SYSDATE;
+ 28  	 :NEW.denied_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
+ 29    ELSIF :NEW.plan_accepted = 'YES'
+ 30    THEN
+ 31  	 :NEW.accepted	     := SYSDATE;
+ 32  	 :NEW.accepted_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
+ 33    END IF;
+ 34    -- if job_name IS NOT NULL then create or update the scheduler job
+ 35    IF INSERTING AND :NEW.job_name IS NOT NULL
+ 36    THEN
+ 37  	 BEGIN
+ 38  	   SELECT COUNT(*) INTO l_has_job FROM user_scheduler_jobs WHERE job_name = :NEW.job_name;
+ 39  	   -- check if already a job with this name exists
+ 40  	   IF l_has_job > 0
+ 41  	   THEN
+ 42  	     DBMS_SCHEDULER.DISABLE(name => :NEW.job_name, force => TRUE);
+ 43  	     -- update the job, set current plan id
+ 44  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
+ 45  					 , attribute => 'job_action'
+ 46  					 , value => 'BEGIN sosl.run_plan(' || TRIM(TO_CHAR(:NEW.plan_id)) || '); END;'
+ 47  					 )
+ 48  	     ;
+ 49  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
+ 50  					 , attribute => 'start_date'
+ 51  					 , value => :NEW.start_date
+ 52  					 )
+ 53  	     ;
+ 54  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
+ 55  					 , attribute => 'repeat_interval'
+ 56  					 , value => :NEW.repeat_interval
+ 57  					 )
+ 58  	     ;
+ 59  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
+ 60  					 , attribute => 'end_date'
+ 61  					 , value => :NEW.end_date
+ 62  					 )
+ 63  	     ;
+ 64  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
+ 65  					 , attribute => 'comments'
+ 66  					 , value => 'Run PLAN_ID ' || TRIM(TO_CHAR(:NEW.plan_id)) || ' plan info: ' || NVL(:NEW.plan_description, 'N/A')
+ 67  					 )
+ 68  	     ;
+ 69  	   ELSE
+ 70  	     -- create the job
+ 71  	     DBMS_SCHEDULER.CREATE_JOB( job_name => :NEW.job_name
+ 72  				      , job_type => 'PLSQL_BLOCK'
+ 73  				      , job_action => 'BEGIN sosl.run_plan(' || TRIM(TO_CHAR(:NEW.plan_id)) || '); END;'
+ 74  				      , number_of_arguments => 0
+ 75  				      , start_date => :NEW.start_date
+ 76  				      , repeat_interval => :NEW.repeat_interval
+ 77  				      , end_date => :NEW.end_date
+ 78  				      , enabled => FALSE
+ 79  				      , auto_drop => FALSE
+ 80  				      , comments => 'Run PLAN_ID ' || TRIM(TO_CHAR(:NEW.plan_id)) || ' plan info: ' || NVL(:NEW.plan_description, 'N/A')
+ 81  				      )
+ 82  	     ;
+ 83  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
+ 84  					 , attribute => 'store_output'
+ 85  					 , value => TRUE
+ 86  					 )
+ 87  	     ;
+ 88  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
+ 89  					 , attribute => 'logging_level'
+ 90  					 , value => DBMS_SCHEDULER.LOGGING_FULL
+ 91  					 )
+ 92  	     ;
+ 93  	   END IF;
+ 94  	 EXCEPTION
+ 95  	   WHEN OTHERS THEN
+ 96  	     RAISE_APPLICATION_ERROR(-20008, 'Could not create or update job ' || :NEW.job_name || ' ERROR: ' || SQLERRM);
+ 97  	 END;
+ 98    END IF;
+ 99    IF UPDATING AND :NEW.job_name IS NOT NULL
+100    THEN
+101  	 BEGIN
+102  	   SELECT COUNT(*) INTO l_has_job FROM user_scheduler_jobs WHERE job_name = :OLD.job_name;
+103  	   -- if name has changed, drop old job
+104  	   IF	  :OLD.job_name IS NOT NULL
+105  	      AND :OLD.job_name != :NEW.job_name
+106  	      AND l_has_job > 0
+107  	   THEN
+108  	     DBMS_SCHEDULER.DISABLE(name => :OLD.job_name, force => TRUE);
+109  	     DBMS_SCHEDULER.DROP_JOB(job_name => :OLD.job_name, force => TRUE);
+110  	   END IF;
+111  	 EXCEPTION
+112  	   WHEN OTHERS THEN
+113  	     RAISE_APPLICATION_ERROR(-20009, 'Could not drop old job ' || :OLD.job_name || ' ERROR: ' || SQLERRM);
+114  	 END;
+115  	 -- now handle existing job or create a new job
+116  	 BEGIN
+117  	   SELECT COUNT(*) INTO l_has_job FROM user_scheduler_jobs WHERE job_name = :NEW.job_name;
+118  	   IF l_has_job > 0
+119  	   THEN
+120  	     -- disable and update job
+121  	     DBMS_SCHEDULER.DISABLE(name => :NEW.job_name, force => TRUE);
+122  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
+123  					 , attribute => 'start_date'
+124  					 , value => :NEW.start_date
+125  					 )
+126  	     ;
+127  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
+128  					 , attribute => 'repeat_interval'
+129  					 , value => :NEW.repeat_interval
+130  					 )
+131  	     ;
+132  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
+133  					 , attribute => 'end_date'
+134  					 , value => :NEW.end_date
+135  					 )
+136  	     ;
+137  	   ELSE
+138  	     -- create a new job with the new job name
+139  	     DBMS_SCHEDULER.CREATE_JOB( job_name => :NEW.job_name
+140  				      , job_type => 'PLSQL_BLOCK'
+141  				      , job_action => 'BEGIN sosl.run_plan(' || TRIM(TO_CHAR(:NEW.plan_id)) || '); END;'
+142  				      , number_of_arguments => 0
+143  				      , start_date => :NEW.start_date
+144  				      , repeat_interval => :NEW.repeat_interval
+145  				      , end_date => :NEW.end_date
+146  				      , enabled => FALSE
+147  				      , auto_drop => FALSE
+148  				      , comments => 'Run PLAN_ID ' || TRIM(TO_CHAR(:NEW.plan_id)) || ' plan info: ' || NVL(:NEW.plan_description, 'N/A')
+149  				      )
+150  	     ;
+151  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
+152  					 , attribute => 'store_output'
+153  					 , value => TRUE
+154  					 )
+155  	     ;
+156  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
+157  					 , attribute => 'logging_level'
+158  					 , value => DBMS_SCHEDULER.LOGGING_FULL
+159  					 )
+160  	     ;
+161  	   END IF;
+162  	 EXCEPTION
+163  	   WHEN OTHERS THEN
+164  	     RAISE_APPLICATION_ERROR(-20008, 'Could not create or update job ' || :NEW.job_name || ' ERROR: ' || SQLERRM);
+165  	 END;
+166    END IF;
+167  END;
+168  /
+
+Trigger created.
+
+SQL> CREATE OR REPLACE TRIGGER sosl_batch_plan_del_trg
+  2    BEFORE DELETE ON sosl_batch_plan
+  3    FOR EACH ROW
+  4  DECLARE
+  5    l_has_job NUMBER;
+  6  BEGIN
+  7    -- drop jobs that exist, if plan is deleted
+  8    BEGIN
+  9  	 SELECT COUNT(*) INTO l_has_job FROM user_scheduler_jobs WHERE job_name = :OLD.job_name;
+ 10  	 -- drop old job
+ 11  	 IF l_has_job > 0
+ 12  	 THEN
+ 13  	   DBMS_SCHEDULER.DISABLE(name => :OLD.job_name, force => TRUE);
+ 14  	   DBMS_SCHEDULER.DROP_JOB(job_name => :OLD.job_name, force => TRUE);
+ 15  	 END IF;
+ 16    EXCEPTION
+ 17  	 WHEN OTHERS THEN
+ 18  	   RAISE_APPLICATION_ERROR(-20009, 'Could not drop old job ' || :OLD.job_name || ' ERROR: ' || SQLERRM);
+ 19    END;
+ 20  END;
+ 21  /
 
 Trigger created.
 

@@ -1,3 +1,4 @@
+-- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SET TRIMSPOOL ON
 SET LINESIZE 9999
 SET NEWPAGE NONE

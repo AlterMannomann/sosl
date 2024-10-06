@@ -1,3 +1,4 @@
+REM (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 REM Use this file to redefine the default values of variables, remove comment for sections to be
 REM adjusted. Otherwise the defaults from sosl_server.cmd are used.
 REM *****************************************************************************************************

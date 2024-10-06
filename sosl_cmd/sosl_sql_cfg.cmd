@@ -1,3 +1,4 @@
+REM (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 REM Used for configuration set and get scripts. Depending on script type, 5th parameter content changes.
 REM Expects the following parameter, all parameter are expected to be enclosed in ".
 REM Parameter 1: scriptname and relative path
