@@ -49,3 +49,5 @@ Find a better solution. If you know what scripts to execute, put them in the dat
 Use this software at your own risk. No liabilities or warranties are given, no support is guaranteed. Any result of executing this software is under the responsibility of the legal entity using this software. For details see license.
 
 &copy; 2024 Michael Lindenau licensed via [GNU Affero General Public License](https://www.gnu.org/licenses/agpl-3.0.txt)
+
+For further questions on copyleft and usage see [contact](CONTACT.md).
