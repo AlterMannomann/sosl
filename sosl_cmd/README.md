@@ -24,4 +24,4 @@ The directory [sosl_tests\sosl_cmd](..\sosl_tests\sosl_cmd\README.md) contains s
   - :LABEL should have an GOTO :EOF after statements to return to caller correctly
 - Use SOSL_FILE_CFG with full path to the configuration file used for login instead of path
 
-(C) 2024 Michael Lindenau licensed via [GNU Affero General Public License](https://www.gnu.org/licenses/agpl-3.0.txt)
+&copy; 2024 Michael Lindenau licensed via [GNU Affero General Public License](https://www.gnu.org/licenses/agpl-3.0.txt)
