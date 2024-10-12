@@ -54,6 +54,18 @@ GRANT CONNECT TO sosl;
 GRANT RESOURCE TO sosl;
 GRANT CREATE JOB TO sosl;
 GRANT SELECT ON v_$session TO sosl;
+-- SOSL roles
+-- create sosl roles
+CREATE ROLE sosl_admin;
+CREATE ROLE sosl_executor;
+CREATE ROLE sosl_reviewer;
+CREATE ROLE sosl_user;
+CREATE ROLE sosl_guest;
+GRANT sosl_admin TO sosl WITH ADMIN OPTION;
+GRANT sosl_executor TO sosl WITH ADMIN OPTION;
+GRANT sosl_reviewer TO sosl WITH ADMIN OPTION;
+GRANT sosl_user TO sosl WITH ADMIN OPTION;
+GRANT sosl_guest TO sosl WITH ADMIN OPTION;
 SET ECHO OFF
 SELECT 'Creating sosl_login.cfg with current values and @soslinstance in template folder ...' AS info
   FROM dual;
@@ -80,6 +92,7 @@ SELECT 'Executed: ' || TO_CHAR(SYSTIMESTAMP) || CHR(13) || CHR(10) ||
        'Created user SOSL with unlimited quota on' || CHR(13) || CHR(10) ||
        'tablespace SOSL_TABLESPACE, 100 MB, data file sosl.dbf' || CHR(13) || CHR(10) ||
        'Granted CREATE VIEW, CONNECT, RESSOURCE, GATHER_SYSTEM_STATISTICS, V$SESSION, CREATE JOB' || CHR(13) || CHR(10) ||
+       'Created SOSL roles SOSL_ADMIN, SOSL_EXECUTOR, SOSL_REVIEWER, SOSL_USER, SOSL_GUEST' || CHR(13) || CHR(10) ||
        'by ' || SYS_CONTEXT ('USERENV', 'OS_USER') || CHR(13) || CHR(10) ||
        'using ' || SYS_CONTEXT ('USERENV', 'SESSION_USER') || CHR(13) || CHR(10) ||
        'on database ' || SYS_CONTEXT ('USERENV', 'DB_NAME') || CHR(13) || CHR(10) ||

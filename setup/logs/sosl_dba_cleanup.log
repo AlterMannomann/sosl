@@ -3,9 +3,16 @@ Drop user/schema SOSL including tablespace SOSL_TABLESPACE and datafile? Use Ctr
 
 SQL> DROP USER sosl CASCADE;
 SQL> DROP TABLESPACE sosl_tablespace DROP QUOTA INCLUDING CONTENTS AND DATAFILES;
+SQL> -- drop sosl roles
+SQL> DROP ROLE sosl_admin;
+SQL> DROP ROLE sosl_executor;
+SQL> DROP ROLE sosl_reviewer;
+SQL> DROP ROLE sosl_user;
+SQL> DROP ROLE sosl_guest;
 SQL> SET ECHO OFF
-Executed: 05-OCT-24 07.52.11.392873 PM +00:00
+Executed: 08-OCT-24 09.38.36.602536 PM +00:00
 User SOSL dropped
+SOSL roles dropped
 Tablespace SOSL_TABLESPACE and datafile dropped
 by Adi
 using SYS

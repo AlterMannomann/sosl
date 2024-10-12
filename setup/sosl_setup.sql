@@ -9,17 +9,24 @@ SELECT 'sosl_setup' || TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS') AS IDENT
 SET ERRORLOGGING ON
 -- try again with identifier
 SET ERRORLOGGING ON IDENTIFIER &IDENT
+-- ==============INSTALL start==============
 SPOOL logs/sosl_setup.log
 @@../sosl_ddl/tables/soslerrorlog.sql
-@@../sosl_ddl/tables/sosl_config.sql
-@@../sosl_ddl/tables/sosl_script.sql
-@@../sosl_ddl/tables/sosl_batch_group.sql
-@@../sosl_ddl/tables/sosl_script_group.sql
-@@../sosl_ddl/tables/sosl_batch_plan.sql
-@@../sosl_ddl/tables/sosl_group_plan.sql
-@@../sosl_ddl/tables/sosl_run_queues.sql
+-- package with no dependency on SOSL objects
+@@../sosl_ddl/packages/sosl_sys.pks
+@@../sosl_ddl/packages/sosl_sys.pkb
+-- logging table
 @@../sosl_ddl/tables/sosl_server_log.sql
-@@../sosl_ddl/views/sosl_plan_view.sql
+-- logging package
+@@../sosl_ddl/packages/sosl_log.pks
+@@../sosl_ddl/packages/sosl_log.pkb
+
+-- SOSL objects with possible references to sosl_log and sosl_sys
+@@../sosl_ddl/tables/sosl_config.sql
+@@../sosl_ddl/tables/sosl_executor.sql
+-- internal objects using the API
+@@../sosl_ddl/tables/sosl_script.sql
+-- ==============INSTALL done==============
 @@../sosl_sql/util/log_silent.sql
 -- check errors and display them, if so
 COLUMN EXITCODE NEW_VAL EXITCODE

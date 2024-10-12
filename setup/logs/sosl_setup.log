@@ -1,4 +1,5 @@
 SQL> @@../sosl_ddl/tables/soslerrorlog.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> CREATE TABLE soslerrorlog
   2    ( username    VARCHAR2(256)
   3    , timestamp   TIMESTAMP
@@ -40,7 +41,495 @@ SQL> COMMENT ON COLUMN soslerrorlog.statement IS 'The statement causing the erro
 
 Comment created.
 
+SQL> -- package with no dependency on SOSL objects
+SQL> @@../sosl_ddl/packages/sosl_sys.pks
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Basic sys util package not using data objects of the Simple Oracle Script Loader, no dependencies.
+SQL> CREATE OR REPLACE PACKAGE sosl_sys
+  2  AS
+  3    /**
+  4    * This package contains basic functions and procedures used by the Simple Oracle Script Loader that have no dependencies on any SOSL object.
+  5    * As there are no dependencies, exceptions must be catched or handled by the caller. No logging for this functions and procedures.
+  6    */
+  7  
+  8    /*====================================== start package constants used by SOSL ======================================*/
+  9    -- define log_type constants used in SOSL_SERVER_LOG
+ 10    ERROR_TYPE     CONSTANT CHAR(5) := 'ERROR';
+ 11    WARNING_TYPE   CONSTANT CHAR(7) := 'WARNING';
+ 12    FATAL_TYPE     CONSTANT CHAR(5) := 'FATAL';
+ 13    INFO_TYPE      CONSTANT CHAR(4) := 'INFO';
+ 14    SUCCESS_TYPE   CONSTANT CHAR(7) := 'SUCCESS';
+ 15    -- Generic n/a type. Should be different from table defaults like 'not set' as table triggers interpret their DDL default value as fallback
+ 16    -- to set default values using package variables, which is not supported in table DDL by Oracle using DEFAULT. Packages may use variables
+ 17    -- from other packages in DEFAULT declarations.
+ 18    NA_TYPE	      CONSTANT CHAR(3) := 'n/a';
+ 19    /*====================================== end package constants used by SOSL ======================================*/
+ 20  
+ 21    /*====================================== start internal functions made visible for testing ======================================*/
+ 22    /* PROCEDURE SPLIT_FUNCTION_NAME
+ 23    * Splits the given function name into its parts. Supposed delimiter is the point ".".
+ 24    * @param p_function_name The function or package function name to check. Package functions must be qualified with the package name, e.g. my_package.my_function.
+ 25    * @param p_package OUT parameter, contains the package name if any or NULL.
+ 26    * @param p_function OUT parameter, contains the pure function name.
+ 27    */
+ 28    PROCEDURE split_function_name( p_function_name IN  VARCHAR2
+ 29  				    , p_package       OUT VARCHAR2
+ 30  				    , p_function      OUT VARCHAR2
+ 31  				    )
+ 32    ;
+ 33    /*====================================== end internal functions made visible for testing ======================================*/
+ 34  
+ 35    /* FUNCTION HAS_DB_USER
+ 36    * Checks if a given user is visible for SOSL by checking ALL_USERS. Users must be visible to SOSL to be able to dynamically
+ 37    * grant the necessary rights on the API for script execution.
+ 38    *
+ 39    * @param p_username The database user name to check.
+ 40    *
+ 41    * @return TRUE if the user is visible in ALL_USERS to SOSL, otherwise FALSE.
+ 42    */
+ 43    FUNCTION has_db_user(p_username IN VARCHAR2)
+ 44  	 RETURN BOOLEAN
+ 45    ;
+ 46  
+ 47    /* FUNCTION HAS_FUNCTION
+ 48    * Checks if a given function or package function name is visible for SOSL by checking ALL_ATTRIBUTES.
+ 49    *
+ 50    * @param p_owner The owner of the function or package function name to check.
+ 51    * @param p_function_name The function or package function name to check. Package functions must be qualified with the package name, e.g. my_package.my_function.
+ 52    * @param p_datatype The return datatype of the function expected, e.g. a valid Oracle datatype like NUMBER or VARCHAR2.
+ 53    *
+ 54    * @return TRUE if the function is visible in ALL_ATTRIBUTES to SOSL and has the required return datatype, otherwise FALSE.
+ 55    */
+ 56    FUNCTION has_function( p_owner	       IN VARCHAR2
+ 57  			    , p_function_name  IN VARCHAR2
+ 58  			    , p_datatype       IN VARCHAR2
+ 59  			    )
+ 60  	 RETURN BOOLEAN
+ 61    ;
+ 62  
+ 63    /* FUNCTION LOG_TYPE_VALID
+ 64    * Central function to check the log type. Currently supports INFO, WARNING, ERROR, FATAL, SUCCESS. If log types should get expanded
+ 65    * adjust this function first and probably the default value for SOSL_SERVER_LOG.
+ 66    *
+ 67    * @param p_log_type The log type to check. Case insensitive.
+ 68    *
+ 69    *@return TRUE if the given log type is supported. FALSE if not. Exceptions and errors will lead also to FALSE.
+ 70    */
+ 71    FUNCTION log_type_valid(p_log_type IN VARCHAR2)
+ 72  	 RETURN BOOLEAN
+ 73  	 DETERMINISTIC
+ 74  	 PARALLEL_ENABLE
+ 75    ;
+ 76  
+ 77    /* FUNCTION GET_VALID_LOG_TYPE
+ 78    * Verifies an given log type, returns either the given log type as upper case or the defined error default.
+ 79    *
+ 80    * @param p_log_type The log type to verify and return. Case insensitive.
+ 81    * @param p_error_default The alternative log type to return, if the log type is invalid. Must be a valid log type and not INFO or SUCCESS. If invalid, FATAL is returned.
+ 82    *
+ 83    * @return The valid log type as upper case on success. The valid error default if log type not supported. FATAL if the error default is invalid.
+ 84    */
+ 85    FUNCTION get_valid_log_type( p_log_type	     IN VARCHAR2
+ 86  				  , p_error_default  IN VARCHAR2 DEFAULT sosl_sys.ERROR_TYPE
+ 87  				  )
+ 88  	 RETURN VARCHAR2
+ 89  	 DETERMINISTIC
+ 90  	 PARALLEL_ENABLE
+ 91    ;
+ 92  END;
+ 93  /
+
+Package created.
+
+SQL> @@../sosl_ddl/packages/sosl_sys.pkb
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> CREATE OR REPLACE PACKAGE BODY sosl_sys
+  2  AS
+  3    -- for description see header file
+  4    PROCEDURE split_function_name( p_function_name IN  VARCHAR2
+  5  				    , p_package       OUT VARCHAR2
+  6  				    , p_function      OUT VARCHAR2
+  7  				    )
+  8    IS
+  9    BEGIN
+ 10  	 IF INSTR(p_function_name, '.') > 0
+ 11  	 THEN
+ 12  	   p_package   := TRIM(SUBSTR(p_function_name, 1, INSTR(p_function_name, '.') -1));
+ 13  	   p_function  := TRIM(SUBSTR(p_function_name, INSTR(p_function_name, '.') +1, INSTR(p_function_name, '.', 1, 2) - INSTR(p_function_name, '.') -1));
+ 14  	 ELSE
+ 15  	   p_package   := NULL;
+ 16  	   p_function  := TRIM(p_function_name);
+ 17  	 END IF;
+ 18    END split_function_name;
+ 19  
+ 20    FUNCTION has_db_user(p_username IN VARCHAR2)
+ 21  	 RETURN BOOLEAN
+ 22    IS
+ 23  	 l_has_user  NUMBER;
+ 24  	 l_return    BOOLEAN;
+ 25    BEGIN
+ 26  	 l_return := FALSE;
+ 27  	 SELECT COUNT(*) INTO l_has_user FROM all_users WHERE username = p_username;
+ 28  	 IF l_has_user != 0
+ 29  	 THEN
+ 30  	   l_return := TRUE;
+ 31  	 END IF;
+ 32  	 RETURN l_return;
+ 33    END has_db_user;
+ 34  
+ 35    FUNCTION has_function( p_owner	       IN VARCHAR2
+ 36  			    , p_function_name  IN VARCHAR2
+ 37  			    , p_datatype       IN VARCHAR2
+ 38  			    )
+ 39  	 RETURN BOOLEAN
+ 40    IS
+ 41  	 l_has_function  NUMBER;
+ 42  	 l_package	 VARCHAR2(128);
+ 43  	 l_function	 VARCHAR2(128);
+ 44  	 l_return	 BOOLEAN;
+ 45    BEGIN
+ 46  	 l_return := FALSE;
+ 47  	 sosl_sys.split_function_name(p_function_name, l_package, l_function);
+ 48  	 SELECT COUNT(*)
+ 49  	   INTO l_has_function
+ 50  	   FROM all_arguments
+ 51  	  WHERE position		   = 0				     -- only functions
+ 52  	    AND argument_name		   IS NULL			     -- only functions
+ 53  	    AND data_type		   = p_datatype
+ 54  	    AND owner			   = p_owner
+ 55  	    AND NVL(package_name, 'N/A')   = NVL(UPPER(l_package), 'N/A')    -- may not contain a package name
+ 56  	    AND object_name		   = UPPER(l_function)
+ 57  	 ;
+ 58  	 IF l_has_function != 0
+ 59  	 THEN
+ 60  	   l_return := TRUE;
+ 61  	 END IF;
+ 62  	 RETURN l_return;
+ 63    END has_function;
+ 64  
+ 65    FUNCTION log_type_valid(p_log_type IN VARCHAR2)
+ 66  	 RETURN BOOLEAN
+ 67  	 DETERMINISTIC
+ 68  	 PARALLEL_ENABLE
+ 69    IS
+ 70  	 l_return  BOOLEAN;
+ 71    BEGIN
+ 72  	 l_return := FALSE;
+ 73  	 IF UPPER(p_log_type) IN ( sosl_sys.INFO_TYPE
+ 74  				 , sosl_sys.WARNING_TYPE
+ 75  				 , sosl_sys.ERROR_TYPE
+ 76  				 , sosl_sys.FATAL_TYPE
+ 77  				 , sosl_sys.SUCCESS_TYPE
+ 78  				 )
+ 79  	 THEN
+ 80  	   l_return := TRUE;
+ 81  	 END IF;
+ 82  	 RETURN l_return;
+ 83    EXCEPTION
+ 84  	 WHEN OTHERS THEN
+ 85  	   RETURN FALSE;
+ 86    END log_type_valid;
+ 87  
+ 88    FUNCTION get_valid_log_type( p_log_type	     IN VARCHAR2
+ 89  				  , p_error_default  IN VARCHAR2 DEFAULT sosl_sys.ERROR_TYPE
+ 90  				  )
+ 91  	 RETURN VARCHAR2
+ 92  	 DETERMINISTIC
+ 93  	 PARALLEL_ENABLE
+ 94    IS
+ 95  	 l_return  VARCHAR2(30);
+ 96    BEGIN
+ 97  	 l_return := sosl_sys.FATAL_TYPE;
+ 98  	 IF log_type_valid(p_log_type)
+ 99  	 THEN
+100  	   l_return := UPPER(p_log_type);
+101  	 ELSE
+102  	   IF	   log_type_valid(p_error_default)
+103  	      AND  UPPER(p_error_default) NOT IN ( sosl_sys.INFO_TYPE
+104  						 , sosl_sys.SUCCESS_TYPE
+105  						 )
+106  	   THEN
+107  	     l_return := UPPER(p_error_default);
+108  	   END IF;
+109  	 END IF;
+110  	 RETURN l_return;
+111    EXCEPTION
+112  	 WHEN OTHERS THEN
+113  	   RETURN sosl_sys.FATAL_TYPE;
+114    END get_valid_log_type;
+115  
+116  END;
+117  /
+
+Package body created.
+
+SQL> -- logging table
+SQL> @@../sosl_ddl/tables/sosl_server_log.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- requires login with the correct schema, either SOSL or your on schema
+SQL> -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
+SQL> CREATE TABLE sosl_server_log
+  2    ( exec_timestamp    TIMESTAMP	   DEFAULT SYSTIMESTAMP 		     NOT NULL
+  3  	 -- due to Oracle limitations we must use trigger not a package variable, trigger takes care to assign a default INFO log type if getting 'not set'
+  4    , log_type	   VARCHAR2(30)    DEFAULT 'not set'			     NOT NULL
+  5    , log_category	   VARCHAR2(256)   DEFAULT 'not set'			     NOT NULL
+  6    , message	   VARCHAR2(4000)					     NOT NULL
+  7    , run_id 	   NUMBER(38, 0)
+  8    , executor_id	   NUMBER(38, 0)
+  9    , ext_script_id	   VARCHAR2(4000)
+ 10    , guid		   VARCHAR2(64)
+ 11    , sosl_identifier   VARCHAR2(256)
+ 12    , created_by	   VARCHAR2(256)   DEFAULT USER 			     NOT NULL
+ 13    , created_by_os	   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 14    , caller 	   VARCHAR2(256)
+ 15    , full_message	   CLOB
+ 16    )
+ 17    -- monthly partitions
+ 18    PARTITION BY RANGE (exec_timestamp)
+ 19    INTERVAL (NUMTOYMINTERVAL(1, 'MONTH'))
+ 20    (PARTITION P_OLD
+ 21  	   VALUES LESS THAN (TO_TIMESTAMP('01-01-2024','DD-MM-YYYY'))
+ 22    )
+ 23  ;
+
+Table created.
+
+SQL> COMMENT ON TABLE sosl_server_log IS 'Holds the log events of the SOSL server CMD and interaction with the database as well as database events. Update is not allowed. Will use the alias slog.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.exec_timestamp IS 'The timestamp of the event. Automatically set by trigger, no set allowed.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.log_type IS 'The logging type, supports currently INFO, WARNING, ERROR, FATAL, SUCCESS. Mandatory. Defined in package SOSL_SYS.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.log_category IS 'The log writer may provide an short log category description.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.message IS 'The shortend log message. Mandatory. If only a CLOB is passed, the short message is build from the CLOB. Categories too long will be cutted.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.full_message IS 'The full log message. For messages longer than 4000 bytes or char.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.guid IS 'The GUID the process is running with. Can be used as LIKE reference on SOSLERRORLOG.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.sosl_identifier IS 'The exact identifier for SOSLERRORLOG if available. No constraints active.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.run_id IS 'The associated run id if available. No constraints active.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.executor_id IS 'The associated executor id if available. No constraints active.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.ext_script_id IS 'The (external) script id if available. No constraints active.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.caller IS 'Caller identification if available, to distinguish database processes from SOSL CMD server processes.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.created_by IS 'The logged in DB user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.created_by_os IS 'OS user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> 
+SQL> -- no primary key, only index
+SQL> CREATE INDEX sosl_server_log_idx
+  2    ON sosl_server_log (exec_timestamp, log_type, log_category)
+  3  ;
+
+Index created.
+
+SQL> -- no constraints, as Oracle does not allow package functions in CHECK conditions
+SQL> 
+SQL> -- trigger
+SQL> CREATE OR REPLACE TRIGGER sosl_server_log_ins_trg
+  2    BEFORE INSERT ON sosl_server_log
+  3    FOR EACH ROW
+  4  BEGIN
+  5    -- first set default value if not set, as Oracle does not support default values from package variables
+  6    IF :NEW.log_type = 'not set'
+  7    THEN
+  8  	 :NEW.log_type := sosl_sys.INFO_TYPE;
+  9    END IF;
+ 10    -- instead of check constraint to get package support
+ 11    IF NOT sosl_sys.log_type_valid(:NEW.log_type)
+ 12    THEN
+ 13  	 RAISE_APPLICATION_ERROR(-20003, 'Invalid log type. Not supported by package SOSL_SYS. Given log type: ' || :NEW.log_type);
+ 14    ELSE
+ 15  	 :NEW.log_type := sosl_sys.get_valid_log_type(:NEW.log_type);
+ 16    END IF;
+ 17    :NEW.exec_timestamp := SYSTIMESTAMP;
+ 18    :NEW.created_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 19    :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+ 20    IF (:NEW.message IS NULL)
+ 21    THEN
+ 22  	 IF :NEW.full_message IS NOT NULL
+ 23  	 THEN
+ 24  	   IF LENGTH(TRIM(:NEW.full_message)) > 4000
+ 25  	   THEN
+ 26  	     :NEW.message := TO_CHAR(SUBSTR(TRIM(:NEW.full_message), 1, 3996)) || ' ...';
+ 27  	   ELSE
+ 28  	     :NEW.message := TO_CHAR(TRIM(:NEW.full_message));
+ 29  	   END IF;
+ 30  	 ELSE
+ 31  	   RAISE_APPLICATION_ERROR(-20004, 'Full message must be given, if message is NULL.');
+ 32  	 END IF;
+ 33    END IF;
+ 34  END;
+ 35  /
+
+Trigger created.
+
+SQL> CREATE OR REPLACE TRIGGER sosl_server_log_upd_trg
+  2    BEFORE UPDATE ON sosl_server_log
+  3    FOR EACH ROW
+  4  BEGIN
+  5    RAISE_APPLICATION_ERROR(-20005, 'No updates allowed on a log table.');
+  6  END;
+  7  /
+
+Trigger created.
+
+SQL> CREATE OR REPLACE TRIGGER sosl_server_log_del_trg
+  2    BEFORE DELETE ON sosl_server_log
+  3    FOR EACH ROW
+  4  BEGIN
+  5    RAISE_APPLICATION_ERROR(-20006, 'Delete records from a log table is not allowed. This is an admin job which needs sufficient rights.');
+  6  END;
+  7  /
+
+Trigger created.
+
+SQL> -- logging package
+SQL> @@../sosl_ddl/packages/sosl_log.pks
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Basic logging package, dependencies only to sosl_server_log.
+SQL> CREATE OR REPLACE PACKAGE sosl_log
+  2  AS
+  3    /**
+  4    * This package contains basic functions and procedures used by the Simple Oracle Script Loader for managing logging.
+  5    * Apart from sosl_server_log table, there are no dependencies, severe exceptions must be catched or handled by the caller.
+  6    * The interface has as well functions and procedures. Functions inform about success or error, whereas procedure exceptions
+  7    * must be handled by the caller.
+  8    */
+  9  
+ 10    /*====================================== start internal functions made visible for testing ======================================*/
+ 11    /* PROCEDURE LOG_EVENT
+ 12    * Writes a log entry as autonomous transaction. This is the internal base procedure, exposed for testing.
+ 13    * If on errors writing log entries is not possible the procedure hands the exception to the caller. This is the pure insert without
+ 14    * any chacks. It takes the values as given and table may trigger exceptions. It is recommended to use the provided interfaces for logging.
+ 15    *
+ 16    * @param p_message The message to log. Limited to 4000 chars. If longer it is split and rest is stored in full_message CLOB by trigger. If NULL p_full_message must be provided.
+ 17    * @param p_log_type The log type is basically defined by SOSL_SYS. Currently: INFO, WARNING, ERROR, FATAL, SUCCESS. Must be valid.
+ 18    * @param p_log_category An optional logging category.
+ 19    * @param p_guid The GUID the process is running with. Can be used as LIKE reference on SOSLERRORLOG. Most likely used by CMD server.
+ 20    * @param p_sosl_identifier The exact identifier for SOSLERRORLOG if available. Most likely used by CMD server.
+ 21    * @param p_executor_id The associated executor id if available. Used as well by CMD server and SOSL packages and functions.
+ 22    * @param p_ext_script_id The (external) script id if available. Used as well by CMD server and SOSL packages and functions.
+ 23    * @param p_caller Caller identification if available, to distinguish database processes from SOSL CMD server processes or external usage.
+ 24    * @param p_run_id The associated run id if available. Most likely used by SOSL packages and functions.
+ 25    * @param p_full_message The full message as CLOB if the message size exceeds the PLSQL limit of 32767 bytes. Must be given if p_message is NULL.
+ 26    */
+ 27    PROCEDURE log_event( p_message	       IN VARCHAR2
+ 28  			  , p_log_type	       IN VARCHAR2
+ 29  			  , p_log_category     IN VARCHAR2
+ 30  			  , p_guid	       IN VARCHAR2
+ 31  			  , p_sosl_identifier  IN VARCHAR2
+ 32  			  , p_executor_id      IN NUMBER
+ 33  			  , p_ext_script_id    IN NUMBER
+ 34  			  , p_caller	       IN VARCHAR2
+ 35  			  , p_run_id	       IN NUMBER
+ 36  			  , p_full_message     IN CLOB
+ 37  			  )
+ 38    ;
+ 39  /*====================================== end internal functions made visible for testing ======================================*/
+ 40  
+ 41  END;
+ 42  /
+
+Package created.
+
+SQL> @@../sosl_ddl/packages/sosl_log.pkb
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> CREATE OR REPLACE PACKAGE BODY sosl_log
+  2  AS
+  3    -- for description see header file
+  4    PROCEDURE log_event( p_message	       IN VARCHAR2
+  5  			  , p_log_type	       IN VARCHAR2
+  6  			  , p_log_category     IN VARCHAR2
+  7  			  , p_guid	       IN VARCHAR2
+  8  			  , p_sosl_identifier  IN VARCHAR2
+  9  			  , p_executor_id      IN NUMBER
+ 10  			  , p_ext_script_id    IN NUMBER
+ 11  			  , p_caller	       IN VARCHAR2
+ 12  			  , p_run_id	       IN NUMBER
+ 13  			  , p_full_message     IN CLOB
+ 14  			  )
+ 15    IS
+ 16  	 PRAGMA AUTONOMOUS_TRANSACTION;
+ 17    BEGIN
+ 18  	 INSERT INTO sosl_server_log
+ 19  	   ( message
+ 20  	   , log_type
+ 21  	   , log_category
+ 22  	   , guid
+ 23  	   , sosl_identifier
+ 24  	   , executor_id
+ 25  	   , ext_script_id
+ 26  	   , caller
+ 27  	   , run_id
+ 28  	   , full_message
+ 29  	   )
+ 30  	   VALUES
+ 31  	     ( p_message
+ 32  	     , p_log_type
+ 33  	     , p_log_category
+ 34  	     , p_guid
+ 35  	     , p_sosl_identifier
+ 36  	     , p_executor_id
+ 37  	     , p_ext_script_id
+ 38  	     , p_caller
+ 39  	     , p_run_id
+ 40  	     , p_full_message
+ 41  	     )
+ 42  	 ;
+ 43  	 COMMIT;
+ 44    EXCEPTION
+ 45  	 WHEN OTHERS THEN
+ 46  	   -- try ROLLBACK
+ 47  	   ROLLBACK;
+ 48  	   -- and raise the error
+ 49  	   RAISE;
+ 50    END log_event;
+ 51  
+ 52  END;
+ 53  /
+
+Package body created.
+
+SQL> 
+SQL> -- SOSL objects with possible references to sosl_log and sosl_sys
 SQL> @@../sosl_ddl/tables/sosl_config.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- requires login with the correct schema, either SOSL or your on schema
 SQL> -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
 SQL> CREATE TABLE sosl_config
@@ -197,17 +686,28 @@ SQL> CREATE OR REPLACE TRIGGER sosl_config_del_trg
   6    IF :OLD.config_name IN ( 'SOSL_PATH_CFG'
   7  			      , 'SOSL_PATH_TMP'
   8  			      , 'SOSL_PATH_LOG'
-  9  			      , 'SOSL_EXT_LOG'
- 10  			      , 'SOSL_EXT_LOCK'
- 11  			      , 'SOSL_START_LOG'
- 12  			      , 'SOSL_BASE_LOG'
- 13  			      , 'SOSL_MAX_PARALLEL'
- 14  			      )
- 15    THEN
- 16  	 RAISE_APPLICATION_ERROR(-20002, 'The given system config_name "' || :OLD.config_name || '" cannot be deleted.');
- 17    END IF;
- 18  END;
- 19  /
+  9  			      , 'SOSL_START_LOG'
+ 10  			      , 'SOSL_BASE_LOG'
+ 11  			      , 'SOSL_EXT_LOG'
+ 12  			      , 'SOSL_EXT_TMP'
+ 13  			      , 'SOSL_EXT_LOCK'
+ 14  			      , 'SOSL_EXT_ERROR'
+ 15  			      , 'SOSL_MAX_PARALLEL'
+ 16  			      , 'SOSL_RUNMODE'
+ 17  			      , 'SOSL_DEFAULT_WAIT'
+ 18  			      , 'SOSL_NOJOB_WAIT'
+ 19  			      , 'SOSL_PAUSE_WAIT'
+ 20  			      , 'SOSL_USE_MAIL'
+ 21  			      , 'SOSL_MAIL_SENDER'
+ 22  			      , 'SOSL_MAIL_RECIPIENT'
+ 23  			      , 'SOSL_MAIL_API'
+ 24  			      , 'SOSL_HAS_ID_API'
+ 25  			      )
+ 26    THEN
+ 27  	 RAISE_APPLICATION_ERROR(-20002, 'The given system config_name "' || :OLD.config_name || '" cannot be deleted.');
+ 28    END IF;
+ 29  END;
+ 30  /
 
 Trigger created.
 
@@ -215,7 +715,7 @@ SQL> -- load default values that can be configured in the database
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_description)
   3    VALUES
-  4    ('SOSL_PATH_CFG', '..\..\cfg\', 'Relative path with delimiter at path end to configuration files the SOSL server uses. Set by SOSL server. As configuration files contain credentials and secrets the path should be in a safe space with controlled user rights.')
+  4    ('SOSL_PATH_CFG', '..\..\sosl_cfg\', 'Relative path with delimiter at path end to configuration files the SOSL server uses. Set by SOSL server. As configuration files contain credentials and secrets the path should be in a safe space with controlled user rights.')
   5  ;
 
 1 row created.
@@ -223,7 +723,7 @@ SQL> INSERT INTO sosl_config
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_max_length, config_description)
   3    VALUES
-  4    ('SOSL_PATH_TMP', '..\..\tmp\', 239, 'Relative path with delimiter at path end to temporary files the SOSL server uses. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
+  4    ('SOSL_PATH_TMP', '..\..\sosl_tmp\', 239, 'Relative path with delimiter at path end to temporary files the SOSL server uses. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
   5  ;
 
 1 row created.
@@ -231,7 +731,7 @@ SQL> INSERT INTO sosl_config
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_max_length, config_description)
   3    VALUES
-  4    ('SOSL_PATH_LOG', '..\..\log\', 239, 'Relative path with delimiter at path end to log files the SOSL server creates. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
+  4    ('SOSL_PATH_LOG', '..\..\sosl_log\', 239, 'Relative path with delimiter at path end to log files the SOSL server creates. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
   5  ;
 
 1 row created.
@@ -324,11 +824,242 @@ SQL> INSERT INTO sosl_config
 
 1 row created.
 
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_USE_MAIL', 'NO', 'CHAR', 'Determines if sosl should use mail. Set to YES if you want to use mail.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_MAIL_SENDER', 'NOT_SET', 'CHAR', 'The default sender mail address for sending mails.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_MAIL_RECIPIENT', 'NOT_SET', 'CHAR', 'The default recipient mail address for sending mails.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_MAIL_API', 'sosl.send_mail', 'CHAR', 'The name of an existing function that should handle mail. The wrapper function SOSL_SENDMAIL is created dynamically. The function must have four parameters: mail_sender IN VARCHAR2, mail_recipients IN VARCHAR2, mail_subject IN VARCHAR2, mail_text IN VARCHAR2 and must return 0 for success or -1 on errors. It may include a schema, if not sosl schema. Can be a package or standalone function.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_HAS_ID_API', 'sosl.has_ids', 'CHAR', 'The name of an existing function that returns the amount of IDs waiting for processing. The wrapper function SOSL_HAS_IDS is created dynamically. The function expects no parameters and simply returns the amount of IDs waiting for processing. It may include a schema, if not sosl schema. Can be a package procedure or standalone procedure.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_GET_ID_API', 'sosl.get_next_id', 'CHAR', 'The name of an existing procedure that should handle mail. Must work for all plans as the wrapper function SOSL_SENDMAIL is created dynamically. The procedure must have four parameters: mail_sender IN VARCHAR2, mail_recipients IN VARCHAR2, mail_subject IN VARCHAR2, mail_text IN VARCHAR2. It may include a schema, if not sosl schema. Can be a package procedure or standalone procedure.')
+  5  ;
+
+1 row created.
+
 SQL> COMMIT;
 
 Commit complete.
 
+SQL> @@../sosl_ddl/tables/sosl_executor.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> CREATE TABLE sosl_executor
+  2    ( executor_id	       NUMBER(38, 0)   GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
+  3    , db_user	       VARCHAR2(128)						 NOT NULL
+  4    , function_owner        VARCHAR2(128)						 NOT NULL
+  5    , fn_has_ids	       VARCHAR2(520)						 NOT NULL
+  6    , fn_get_next_id        VARCHAR2(520)						 NOT NULL
+  7    , fn_get_executor       VARCHAR2(520)						 NOT NULL
+  8    , fn_get_script	       VARCHAR2(520)						 NOT NULL
+  9    , fn_set_status	       VARCHAR2(520)						 NOT NULL
+ 10    , cfg_file	       VARCHAR2(4000)						 NOT NULL
+ 11    , executor_active       VARCHAR2(3)     DEFAULT 'NO'				 NOT NULL
+ 12    , executor_reviewed     VARCHAR2(3)     DEFAULT 'NO'				 NOT NULL
+ 13    , created	       DATE	       DEFAULT SYSDATE				 NOT NULL
+ 14    , updated	       DATE	       DEFAULT SYSDATE				 NOT NULL
+ 15    , created_by	       VARCHAR2(256)   DEFAULT USER				 NOT NULL
+ 16    , created_by_os	       VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 17    , updated_by	       VARCHAR2(256)   DEFAULT USER				 NOT NULL
+ 18    , updated_by_os	       VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 19    , executor_description  VARCHAR2(4000)
+ 20    )
+ 21  ;
+
+Table created.
+
+SQL> COMMENT ON TABLE sosl_executor IS 'Defines the executors registered with SOSL. To improve security you may activate AUDIT on this table. Will use the alias sexe.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.executor_id IS 'The generated unique id that identifies the executor.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.db_user IS 'The login name of the database user must match cfg_file login and be USER after login. No mixed case support, converted to upper case. Must exist and have the necessary rights to execute the queued scripts.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.function_owner IS 'The owner user name of the API functions, refers to the schema where the functions are defined. No mixed case support, converted to upper case. Can differ from the database user that executes SOSL. All API functions must have the same owner for one executor.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.fn_has_ids IS 'The name of the function to use by HAS_IDS wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall not require parameters and return the amount of waiting script as NUMBER.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.fn_get_next_id IS 'The name of the function to use by GET_NEXT_ID wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall not require parameters and return the script id as VARCHAR2. It should manage the given script id to ensure that scripts are not run twice.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.fn_get_executor IS 'The name of the function to use by GET_EXECUTOR wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall require the parameter P_ID IN VARCHAR2 and return the executor id as NUMBER. P_ID is an script id retrieved from GET_NEXT_ID.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.fn_get_script IS 'The name of the function to use by GET_SCRIPT wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall require the parameter P_ID IN VARCHAR2 and return the script name with full or relative path as VARCHAR2. The script must exist in the given path on the local server SOSL is running.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.fn_set_status IS 'The name of the function to use by SET_STATUS wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall require the parameters P_ID IN VARCHAR2, P_STATUS IN VARCHAR2 and return 0 or -1 on errors. P_ID is an script id retrieved from GET_NEXT_ID. P_STATUS will always start with the following key words: PREPARING, ENQUEUED, RUNNING, SUCCESS, ERROR. It may contain additional informations in case of errors separated by at least one space char.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.cfg_file IS 'The filename with absolute or relative path to the login config file for this executor. File and path must exist on the CMD server.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.executor_active IS 'Defines if the executor is active. Accepts NO and YES. Not active and reviewed executors will be ignored if they try to run scripts, every attempt gets logged.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.executor_reviewed IS 'Defines if the executor is reviewed, accepted and ready to be used. Accepts NO and YES. Not active and reviewed executors will be ignored if they try to run scripts, every attempt gets logged.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.created IS 'Date created, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.updated IS 'Date updated, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.created_by IS 'DB user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.created_by_os IS 'OS user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.updated_by IS 'DB user who updated the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.updated_by_os IS 'OS user who updated the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.executor_description IS 'Optional executor description.';
+
+Comment created.
+
+SQL> -- primary key
+SQL> ALTER TABLE sosl_executor
+  2    ADD CONSTRAINT sosl_executor_pk
+  3    PRIMARY KEY (executor_id)
+  4    ENABLE
+  5  ;
+
+Table altered.
+
+SQL> -- check constraints
+SQL> ALTER TABLE sosl_executor
+  2    ADD CONSTRAINT sosl_executor_chk_active
+  3    CHECK (UPPER(executor_active) IN ('YES', 'NO'))
+  4    ENABLE
+  5  ;
+
+Table altered.
+
+SQL> ALTER TABLE sosl_executor
+  2    ADD CONSTRAINT sosl_executor_chk_reviewed
+  3    CHECK (UPPER(executor_reviewed) IN ('YES', 'NO'))
+  4    ENABLE
+  5  ;
+
+Table altered.
+
+SQL> -- trigger
+SQL> CREATE OR REPLACE TRIGGER sosl_executor_ins_trg
+  2    BEFORE INSERT ON sosl_executor
+  3    FOR EACH ROW
+  4  BEGIN
+  5    :NEW.created	       := SYSDATE;
+  6    :NEW.created_by	       := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+  7    :NEW.created_by_os      := SYS_CONTEXT('USERENV', 'OS_USER');
+  8    :NEW.updated	       := SYSDATE;
+  9    :NEW.updated_by	       := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 10    :NEW.updated_by_os      := SYS_CONTEXT('USERENV', 'OS_USER');
+ 11    :NEW.executor_active    := UPPER(:NEW.executor_active);
+ 12    :NEW.executor_reviewed  := UPPER(:NEW.executor_reviewed);
+ 13    -- transform users to UPPERCASE, no support currently for special mix-case.
+ 14    :NEW.function_owner     := UPPER(:NEW.function_owner);
+ 15    :NEW.db_user	       := UPPER(:NEW.db_user);
+ 16    :NEW.fn_has_ids	       := UPPER(:NEW.fn_has_ids);
+ 17    :NEW.fn_get_next_id     := UPPER(:NEW.fn_get_next_id);
+ 18    :NEW.fn_get_executor    := UPPER(:NEW.fn_get_executor);
+ 19    :NEW.fn_get_script      := UPPER(:NEW.fn_get_script);
+ 20    :NEW.fn_set_status      := UPPER(:NEW.fn_set_status);
+ 21    -- check user
+ 22    IF NOT sosl_sys.has_db_user(:NEW.db_user)
+ 23    THEN
+ 24  	 RAISE_APPLICATION_ERROR(-20003, 'The given database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
+ 25    END IF;
+ 26    -- check configured functions
+ 27    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_has_ids, 'NUMBER')
+ 28    THEN
+ 29  	 RAISE_APPLICATION_ERROR(-20004, 'The given function ' || :NEW.fn_has_ids || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+ 30    END IF;
+ 31    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_next_id, 'VARCHAR2')
+ 32    THEN
+ 33  	 RAISE_APPLICATION_ERROR(-20005, 'The given function ' || :NEW.fn_get_next_id || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
+ 34    END IF;
+ 35    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_executor, 'NUMBER')
+ 36    THEN
+ 37  	 RAISE_APPLICATION_ERROR(-20006, 'The given function ' || :NEW.fn_get_executor || ' for get_executor is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+ 38    END IF;
+ 39    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_script, 'VARCHAR2')
+ 40    THEN
+ 41  	 RAISE_APPLICATION_ERROR(-20007, 'The given function ' || :NEW.fn_get_script || ' for get_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
+ 42    END IF;
+ 43    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_set_status, 'NUMBER')
+ 44    THEN
+ 45  	 RAISE_APPLICATION_ERROR(-20008, 'The given function ' || :NEW.fn_set_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+ 46    END IF;
+ 47  
+ 48  END;
+ 49  /
+
+Trigger created.
+
+SQL> -- internal objects using the API
 SQL> @@../sosl_ddl/tables/sosl_script.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- requires login with the correct schema, either SOSL or your on schema
 SQL> -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
 SQL> CREATE TABLE sosl_script
@@ -433,1273 +1164,8 @@ SQL> CREATE OR REPLACE TRIGGER sosl_script_upd_trg
 
 Trigger created.
 
-SQL> @@../sosl_ddl/tables/sosl_batch_group.sql
-SQL> CREATE TABLE sosl_batch_group
-  2    ( batch_group_id 	 NUMBER(38, 0)	GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
-  3    , batch_group_name	 VARCHAR2(256)						  NOT NULL
-  4    , batch_base_path	 VARCHAR2(2000)
-  5    , batch_cfg_path 	 VARCHAR2(2000)
-  6    , batch_tmp_path 	 VARCHAR2(2000)
-  7    , batch_log_path 	 VARCHAR2(2000)
-  8    , created		 DATE		DEFAULT SYSDATE 			  NOT NULL
-  9    , updated		 DATE		DEFAULT SYSDATE 			  NOT NULL
- 10    , created_by		 VARCHAR2(256)	DEFAULT USER				  NOT NULL
- 11    , created_by_os		 VARCHAR2(256)	DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 12    , updated_by		 VARCHAR2(256)	DEFAULT USER				  NOT NULL
- 13    , updated_by_os		 VARCHAR2(256)	DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 14    , batch_group_description VARCHAR2(4000)
- 15    )
- 16  ;
-
-Table created.
-
-SQL> -- description
-SQL> COMMENT ON TABLE sosl_batch_group IS 'Holds defined batch groups that can be associated with scripts. Will use the alias sbat.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_group.batch_group_id IS 'The generated unique id of the batch group.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_group.batch_group_name IS 'The name of the batch group.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_group.batch_base_path IS 'Optional full path to use as base for scripts in this batch group. If given SOSL will switch to the given directory before executing scripts of this batch group. The script path must be relative to this base path.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_group.batch_cfg_path IS 'Optional relative path with delimiter at path end to the configuration file for this batch group. If no base path is given, configured sosl path is the default.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_group.batch_tmp_path IS 'Optional relative temporary path with delimiter at path end for this batch group. If no base path is given, configured sosl path is the default.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_group.batch_log_path IS 'Optional relative log file path with delimiter at path end for this batch group. If no base path is given, configured sosl path is the default.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_group.batch_group_description IS 'Optional description of the batch group.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_group.created IS 'Date created, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_group.updated IS 'Date updated, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_group.created_by IS 'DB user who created the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_group.created_by_os IS 'OS user who created the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_group.updated_by IS 'DB user who updated the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_group.updated_by_os IS 'OS user who updated the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> -- primary key
-SQL> ALTER TABLE sosl_batch_group
-  2    ADD CONSTRAINT sosl_batch_group_pk
-  3    PRIMARY KEY (batch_group_id)
-  4    ENABLE
-  5  ;
-
-Table altered.
-
-SQL> -- trigger
-SQL> CREATE OR REPLACE TRIGGER sosl_batch_group_ins_trg
-  2    BEFORE INSERT ON sosl_batch_group
-  3    FOR EACH ROW
-  4  BEGIN
-  5    :NEW.created	   := SYSDATE;
-  6    :NEW.updated	   := SYSDATE;
-  7    :NEW.created_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
-  8    :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
-  9    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 10    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
- 11  END;
- 12  /
-
-Trigger created.
-
-SQL> CREATE OR REPLACE TRIGGER sosl_batch_group_upd_trg
-  2    BEFORE UPDATE ON sosl_batch_group
-  3    FOR EACH ROW
-  4  BEGIN
-  5    -- make sure created is not changed
-  6    :NEW.created	   := :OLD.created;
-  7    :NEW.created_by	   := :OLD.created_by;
-  8    :NEW.created_by_os  := :OLD.created_by_os;
-  9    :NEW.updated	   := SYSDATE;
- 10    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 11    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
- 12  END;
- 13  /
-
-Trigger created.
-
-SQL> @@../sosl_ddl/tables/sosl_script_group.sql
-SQL> CREATE TABLE sosl_script_group
-  2    ( batch_id	   NUMBER(38, 0)   GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
-  3    , batch_group_id    NUMBER(38, 0)					     NOT NULL
-  4    , script_id	   NUMBER(38, 0)					     NOT NULL
-  5    , order_nr	   NUMBER(4, 0)    DEFAULT 1				     NOT NULL
-  6    , created	   DATE 	   DEFAULT SYSDATE			     NOT NULL
-  7    , updated	   DATE 	   DEFAULT SYSDATE			     NOT NULL
-  8    , created_by	   VARCHAR2(256)   DEFAULT USER 			     NOT NULL
-  9    , created_by_os	   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 10    , updated_by	   VARCHAR2(256)   DEFAULT USER 			     NOT NULL
- 11    , updated_by_os	   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 12    , batch_description VARCHAR2(4000)
- 13    )
- 14  ;
-
-Table created.
-
-SQL> COMMENT ON TABLE sosl_script_group IS 'Relates scripts with a batch group. As long as order_nr is different, a script may be assigned multiple times to a batch group. Equal order_nr mean that those scripts can be executed in parallel. Will use the alias sgrp.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_script_group.batch_id IS 'Generated unique id for a batch group to script assignement.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_script_group.batch_group_id IS 'The unique batch group id for the script assignment. No updates allowed, surpressed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_script_group.script_id IS 'The unique script id to assign to a batch group. No updates allowed, surpressed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_script_group.order_nr IS 'Defines the order in which scripts are executed in a batch group. Scripts with the same order are executed in parallel. Maximum order is 9999. Batch group, script id and order must be unique.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_script_group.batch_description IS 'Optional description of this batch group script assignment.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_script_group.created IS 'Date created, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_script_group.updated IS 'Date updated, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_script_group.created_by IS 'DB user who created the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_script_group.created_by_os IS 'OS user who created the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_script_group.updated_by IS 'DB user who updated the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_script_group.updated_by_os IS 'OS user who updated the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> -- primary key
-SQL> ALTER TABLE sosl_script_group
-  2    ADD CONSTRAINT sosl_script_group_pk
-  3    PRIMARY KEY (batch_id)
-  4    ENABLE
-  5  ;
-
-Table altered.
-
-SQL> -- constraints
-SQL> ALTER TABLE sosl_script_group
-  2    ADD CONSTRAINT sosl_script_group_chk_order_nr
-  3    CHECK (order_nr > 0)
-  4  ;
-
-Table altered.
-
-SQL> -- unique
-SQL> ALTER TABLE sosl_script_group
-  2    ADD CONSTRAINT sosl_script_group_uk
-  3    UNIQUE (batch_group_id, script_id, order_nr)
-  4    ENABLE
-  5  ;
-
-Table altered.
-
-SQL> -- foreign keys on script_id and batch_group_id
-SQL> ALTER TABLE sosl_script_group
-  2    ADD CONSTRAINT sosl_script_group_script_id_fk
-  3    FOREIGN KEY (script_id)
-  4    REFERENCES sosl_script (script_id)
-  5    ON DELETE CASCADE
-  6  ;
-
-Table altered.
-
-SQL> ALTER TABLE sosl_script_group
-  2    ADD CONSTRAINT sosl_script_group_batch_group_id_fk
-  3    FOREIGN KEY (batch_group_id)
-  4    REFERENCES sosl_batch_group (batch_group_id)
-  5    ON DELETE CASCADE
-  6  ;
-
-Table altered.
-
-SQL> -- trigger
-SQL> CREATE OR REPLACE TRIGGER sosl_script_group_ins_trg
-  2    BEFORE INSERT ON sosl_script_group
-  3    FOR EACH ROW
-  4  BEGIN
-  5    :NEW.created	   := SYSDATE;
-  6    :NEW.updated	   := SYSDATE;
-  7    :NEW.created_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
-  8    :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
-  9    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 10    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
- 11  END;
- 12  /
-
-Trigger created.
-
-SQL> CREATE OR REPLACE TRIGGER sosl_script_group_upd_trg
-  2    BEFORE UPDATE ON sosl_script_group
-  3    FOR EACH ROW
-  4  BEGIN
-  5    -- make sure created is not changed
-  6    :NEW.created	   := :OLD.created;
-  7    :NEW.created_by	   := :OLD.created_by;
-  8    :NEW.created_by_os  := :OLD.created_by_os;
-  9    -- make sure ids are not changed
- 10    :NEW.batch_group_id := :OLD.batch_group_id;
- 11    :NEW.script_id	   := :OLD.script_id;
- 12    -- update dates and user
- 13    :NEW.updated	   := SYSDATE;
- 14    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 15    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
- 16  END;
- 17  /
-
-Trigger created.
-
-SQL> @@../sosl_ddl/tables/sosl_batch_plan.sql
-SQL> CREATE TABLE sosl_batch_plan
-  2    ( plan_id	   NUMBER(38, 0)   GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
-  3    , plan_name	   VARCHAR2(256)					     NOT NULL
-  4    , plan_active	   VARCHAR2(3)	   DEFAULT 'NO'
-  5    , plan_accepted	   VARCHAR2(3)	   DEFAULT 'NO'
-  6    , job_name	   VARCHAR2(128)
-  7    , start_date	   TIMESTAMP
-  8    , repeat_interval   VARCHAR2(4000)
-  9    , end_date	   TIMESTAMP
- 10    , created	   DATE 	   DEFAULT SYSDATE			     NOT NULL
- 11    , updated	   DATE 	   DEFAULT SYSDATE			     NOT NULL
- 12    , created_by	   VARCHAR2(256)   DEFAULT USER 			     NOT NULL
- 13    , created_by_os	   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 14    , updated_by	   VARCHAR2(256)   DEFAULT USER 			     NOT NULL
- 15    , updated_by_os	   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 16    , activated	   DATE
- 17    , deactivated	   DATE
- 18    , accepted	   DATE
- 19    , denied 	   DATE
- 20    , activated_by_os   VARCHAR2(256)
- 21    , deactivated_by_os VARCHAR2(256)
- 22    , accepted_by_os    VARCHAR2(256)
- 23    , denied_by_os	   VARCHAR2(256)
- 24    , plan_description  VARCHAR2(4000)
- 25    )
- 26  ;
-
-Table created.
-
-SQL> COMMENT ON TABLE sosl_batch_plan IS 'Defines the batch plan which consists of one or more batch groups. Will use the alias spla.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.plan_id IS 'The generated unique id that identifies the batch plan.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.plan_name IS 'The unique name of the batch plan.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.plan_active IS 'Defines if the plan is active. Accepts NO and YES. Not activated plans will not run but inform the log that an attempt was made to start the plan.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.plan_accepted IS 'Defines if the plan is accepted. Accepts NO and YES. Not accepted plans will not run but inform the log that an attempt was made to start the plan.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.job_name IS 'If the plan should be scheduled, provide an valid name for the job. Only normal uppercase characters A-Z, numbers and underscore allowed. Trigger will convert lower case to upper case, disable the job if it exists and create or update the job. If job name changes the old job is dropped. Equivalent to parameter in DBMS_SCHEDULER.CREATE_JOB.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.start_date IS 'The desired start date of the scheduled job. Equivalent to parameter in DBMS_SCHEDULER.CREATE_JOB.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.repeat_interval IS 'The repeat interval for the scheduler, if a scheduler name is defined. Equivalent to parameter in DBMS_SCHEDULER.CREATE_JOB.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.end_date IS 'The desired end date of the scheduled job or NULL. Equivalent to parameter in DBMS_SCHEDULER.CREATE_JOB.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.created IS 'Date created, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.updated IS 'Date updated, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.created_by IS 'DB user who created the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.created_by_os IS 'OS user who created the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.updated_by IS 'DB user who updated the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.updated_by_os IS 'OS user who updated the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.activated IS 'The date when plan_active was last set or updated to YES, managed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.activated_by_os IS 'The OS user that last updated or set plan_active to YES, managed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.deactivated IS 'The date when plan_active was last set or updated to NO, managed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.deactivated_by_os IS 'The OS user that last updated or set plan_active to NO, managed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.accepted IS 'The date when plan_accepted was last set or updated to YES, managed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.accepted_by_os IS 'The OS user that last updated or set plan_accepted to YES, managed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.denied IS 'The date when plan_accepted was last set or updated to NO, managed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.denied_by_os IS 'The OS user that last updated or set plan_accepted to NO, managed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_batch_plan.plan_description IS 'Optional plan description.';
-
-Comment created.
-
-SQL> -- primary key
-SQL> ALTER TABLE sosl_batch_plan
-  2    ADD CONSTRAINT sosl_batch_plan_pk
-  3    PRIMARY KEY (plan_id)
-  4    ENABLE
-  5  ;
-
-Table altered.
-
-SQL> -- unique
-SQL> ALTER TABLE sosl_batch_plan
-  2    ADD CONSTRAINT sosl_batch_plan_uk
-  3    UNIQUE (plan_name)
-  4    ENABLE
-  5  ;
-
-Table altered.
-
-SQL> -- check constraints
-SQL> ALTER TABLE sosl_batch_plan
-  2    ADD CONSTRAINT sosl_batch_plan_chk_active
-  3    CHECK (plan_active IN ('YES', 'NO'))
-  4    ENABLE
-  5  ;
-
-Table altered.
-
-SQL> ALTER TABLE sosl_batch_plan
-  2    ADD CONSTRAINT sosl_batch_plan_chk_accepted
-  3    CHECK (plan_accepted IN ('YES', 'NO'))
-  4    ENABLE
-  5  ;
-
-Table altered.
-
-SQL> ALTER TABLE sosl_batch_plan
-  2    ADD CONSTRAINT sosl_batch_plan_chk_job_name
-  3    CHECK (REGEXP_INSTR(job_name, '^[A-Z0-9_]*$') > 0)
-  4    ENABLE
-  5  ;
-
-Table altered.
-
-SQL> -- trigger
-SQL> CREATE OR REPLACE TRIGGER sosl_batch_plan_ins_upd_trg
-  2    BEFORE INSERT OR UPDATE ON sosl_batch_plan
-  3    FOR EACH ROW
-  4  DECLARE
-  5    l_has_job NUMBER;
-  6  BEGIN
-  7    IF INSERTING
-  8    THEN
-  9  	 :NEW.created	     := SYSDATE;
- 10  	 :NEW.created_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 11  	 :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
- 12    END IF;
- 13    :NEW.updated	   := SYSDATE;
- 14    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 15    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
- 16    IF :NEW.plan_active = 'NO'
- 17    THEN
- 18  	 :NEW.deactivated	:= SYSDATE;
- 19  	 :NEW.deactivated_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
- 20    ELSIF :NEW.plan_active = 'YES'
- 21    THEN
- 22  	 :NEW.activated       := SYSDATE;
- 23  	 :NEW.activated_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
- 24    END IF;
- 25    IF :NEW.plan_accepted = 'NO'
- 26    THEN
- 27  	 :NEW.denied	   := SYSDATE;
- 28  	 :NEW.denied_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
- 29    ELSIF :NEW.plan_accepted = 'YES'
- 30    THEN
- 31  	 :NEW.accepted	     := SYSDATE;
- 32  	 :NEW.accepted_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
- 33    END IF;
- 34    -- if job_name IS NOT NULL then create or update the scheduler job
- 35    IF INSERTING AND :NEW.job_name IS NOT NULL
- 36    THEN
- 37  	 BEGIN
- 38  	   SELECT COUNT(*) INTO l_has_job FROM user_scheduler_jobs WHERE job_name = :NEW.job_name;
- 39  	   -- check if already a job with this name exists
- 40  	   IF l_has_job > 0
- 41  	   THEN
- 42  	     DBMS_SCHEDULER.DISABLE(name => :NEW.job_name, force => TRUE);
- 43  	     -- update the job, set current plan id
- 44  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
- 45  					 , attribute => 'job_action'
- 46  					 , value => 'BEGIN sosl.run_plan(' || TRIM(TO_CHAR(:NEW.plan_id)) || '); END;'
- 47  					 )
- 48  	     ;
- 49  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
- 50  					 , attribute => 'start_date'
- 51  					 , value => :NEW.start_date
- 52  					 )
- 53  	     ;
- 54  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
- 55  					 , attribute => 'repeat_interval'
- 56  					 , value => :NEW.repeat_interval
- 57  					 )
- 58  	     ;
- 59  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
- 60  					 , attribute => 'end_date'
- 61  					 , value => :NEW.end_date
- 62  					 )
- 63  	     ;
- 64  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
- 65  					 , attribute => 'comments'
- 66  					 , value => 'Run PLAN_ID ' || TRIM(TO_CHAR(:NEW.plan_id)) || ' plan info: ' || NVL(:NEW.plan_description, 'N/A')
- 67  					 )
- 68  	     ;
- 69  	   ELSE
- 70  	     -- create the job
- 71  	     DBMS_SCHEDULER.CREATE_JOB( job_name => :NEW.job_name
- 72  				      , job_type => 'PLSQL_BLOCK'
- 73  				      , job_action => 'BEGIN sosl.run_plan(' || TRIM(TO_CHAR(:NEW.plan_id)) || '); END;'
- 74  				      , number_of_arguments => 0
- 75  				      , start_date => :NEW.start_date
- 76  				      , repeat_interval => :NEW.repeat_interval
- 77  				      , end_date => :NEW.end_date
- 78  				      , enabled => FALSE
- 79  				      , auto_drop => FALSE
- 80  				      , comments => 'Run PLAN_ID ' || TRIM(TO_CHAR(:NEW.plan_id)) || ' plan info: ' || NVL(:NEW.plan_description, 'N/A')
- 81  				      )
- 82  	     ;
- 83  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
- 84  					 , attribute => 'store_output'
- 85  					 , value => TRUE
- 86  					 )
- 87  	     ;
- 88  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
- 89  					 , attribute => 'logging_level'
- 90  					 , value => DBMS_SCHEDULER.LOGGING_FULL
- 91  					 )
- 92  	     ;
- 93  	   END IF;
- 94  	 EXCEPTION
- 95  	   WHEN OTHERS THEN
- 96  	     RAISE_APPLICATION_ERROR(-20008, 'Could not create or update job ' || :NEW.job_name || ' ERROR: ' || SQLERRM);
- 97  	 END;
- 98    END IF;
- 99    IF UPDATING AND :NEW.job_name IS NOT NULL
-100    THEN
-101  	 BEGIN
-102  	   SELECT COUNT(*) INTO l_has_job FROM user_scheduler_jobs WHERE job_name = :OLD.job_name;
-103  	   -- if name has changed, drop old job
-104  	   IF	  :OLD.job_name IS NOT NULL
-105  	      AND :OLD.job_name != :NEW.job_name
-106  	      AND l_has_job > 0
-107  	   THEN
-108  	     DBMS_SCHEDULER.DISABLE(name => :OLD.job_name, force => TRUE);
-109  	     DBMS_SCHEDULER.DROP_JOB(job_name => :OLD.job_name, force => TRUE);
-110  	   END IF;
-111  	 EXCEPTION
-112  	   WHEN OTHERS THEN
-113  	     RAISE_APPLICATION_ERROR(-20009, 'Could not drop old job ' || :OLD.job_name || ' ERROR: ' || SQLERRM);
-114  	 END;
-115  	 -- now handle existing job or create a new job
-116  	 BEGIN
-117  	   SELECT COUNT(*) INTO l_has_job FROM user_scheduler_jobs WHERE job_name = :NEW.job_name;
-118  	   IF l_has_job > 0
-119  	   THEN
-120  	     -- disable and update job
-121  	     DBMS_SCHEDULER.DISABLE(name => :NEW.job_name, force => TRUE);
-122  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
-123  					 , attribute => 'start_date'
-124  					 , value => :NEW.start_date
-125  					 )
-126  	     ;
-127  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
-128  					 , attribute => 'repeat_interval'
-129  					 , value => :NEW.repeat_interval
-130  					 )
-131  	     ;
-132  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
-133  					 , attribute => 'end_date'
-134  					 , value => :NEW.end_date
-135  					 )
-136  	     ;
-137  	   ELSE
-138  	     -- create a new job with the new job name
-139  	     DBMS_SCHEDULER.CREATE_JOB( job_name => :NEW.job_name
-140  				      , job_type => 'PLSQL_BLOCK'
-141  				      , job_action => 'BEGIN sosl.run_plan(' || TRIM(TO_CHAR(:NEW.plan_id)) || '); END;'
-142  				      , number_of_arguments => 0
-143  				      , start_date => :NEW.start_date
-144  				      , repeat_interval => :NEW.repeat_interval
-145  				      , end_date => :NEW.end_date
-146  				      , enabled => FALSE
-147  				      , auto_drop => FALSE
-148  				      , comments => 'Run PLAN_ID ' || TRIM(TO_CHAR(:NEW.plan_id)) || ' plan info: ' || NVL(:NEW.plan_description, 'N/A')
-149  				      )
-150  	     ;
-151  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
-152  					 , attribute => 'store_output'
-153  					 , value => TRUE
-154  					 )
-155  	     ;
-156  	     DBMS_SCHEDULER.SET_ATTRIBUTE( name => :NEW.job_name
-157  					 , attribute => 'logging_level'
-158  					 , value => DBMS_SCHEDULER.LOGGING_FULL
-159  					 )
-160  	     ;
-161  	   END IF;
-162  	 EXCEPTION
-163  	   WHEN OTHERS THEN
-164  	     RAISE_APPLICATION_ERROR(-20008, 'Could not create or update job ' || :NEW.job_name || ' ERROR: ' || SQLERRM);
-165  	 END;
-166    END IF;
-167  END;
-168  /
-
-Trigger created.
-
-SQL> CREATE OR REPLACE TRIGGER sosl_batch_plan_del_trg
-  2    BEFORE DELETE ON sosl_batch_plan
-  3    FOR EACH ROW
-  4  DECLARE
-  5    l_has_job NUMBER;
-  6  BEGIN
-  7    -- drop jobs that exist, if plan is deleted
-  8    BEGIN
-  9  	 SELECT COUNT(*) INTO l_has_job FROM user_scheduler_jobs WHERE job_name = :OLD.job_name;
- 10  	 -- drop old job
- 11  	 IF l_has_job > 0
- 12  	 THEN
- 13  	   DBMS_SCHEDULER.DISABLE(name => :OLD.job_name, force => TRUE);
- 14  	   DBMS_SCHEDULER.DROP_JOB(job_name => :OLD.job_name, force => TRUE);
- 15  	 END IF;
- 16    EXCEPTION
- 17  	 WHEN OTHERS THEN
- 18  	   RAISE_APPLICATION_ERROR(-20009, 'Could not drop old job ' || :OLD.job_name || ' ERROR: ' || SQLERRM);
- 19    END;
- 20  END;
- 21  /
-
-Trigger created.
-
-SQL> @@../sosl_ddl/tables/sosl_group_plan.sql
-SQL> CREATE TABLE sosl_group_plan
-  2    ( group_plan_id		 NUMBER(38, 0)	 GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
-  3    , plan_id		 NUMBER(38, 0)						   NOT NULL
-  4    , batch_group_id 	 NUMBER(38, 0)						   NOT NULL
-  5    , order_nr		 NUMBER(4, 0)	 DEFAULT 1				   NOT NULL
-  6    , created		 DATE		 DEFAULT SYSDATE			   NOT NULL
-  7    , updated		 DATE		 DEFAULT SYSDATE			   NOT NULL
-  8    , created_by		 VARCHAR2(256)	 DEFAULT USER				   NOT NULL
-  9    , created_by_os		 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 10    , updated_by		 VARCHAR2(256)	 DEFAULT USER				   NOT NULL
- 11    , updated_by_os		 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 12    , plan_group_description  VARCHAR2(4000)
- 13    )
- 14  ;
-
-Table created.
-
-SQL> COMMENT ON TABLE sosl_group_plan IS 'Relates batch plans with a batch group. As long as order_nr is different, a batch group may be assigned multiple times to a plan. Equal order_nr mean that those batch groups can be executed in parallel. Will use the alias splg.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_group_plan.group_plan_id IS 'Generated unique id for a batch plan to group assignement.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_group_plan.plan_id IS 'The unique script id to assign to a batch plan. No updates allowed, surpressed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_group_plan.batch_group_id IS 'The unique batch group id for the plan assignment. No updates allowed, surpressed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_group_plan.order_nr IS 'Defines the order in which batch groups are executed in a batch plan. Batch group with the same order are executed in parallel. Maximum order is 9999. Batch plan, batch group id and order must be unique.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_group_plan.plan_group_description IS 'Optional description of this batch plan group assignment.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_group_plan.created IS 'Date created, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_group_plan.updated IS 'Date updated, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_group_plan.created_by IS 'DB user who created the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_group_plan.created_by_os IS 'OS user who created the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_group_plan.updated_by IS 'DB user who updated the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_group_plan.updated_by_os IS 'OS user who updated the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> -- primary key
-SQL> ALTER TABLE sosl_group_plan
-  2    ADD CONSTRAINT sosl_group_plan_pk
-  3    PRIMARY KEY (group_plan_id)
-  4    ENABLE
-  5  ;
-
-Table altered.
-
-SQL> -- constraints
-SQL> ALTER TABLE sosl_group_plan
-  2    ADD CONSTRAINT sosl_group_plan_chk_order_nr
-  3    CHECK (order_nr > 0)
-  4  ;
-
-Table altered.
-
-SQL> -- unique
-SQL> ALTER TABLE sosl_group_plan
-  2    ADD CONSTRAINT sosl_group_plan_uk
-  3    UNIQUE (group_plan_id, batch_group_id, order_nr)
-  4    ENABLE
-  5  ;
-
-Table altered.
-
-SQL> -- foreign keys on script_id and batch_group_id
-SQL> ALTER TABLE sosl_group_plan
-  2    ADD CONSTRAINT sosl_group_plan_plan_id_fk
-  3    FOREIGN KEY (plan_id)
-  4    REFERENCES sosl_batch_plan (plan_id)
-  5    ON DELETE CASCADE
-  6  ;
-
-Table altered.
-
-SQL> ALTER TABLE sosl_group_plan
-  2    ADD CONSTRAINT sosl_group_plan_batch_group_id_fk
-  3    FOREIGN KEY (batch_group_id)
-  4    REFERENCES sosl_batch_group (batch_group_id)
-  5    ON DELETE CASCADE
-  6  ;
-
-Table altered.
-
-SQL> -- trigger
-SQL> CREATE OR REPLACE TRIGGER sosl_group_plan_ins_trg
-  2    BEFORE INSERT ON sosl_group_plan
-  3    FOR EACH ROW
-  4  BEGIN
-  5    :NEW.created	   := SYSDATE;
-  6    :NEW.updated	   := SYSDATE;
-  7    :NEW.created_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
-  8    :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
-  9    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 10    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
- 11  END;
- 12  /
-
-Trigger created.
-
-SQL> CREATE OR REPLACE TRIGGER sosl_group_plan_upd_trg
-  2    BEFORE UPDATE ON sosl_group_plan
-  3    FOR EACH ROW
-  4  BEGIN
-  5    -- make sure created is not changed
-  6    :NEW.created	   := :OLD.created;
-  7    :NEW.created_by	   := :OLD.created_by;
-  8    :NEW.created_by_os  := :OLD.created_by_os;
-  9    -- make sure ids are not changed
- 10    :NEW.plan_id	   := :OLD.plan_id;
- 11    :NEW.batch_group_id := :OLD.batch_group_id;
- 12    -- update dates and user
- 13    :NEW.updated	   := SYSDATE;
- 14    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 15    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
- 16  END;
- 17  /
-
-Trigger created.
-
-SQL> @@../sosl_ddl/tables/sosl_run_queues.sql
-SQL> CREATE TABLE sosl_run_queues
-  2    ( run_id 	 NUMBER(38, 0)	 GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
-  3    , plan_id	 NUMBER(38, 0)
-  4    , group_plan_id	 NUMBER(38, 0)
-  5    , batch_group_id  NUMBER(38, 0)
-  6    , batch_id	 NUMBER(38, 0)
-  7    , script_id	 NUMBER(38, 0)
-  8    , run_state	 NUMBER(1, 0)	 DEFAULT 0				   NOT NULL
-  9    , created	 TIMESTAMP						   NOT NULL
- 10    , waiting	 TIMESTAMP						   NOT NULL
- 11    , enqueued	 TIMESTAMP
- 12    , started	 TIMESTAMP
- 13    , running	 TIMESTAMP
- 14    , finished	 TIMESTAMP
- 15    , created_by	 VARCHAR2(256)	 DEFAULT USER				   NOT NULL
- 16    , created_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 17    , waiting_by	 VARCHAR2(256)	 DEFAULT USER				   NOT NULL
- 18    , waiting_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 19    , enqueued_by	 VARCHAR2(256)	 DEFAULT USER				   NOT NULL
- 20    , enqueued_by_os  VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 21    , started_by	 VARCHAR2(256)	 DEFAULT USER				   NOT NULL
- 22    , started_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 23    , running_by	 VARCHAR2(256)	 DEFAULT USER				   NOT NULL
- 24    , running_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 25    , finished_by	 VARCHAR2(256)	 DEFAULT USER				   NOT NULL
- 26    , finished_by_os  VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 27    )
- 28  ;
-
-Table created.
-
-SQL> COMMENT ON TABLE sosl_run_queues IS 'This table hold old and new runs of batch plans and the execution run state of each script. Granularity is single script. This is not a message queue. Will use the alias srqu.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.run_id IS 'Generated unique id for a batch run script.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.plan_id IS 'The current unique plan id for the batch run. NULL possible if reference record deleted. No updates allowed, surpressed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.plan_id IS 'The current unique group plan id for the batch run. NULL possible if reference record deleted. No updates allowed, surpressed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.batch_group_id IS 'The current unique batch group id for the batch run. NULL possible if reference record deleted. No updates allowed, surpressed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.batch_id IS 'The current unique batch id for the batch run. NULL possible if reference record deleted. No updates allowed, surpressed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.script_id IS 'The current unique script id for the batch run. NULL possible if reference record deleted. No updates allowed, surpressed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.run_state IS 'Holds the run state: 0 Waiting, 1 Enqueued, 2 Started, 3 Running, 4 Finished, -1 Error. To rerun a job, set run_state to 1. Script dependencies are not checked. Always 0 on insert, managed by trigger';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.created IS 'The date of record creation. No updates allowed, surpressed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.waiting IS 'The last date of setting the script run state to waiting (0). On insert this is the default managed by trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.enqueued IS 'The last date of setting the script run state to enqueued (1).';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.started IS 'The last date of setting the script run state to started (2).';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.running IS 'The last date of setting the script run state to running (3).';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.finished IS 'The last date of setting the script run state to finished or error (4, -1).';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.created_by IS 'DB user who created the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.created_by_os IS 'OS user who created the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.waiting_by IS 'Last DB user who set the record run state to waiting (0), managed by default and inser trigger, updates allowed.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.waiting_by_os IS 'Last OS user who set the record run state to waiting (0), managed by default and insert trigger, updates allowed.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.enqueued_by IS 'Last DB user who tried to set the record run state to enqueued (1).';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.enqueued_by_os IS 'Last OS user who tried to set the record run state to enqueued (1).';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.started_by IS 'Last DB user who tried to set the record run state to started (2).';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.started_by_os IS 'Last OS user who tried to set the record run state to started (2).';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.running_by IS 'Last DB user who tried to set the record run state to running (3).';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.running_by_os IS 'Last OS user who tried to set the record run state to running (3)';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.finished_by IS 'Last DB user who tried to set the record run state to finished (4) or -1 on errors.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_run_queues.finished_by_os IS 'Last OS user who tried to set the record run state to finished (4) or -1 on errors.';
-
-Comment created.
-
-SQL> -- primary key
-SQL> ALTER TABLE sosl_run_queues
-  2    ADD CONSTRAINT sosl_run_queues_pk
-  3    PRIMARY KEY (run_id)
-  4    ENABLE
-  5  ;
-
-Table altered.
-
-SQL> -- constraints
-SQL> ALTER TABLE sosl_run_queues
-  2    ADD CONSTRAINT sosl_run_queues_chk_run_state
-  3    CHECK (run_state IN (-1, 0, 1, 2, 3, 4))
-  4  ;
-
-Table altered.
-
-SQL> -- foreign keys on all ids referenced, will set record to NULL on DELETE
-SQL> ALTER TABLE sosl_run_queues
-  2    ADD CONSTRAINT sosl_run_queues_plan_id_fk
-  3    FOREIGN KEY (plan_id)
-  4    REFERENCES sosl_batch_plan (plan_id)
-  5    ON DELETE SET NULL
-  6  ;
-
-Table altered.
-
-SQL> ALTER TABLE sosl_run_queues
-  2    ADD CONSTRAINT sosl_run_queues_group_plan_id_fk
-  3    FOREIGN KEY (group_plan_id)
-  4    REFERENCES sosl_group_plan (group_plan_id)
-  5    ON DELETE SET NULL
-  6  ;
-
-Table altered.
-
-SQL> ALTER TABLE sosl_run_queues
-  2    ADD CONSTRAINT sosl_run_queues_batch_group_id_fk
-  3    FOREIGN KEY (batch_group_id)
-  4    REFERENCES sosl_batch_group (batch_group_id)
-  5    ON DELETE SET NULL
-  6  ;
-
-Table altered.
-
-SQL> ALTER TABLE sosl_run_queues
-  2    ADD CONSTRAINT sosl_run_queues_batch_id_fk
-  3    FOREIGN KEY (batch_id)
-  4    REFERENCES sosl_script_group (batch_id)
-  5    ON DELETE SET NULL
-  6  ;
-
-Table altered.
-
-SQL> -- if script id is DELETED no rerun is possible
-SQL> ALTER TABLE sosl_run_queues
-  2    ADD CONSTRAINT sosl_run_queues_script_id_fk
-  3    FOREIGN KEY (script_id)
-  4    REFERENCES sosl_script (script_id)
-  5    ON DELETE SET NULL
-  6  ;
-
-Table altered.
-
-SQL> -- trigger
-SQL> CREATE OR REPLACE TRIGGER sosl_run_queues_ins_trg
-  2    BEFORE INSERT ON sosl_run_queues
-  3    FOR EACH ROW
-  4  BEGIN
-  5    -- on insert run state is always 0 waiting
-  6    :NEW.run_state	   := 0;
-  7    -- set basic timestamps
-  8    :NEW.created	   := SYSTIMESTAMP;
-  9    :NEW.waiting	   := SYSTIMESTAMP;
- 10    :NEW.created_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 11    :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
- 12    :NEW.waiting_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 13    :NEW.waiting_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
- 14  END;
- 15  /
-
-Trigger created.
-
-SQL> CREATE OR REPLACE TRIGGER sosl_run_queues_upd_trg
-  2    BEFORE UPDATE ON sosl_run_queues
-  3    FOR EACH ROW
-  4  BEGIN
-  5    -- make sure created is not changed
-  6    :NEW.created	   := :OLD.created;
-  7    :NEW.created_by	   := :OLD.created_by;
-  8    :NEW.created_by_os  := :OLD.created_by_os;
-  9    -- update dates and user by run state
- 10    CASE :NEW.run_state
- 11  	 WHEN 0 THEN
- 12  	   :NEW.waiting        := SYSTIMESTAMP;
- 13  	   :NEW.waiting_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 14  	   :NEW.waiting_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
- 15  	 WHEN 1 THEN
- 16  	   :NEW.enqueued       := SYSTIMESTAMP;
- 17  	   :NEW.enqueued_by    := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 18  	   :NEW.enqueued_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
- 19  	 WHEN 2 THEN
- 20  	   :NEW.started        := SYSTIMESTAMP;
- 21  	   :NEW.started_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 22  	   :NEW.started_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
- 23  	 WHEN 3 THEN
- 24  	   :NEW.running        := SYSTIMESTAMP;
- 25  	   :NEW.running_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 26  	   :NEW.running_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
- 27  	 WHEN 4 THEN
- 28  	   :NEW.finished       := SYSTIMESTAMP;
- 29  	   :NEW.finished_by    := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 30  	   :NEW.finished_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
- 31  	 ELSE
- 32  	   -- any other state is an error state
- 33  	   :NEW.finished       := SYSTIMESTAMP;
- 34  	   :NEW.finished_by    := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 35  	   :NEW.finished_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
- 36  	   :NEW.run_state      := -1;
- 37    END CASE;
- 38  END;
- 39  /
-
-Trigger created.
-
-SQL> @@../sosl_ddl/tables/sosl_server_log.sql
-SQL> -- requires login with the correct schema, either SOSL or your on schema
-SQL> -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
-SQL> CREATE TABLE sosl_server_log
-  2    ( exec_timestamp    TIMESTAMP	   DEFAULT SYSTIMESTAMP 		     NOT NULL
-  3    , log_type	   VARCHAR2(30)    DEFAULT 'INFO'			     NOT NULL
-  4    , message	   VARCHAR2(4000)					     NOT NULL
-  5    , run_id 	   NUMBER(38, 0)
-  6    , plan_id	   NUMBER(38, 0)
-  7    , group_plan_id	   NUMBER(38, 0)
-  8    , batch_group_id    NUMBER(38, 0)
-  9    , batch_id	   NUMBER(38, 0)
- 10    , script_id	   NUMBER(38, 0)
- 11    , guid		   VARCHAR2(64)
- 12    , sosl_identifier   VARCHAR2(256)
- 13    , created_by	   VARCHAR2(256)   DEFAULT USER 			     NOT NULL
- 14    , created_by_os	   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 15    , caller 	   VARCHAR2(256)
- 16    , full_message	   CLOB
- 17    )
- 18    -- monthly partitions
- 19    PARTITION BY RANGE (exec_timestamp)
- 20    INTERVAL (NUMTOYMINTERVAL(1, 'MONTH'))
- 21    (PARTITION P_OLD
- 22  	   VALUES LESS THAN (TO_TIMESTAMP('01-01-2024','DD-MM-YYYY'))
- 23    )
- 24  ;
-
-Table created.
-
-SQL> COMMENT ON TABLE sosl_server_log IS 'Holds the log events of the SOSL server CMD and interaction with the database. Update is not allowed. Will use the alias slog.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.exec_timestamp IS 'The timestamp of the event. Automatically set by trigger, no update allowed.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.log_type IS 'The logging type, supports INFO, WARNING, ERROR, FATAL, SUCCESS. Mandatory.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.message IS 'The shortend log message. Mandatory. If only a CLOB is passed, the short message is build from the CLOB.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.full_message IS 'The full log message. For messages longer than 4000 bytes or char.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.guid IS 'The GUID the process is running with. Can be used as LIKE reference on SOSLERRORLOG.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.sosl_identifier IS 'The exact identifier for SOSLERRORLOG if available. No foreign key as log entries may be deleted.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.run_id IS 'The associated run id if available.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.plan_id IS 'The associated batch plan id if available.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.group_plan_id IS 'The associated batch group plan id if available.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.batch_group_id IS 'The associated batch group id if available.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.batch_id IS 'The associated batch id if available.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.script_id IS 'The associated script id if available.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.caller IS 'Caller identification if available, to distinguish database processes from SOSL CMD server processes.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.created_by IS 'The logged in DB user who created the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> COMMENT ON COLUMN sosl_server_log.created_by_os IS 'OS user who created the record, managed by default and trigger.';
-
-Comment created.
-
-SQL> 
-SQL> -- no primary key, only index
-SQL> CREATE INDEX sosl_server_log_idx
-  2    ON sosl_server_log (exec_timestamp)
-  3  ;
-
-Index created.
-
-SQL> -- constraints
-SQL> ALTER TABLE sosl_server_log
-  2    ADD CONSTRAINT sosl_server_log_chk_type
-  3    CHECK (log_type IN ('INFO', 'WARNING', 'ERROR', 'FATAL', 'SUCCESS'))
-  4  ;
-
-Table altered.
-
-SQL> -- foreign keys on batch_id, if not NULL
-SQL> ALTER TABLE sosl_server_log
-  2    ADD CONSTRAINT sosl_server_log_batch_id_fk
-  3    FOREIGN KEY (batch_id)
-  4    REFERENCES sosl_script_group (batch_id)
-  5    ON DELETE SET NULL
-  6  ;
-
-Table altered.
-
-SQL> ALTER TABLE sosl_server_log
-  2    ADD CONSTRAINT sosl_server_log_plan_id_fk
-  3    FOREIGN KEY (plan_id)
-  4    REFERENCES sosl_batch_plan (plan_id)
-  5    ON DELETE SET NULL
-  6  ;
-
-Table altered.
-
-SQL> -- trigger
-SQL> CREATE OR REPLACE TRIGGER sosl_server_log_ins_trg
-  2    BEFORE INSERT ON sosl_server_log
-  3    FOR EACH ROW
-  4  BEGIN
-  5    :NEW.exec_timestamp := SYSTIMESTAMP;
-  6    :NEW.created_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
-  7    :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
-  8    IF (:NEW.message IS NULL)
-  9    THEN
- 10  	 IF :NEW.full_message IS NOT NULL
- 11  	 THEN
- 12  	   IF LENGTH(TRIM(:NEW.full_message)) > 4000
- 13  	   THEN
- 14  	     :NEW.message := TO_CHAR(SUBSTR(TRIM(:NEW.full_message), 1, 3996)) || ' ...';
- 15  	   ELSE
- 16  	     :NEW.message := TO_CHAR(TRIM(:NEW.full_message));
- 17  	   END IF;
- 18  	 ELSE
- 19  	   RAISE_APPLICATION_ERROR(-20003, 'Full message must be given, if message is NULL.');
- 20  	 END IF;
- 21    END IF;
- 22    -- if a run id is provided, get the related ids
- 23    IF :NEW.run_id IS NOT NULL
- 24    THEN
- 25  	 SELECT plan_id
- 26  	      , group_plan_id
- 27  	      , batch_group_id
- 28  	      , batch_id
- 29  	      , script_id
- 30  	   INTO :NEW.plan_id
- 31  	      , :NEW.group_plan_id
- 32  	      , :NEW.batch_group_id
- 33  	      , :NEW.batch_id
- 34  	      , :NEW.script_id
- 35  	   FROM sosl_run_queues
- 36  	  WHERE run_id = :NEW.run_id
- 37  	 ;
- 38    END IF;
- 39  END;
- 40  /
-
-Trigger created.
-
-SQL> CREATE OR REPLACE TRIGGER sosl_server_log_upd_trg
-  2    BEFORE UPDATE ON sosl_server_log
-  3    FOR EACH ROW
-  4  BEGIN
-  5    RAISE_APPLICATION_ERROR(-20004, 'No updates allowed on a log table.');
-  6  END;
-  7  /
-
-Trigger created.
-
-SQL> CREATE OR REPLACE TRIGGER sosl_server_log_del_trg
-  2    BEFORE DELETE ON sosl_server_log
-  3    FOR EACH ROW
-  4  BEGIN
-  5    RAISE_APPLICATION_ERROR(-20005, 'You should not delete records from a log table, even if technically possible.');
-  6  END;
-  7  /
-
-Trigger created.
-
-SQL> @@../sosl_ddl/views/sosl_plan_view.sql
-SQL> CREATE OR REPLACE VIEW sosl_plan_view
-  2  AS
-  3    SELECT spla.plan_name
-  4  	    , spla.plan_active
-  5  	    , spla.plan_accepted
-  6  	    , scrt.script_name
-  7  	    , sbat.batch_base_path
-  8  	    , scrt.script_description
-  9  	    , splg.order_nr AS group_order_nr
- 10  	    , sgrp.order_nr AS script_order_nr
- 11  	    , splg.plan_group_description
- 12  	    , sgrp.batch_description
- 13  	    , sbat.batch_group_description
- 14  	    , spla.plan_id
- 15  	    , splg.batch_group_id
- 16  	    , sgrp.script_id
- 17  	    , splg.group_plan_id
- 18  	    , sgrp.batch_id
- 19  	 FROM sosl_batch_plan spla
- 20  	 LEFT OUTER JOIN sosl_group_plan splg
- 21  	   ON spla.plan_id = splg.plan_id
- 22  	 LEFT OUTER JOIN sosl_script_group sgrp
- 23  	   ON splg.batch_group_id = sgrp.batch_group_id
- 24  	 LEFT OUTER JOIN sosl_batch_group sbat
- 25  	   ON splg.batch_group_id = sbat.batch_group_id
- 26  	 LEFT OUTER JOIN sosl_script scrt
- 27  	   ON sgrp.script_id = scrt.script_id
- 28  	ORDER BY spla.plan_id
- 29  	       , splg.batch_group_id
- 30  	       , splg.order_nr
- 31  	       , sgrp.order_nr
- 32  ;
-
-View created.
-
+SQL> -- ==============INSTALL done==============
 SQL> @@../sosl_sql/util/log_silent.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> SET ECHO OFF
 SUCCESS - no errors found during setup          0

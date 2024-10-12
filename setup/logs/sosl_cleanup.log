@@ -1,53 +1,63 @@
-SQL> @@../sosl_ddl/views/drop/drop_sosl_plan_view.sql
-SQL> DROP VIEW sosl_plan_view;
+SQL> -- packages and functions
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_log_pkb.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> DROP PACKAGE BODY sosl_log;
 
-View dropped.
+Package body dropped.
 
-SQL> @@../sosl_ddl/tables/drop/drop_sosl_server_log.sql
-SQL> DROP TABLE sosl_server_log PURGE;
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_log_pks.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> DROP PACKAGE sosl_log;
 
-Table dropped.
+Package dropped.
 
-SQL> @@../sosl_ddl/tables/drop/drop_sosl_run_queues.sql
-SQL> DROP TABLE sosl_run_queues PURGE;
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_sys_pkb.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> DROP PACKAGE BODY sosl_sys;
 
-Table dropped.
+Package body dropped.
 
-SQL> @@../sosl_ddl/tables/drop/drop_sosl_group_plan.sql
-SQL> DROP TABLE sosl_group_plan PURGE;
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_sys_pks.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> DROP PACKAGE sosl_sys;
 
-Table dropped.
+Package dropped.
 
-SQL> @@../sosl_ddl/tables/drop/drop_sosl_batch_plan.sql
-SQL> DROP TABLE sosl_batch_plan PURGE;
-
-Table dropped.
-
-SQL> @@../sosl_ddl/tables/drop/drop_sosl_script_group.sql
-SQL> DROP TABLE sosl_script_group PURGE;
-
-Table dropped.
-
-SQL> @@../sosl_ddl/tables/drop/drop_sosl_batch_group.sql
-SQL> DROP TABLE sosl_batch_group PURGE;
+SQL> -- view objects
+SQL> -- table objects
+SQL> @@../sosl_ddl/tables/drop/drop_sosl_executor.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> DROP TABLE sosl_executor PURGE;
 
 Table dropped.
 
 SQL> @@../sosl_ddl/tables/drop/drop_sosl_script.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> DROP TABLE sosl_script PURGE;
 
 Table dropped.
 
 SQL> @@../sosl_ddl/tables/drop/drop_sosl_config.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> DROP TABLE sosl_config PURGE;
 
 Table dropped.
 
+SQL> @@../sosl_ddl/tables/drop/drop_sosl_server_log.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> DROP TABLE sosl_server_log PURGE;
+
+Table dropped.
+
 SQL> @@../sosl_ddl/tables/drop/drop_soslerrorlog.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> DROP TABLE soslerrorlog PURGE;
 
 Table dropped.
 
+SQL> -- ==============UNINSTALL done==============
 SQL> @@../sosl_sql/util/log_silent.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> SET ECHO OFF
 SUCCESS - no errors found during setup          0
+SPERRORLOG is not deleted, as we do not know if schema is exclusive. You may drop it manually with: DROP TABLE sperrorlog PURGE;

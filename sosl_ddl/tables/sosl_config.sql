@@ -119,6 +119,7 @@ BEGIN
                          , 'SOSL_MAIL_SENDER'
                          , 'SOSL_MAIL_RECIPIENT'
                          , 'SOSL_MAIL_API'
+                         , 'SOSL_HAS_ID_API'
                          )
   THEN
     RAISE_APPLICATION_ERROR(-20002, 'The given system config_name "' || :OLD.config_name || '" cannot be deleted.');
@@ -129,17 +130,17 @@ END;
 INSERT INTO sosl_config
   (config_name, config_value, config_description)
   VALUES
-  ('SOSL_PATH_CFG', '..\..\cfg\', 'Relative path with delimiter at path end to configuration files the SOSL server uses. Set by SOSL server. As configuration files contain credentials and secrets the path should be in a safe space with controlled user rights.')
+  ('SOSL_PATH_CFG', '..\..\sosl_cfg\', 'Relative path with delimiter at path end to configuration files the SOSL server uses. Set by SOSL server. As configuration files contain credentials and secrets the path should be in a safe space with controlled user rights.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_max_length, config_description)
   VALUES
-  ('SOSL_PATH_TMP', '..\..\tmp\', 239, 'Relative path with delimiter at path end to temporary files the SOSL server uses. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
+  ('SOSL_PATH_TMP', '..\..\sosl_tmp\', 239, 'Relative path with delimiter at path end to temporary files the SOSL server uses. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_max_length, config_description)
   VALUES
-  ('SOSL_PATH_LOG', '..\..\log\', 239, 'Relative path with delimiter at path end to log files the SOSL server creates. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
+  ('SOSL_PATH_LOG', '..\..\sosl_log\', 239, 'Relative path with delimiter at path end to log files the SOSL server creates. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_description)
@@ -214,6 +215,16 @@ INSERT INTO sosl_config
 INSERT INTO sosl_config
   (config_name, config_value, config_type, config_description)
   VALUES
-  ('SOSL_MAIL_API', 'sosl.send_mail', 'CHAR', 'The name of an existing procedure that should handle mail. Must work for all plans as the wrapper function SOSL_SENDMAIL is created dynamically. The procedure must have four parameters: mail_sender IN VARCHAR2, mail_recipients IN VARCHAR2, mail_subject IN VARCHAR2, mail_text IN VARCHAR2. It may include a schema, if not sosl schema. Can be a package procedure or standalone procedure.')
+  ('SOSL_MAIL_API', 'sosl.send_mail', 'CHAR', 'The name of an existing function that should handle mail. The wrapper function SOSL_SENDMAIL is created dynamically. The function must have four parameters: mail_sender IN VARCHAR2, mail_recipients IN VARCHAR2, mail_subject IN VARCHAR2, mail_text IN VARCHAR2 and must return 0 for success or -1 on errors. It may include a schema, if not sosl schema. Can be a package or standalone function.')
+;
+INSERT INTO sosl_config
+  (config_name, config_value, config_type, config_description)
+  VALUES
+  ('SOSL_HAS_ID_API', 'sosl.has_ids', 'CHAR', 'The name of an existing function that returns the amount of IDs waiting for processing. The wrapper function SOSL_HAS_IDS is created dynamically. The function expects no parameters and simply returns the amount of IDs waiting for processing. It may include a schema, if not sosl schema. Can be a package procedure or standalone procedure.')
+;
+INSERT INTO sosl_config
+  (config_name, config_value, config_type, config_description)
+  VALUES
+  ('SOSL_GET_ID_API', 'sosl.get_next_id', 'CHAR', 'The name of an existing procedure that should handle mail. Must work for all plans as the wrapper function SOSL_SENDMAIL is created dynamically. The procedure must have four parameters: mail_sender IN VARCHAR2, mail_recipients IN VARCHAR2, mail_subject IN VARCHAR2, mail_text IN VARCHAR2. It may include a schema, if not sosl schema. Can be a package procedure or standalone procedure.')
 ;
 COMMIT;
