@@ -782,7 +782,7 @@ SQL> CREATE OR REPLACE PACKAGE sosl_log
  77    */
  78    PROCEDURE full_log( p_message	      IN VARCHAR2
  79  			 , p_log_type	      IN VARCHAR2    DEFAULT sosl_sys.INFO_TYPE
- 80  			 , p_log_category     IN VARCHAR2    DEFAULT NULL
+ 80  			 , p_log_category     IN VARCHAR2    DEFAULT 'not set'
  81  			 , p_caller	      IN VARCHAR2    DEFAULT NULL
  82  			 , p_guid	      IN VARCHAR2    DEFAULT NULL
  83  			 , p_sosl_identifier  IN VARCHAR2    DEFAULT NULL
@@ -964,7 +964,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_log
 151  
 152    PROCEDURE full_log( p_message	      IN VARCHAR2
 153  			 , p_log_type	      IN VARCHAR2    DEFAULT sosl_sys.INFO_TYPE
-154  			 , p_log_category     IN VARCHAR2    DEFAULT NULL
+154  			 , p_log_category     IN VARCHAR2    DEFAULT 'not set'
 155  			 , p_caller	      IN VARCHAR2    DEFAULT NULL
 156  			 , p_guid	      IN VARCHAR2    DEFAULT NULL
 157  			 , p_sosl_identifier  IN VARCHAR2    DEFAULT NULL
@@ -996,7 +996,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_log
 183  	   ;
 184  	   l_log_category := SUBSTR(p_log_category, 1, sosl_sys.get_col_length('SOSL_SERVER_LOG', 'LOG_CATEGORY'));
 185  	 ELSE
-186  	   l_log_category := p_log_category;
+186  	   l_log_category := NVL(p_log_category, 'not set');
 187  	 END IF;
 188  	 IF NOT sosl_sys.check_col('SOSL_SERVER_LOG', 'CALLER', p_caller)
 189  	 THEN

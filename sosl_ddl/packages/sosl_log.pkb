@@ -152,7 +152,7 @@ AS
 
   PROCEDURE full_log( p_message          IN VARCHAR2
                     , p_log_type         IN VARCHAR2    DEFAULT sosl_sys.INFO_TYPE
-                    , p_log_category     IN VARCHAR2    DEFAULT NULL
+                    , p_log_category     IN VARCHAR2    DEFAULT 'not set'
                     , p_caller           IN VARCHAR2    DEFAULT NULL
                     , p_guid             IN VARCHAR2    DEFAULT NULL
                     , p_sosl_identifier  IN VARCHAR2    DEFAULT NULL
@@ -184,7 +184,7 @@ AS
       ;
       l_log_category := SUBSTR(p_log_category, 1, sosl_sys.get_col_length('SOSL_SERVER_LOG', 'LOG_CATEGORY'));
     ELSE
-      l_log_category := p_log_category;
+      l_log_category := NVL(p_log_category, 'not set');
     END IF;
     IF NOT sosl_sys.check_col('SOSL_SERVER_LOG', 'CALLER', p_caller)
     THEN
