@@ -1,3 +1,4 @@
+-- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 -- parameter 1: A unique identifier for the error logging
 -- parameter 2: The OS timestamp as it may differ from the database timestamp
 -- parameter 3: The name of the configuration parameter

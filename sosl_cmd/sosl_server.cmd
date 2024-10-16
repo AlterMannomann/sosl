@@ -1,4 +1,7 @@
 REM @ECHO OFF - disabled during testing
+REM (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+REM CMD expansion necessary
+SETLOCAL ENABLEEXTENSIONS
 REM CMD must be called in this directory to make relative paths work. You may use START /D or task
 REM scheduler to set the correct path the CMD is running in.
 REM Basically define variable defaults on highest level to be accessible for all called CMD files
@@ -50,8 +53,28 @@ REM Define variables fetched from database
 REM The maximum of parallel started scripts. After this amount if scripts is started, next scripts are
 REM only loaded, if the run count is below this value.
 SET SOSL_MAX_PARALLEL=8
-REM Defines the run mode of the server. Either RUN or STOP any other value will be interpreted as STOP.
+REM Defines the run mode of the server. Either RUN, SLEEP or STOP any other value will be interpreted as
+REM STOP.
 SET SOSL_RUNMODE=RUN
+REM Defines the wait time, if scripts are available for execution, by default 1 second. Remember to give
+REM always other processes a chance.
+SET SOSL_MIN_WAIT=1
+REM Defines the wait time, if scripts are not available for execution and RUNMODE is not SLEEP, by
+REM default 2 minutes.
+SET SOSL_DEF_WAIT=120
+REM Defines the wait time, if scripts are not available for execution and RUNMODE is SLEEP, by default 10
+REM minutes.
+SET SOSL_MAX_WAIT=600
+REM Defines the start hour for the SOSL server in 24h format, if -1 SOSL server is active the whole time.
+SET SOSL_START_JOBS=8
+REM Defines the end hour for the SOSL server in 24h format, ignored if SOSL_START_JOBS is -1.
+REM After this hour, the SOSL server will not make any connections to the database until SOSL_START_JOBS
+REM hour is reached. Local log will be written with alive pings.
+SET SOSL_STOP_JOBS=18
+REM The mail server to connect.
+SET SOSL_MAIL_SERVER=undefined
+REM The mail server port to connect.
+SET SOSL_MAIL_PORT=undefined
 REM Variable to hold GUIDs produced for each session. Used to create unique identifiers for SOSLERRORLOG
 REM by calling sosl_guid.cmd.
 SET SOSL_GUID=undefined
@@ -107,3 +130,4 @@ REM do not care if SOSL_DATETIME is correct or undefined
 ECHO %SOSL_DATETIME% %SOSL_ERRMSG% >> %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
 
 :SOSL_EXIT
+ENDLOCAL

@@ -1,3 +1,4 @@
+-- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 -- Requires SOSL login, based on the typical subprocesses Windows has with processes like 23928932:2323AAS.
 -- Check system from SQLPlus side
 SELECT CASE

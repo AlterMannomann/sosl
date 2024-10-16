@@ -2,6 +2,7 @@ Password for SOSL:
 Create user/schema SOSL with a password of length 4? The tablespace SOSL_TABLESPACE with 100M, data sosl.dbf is created in the default directory. Use Ctrl-C to stop the script in sqlplus, Enter to continue.
 Create user/schema SOSL with a password of length 4? The tablespace SOSL_TABLESPACE with 100M, data sosl.dbf is created in the default directory. Use Ctrl-C to stop the script in sqlplus, Enter to continue.
 
+Running under WINDOWS
 SQL> -- tablespace
 SQL> CREATE TABLESPACE sosl_tablespace
   2    DATAFILE 'sosl.dbf'
@@ -21,14 +22,30 @@ SQL> GRANT CREATE VIEW TO sosl;
 SQL> GRANT GATHER_SYSTEM_STATISTICS TO sosl;
 SQL> GRANT CONNECT TO sosl;
 SQL> GRANT RESOURCE TO sosl;
+SQL> GRANT CREATE JOB TO sosl;
 SQL> GRANT SELECT ON v_$session TO sosl;
+SQL> -- SOSL roles
+SQL> -- create sosl roles
+SQL> CREATE ROLE sosl_admin;
+SQL> CREATE ROLE sosl_executor;
+SQL> CREATE ROLE sosl_reviewer;
+SQL> CREATE ROLE sosl_user;
+SQL> CREATE ROLE sosl_guest;
+SQL> GRANT sosl_admin TO sosl WITH ADMIN OPTION;
+SQL> GRANT sosl_executor TO sosl WITH ADMIN OPTION;
+SQL> GRANT sosl_reviewer TO sosl WITH ADMIN OPTION;
+SQL> GRANT sosl_user TO sosl WITH ADMIN OPTION;
+SQL> GRANT sosl_guest TO sosl WITH ADMIN OPTION;
 SQL> SET ECHO OFF
-Executed: 15-SEP-24 10.52.06.649876 PM +00:00
+Creating sosl_login.cfg with current values and @soslinstance in template folder ...
+Executed: 08-OCT-24 09.38.55.177737 PM +00:00
 Created user SOSL with unlimited quota on
 tablespace SOSL_TABLESPACE, 100 MB, data file sosl.dbf
-Granted CREATE VIEW, CONNECT, RESSOURCE, GATHER_SYSTEM_STATISTICS, V$SESSION
+Granted CREATE VIEW, CONNECT, RESSOURCE, GATHER_SYSTEM_STATISTICS, V$SESSION, CREATE JOB
+Created SOSL roles SOSL_ADMIN, SOSL_EXECUTOR, SOSL_REVIEWER, SOSL_USER, SOSL_GUEST
 by Adi
 using SYS
 on database FREEPDB1
 from terminal ALIEN_M18
-
+Created sosl_login.cfg with current values and @soslinstance in template folder.
+Map name soslinstance with TNS and move the file to the desired cfg directory.

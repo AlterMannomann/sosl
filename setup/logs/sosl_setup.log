@@ -1,4 +1,5 @@
 SQL> @@../sosl_ddl/tables/soslerrorlog.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> CREATE TABLE soslerrorlog
   2    ( username    VARCHAR2(256)
   3    , timestamp   TIMESTAMP
@@ -40,39 +41,276 @@ SQL> COMMENT ON COLUMN soslerrorlog.statement IS 'The statement causing the erro
 
 Comment created.
 
+SQL> -- package with no dependency on SOSL objects
+SQL> @@../sosl_ddl/packages/sosl_sys.pks
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Basic sys util package not using data objects of the Simple Oracle Script Loader, no dependencies.
+SQL> CREATE OR REPLACE PACKAGE sosl_sys
+  2  AS
+  3    /**
+  4    * This package contains basic functions and procedures used by the Simple Oracle Script Loader that have no dependencies on any SOSL object.
+  5    * As there are no dependencies, exceptions must be catched or handled by the caller. No logging for this functions and procedures.
+  6    */
+  7  
+  8    /*====================================== start package constants used by SOSL ======================================*/
+  9    -- define log_type constants used in SOSL_SERVER_LOG
+ 10    ERROR_TYPE     CONSTANT CHAR(5) := 'ERROR';
+ 11    WARNING_TYPE   CONSTANT CHAR(7) := 'WARNING';
+ 12    FATAL_TYPE     CONSTANT CHAR(5) := 'FATAL';
+ 13    INFO_TYPE      CONSTANT CHAR(4) := 'INFO';
+ 14    SUCCESS_TYPE   CONSTANT CHAR(7) := 'SUCCESS';
+ 15    -- Generic n/a type. Should be different from table defaults like 'not set' as table triggers interpret their DDL default value as fallback
+ 16    -- to set default values using package variables, which is not supported in table DDL by Oracle using DEFAULT. Packages may use variables
+ 17    -- from other packages in DEFAULT declarations.
+ 18    NA_TYPE	      CONSTANT CHAR(3) := 'n/a';
+ 19    /*====================================== end package constants used by SOSL ======================================*/
+ 20  
+ 21    /*====================================== start internal functions made visible for testing ======================================*/
+ 22    /* PROCEDURE SPLIT_FUNCTION_NAME
+ 23    * Splits the given function name into its parts. Supposed delimiter is the point ".".
+ 24    * @param p_function_name The function or package function name to check. Package functions must be qualified with the package name, e.g. my_package.my_function.
+ 25    * @param p_package OUT parameter, contains the package name if any or NULL.
+ 26    * @param p_function OUT parameter, contains the pure function name.
+ 27    */
+ 28    PROCEDURE split_function_name( p_function_name IN  VARCHAR2
+ 29  				    , p_package       OUT VARCHAR2
+ 30  				    , p_function      OUT VARCHAR2
+ 31  				    )
+ 32    ;
+ 33    /*====================================== end internal functions made visible for testing ======================================*/
+ 34  
+ 35    /* FUNCTION HAS_DB_USER
+ 36    * Checks if a given user is visible for SOSL by checking ALL_USERS. Users must be visible to SOSL to be able to dynamically
+ 37    * grant the necessary rights on the API for script execution.
+ 38    *
+ 39    * @param p_username The database user name to check.
+ 40    *
+ 41    * @return TRUE if the user is visible in ALL_USERS to SOSL, otherwise FALSE.
+ 42    */
+ 43    FUNCTION has_db_user(p_username IN VARCHAR2)
+ 44  	 RETURN BOOLEAN
+ 45    ;
+ 46  
+ 47    /* FUNCTION HAS_FUNCTION
+ 48    * Checks if a given function or package function name is visible for SOSL by checking ALL_ATTRIBUTES.
+ 49    *
+ 50    * @param p_owner The owner of the function or package function name to check.
+ 51    * @param p_function_name The function or package function name to check. Package functions must be qualified with the package name, e.g. my_package.my_function.
+ 52    * @param p_datatype The return datatype of the function expected, e.g. a valid Oracle datatype like NUMBER or VARCHAR2.
+ 53    *
+ 54    * @return TRUE if the function is visible in ALL_ATTRIBUTES to SOSL and has the required return datatype, otherwise FALSE.
+ 55    */
+ 56    FUNCTION has_function( p_owner	       IN VARCHAR2
+ 57  			    , p_function_name  IN VARCHAR2
+ 58  			    , p_datatype       IN VARCHAR2
+ 59  			    )
+ 60  	 RETURN BOOLEAN
+ 61    ;
+ 62  
+ 63    /* FUNCTION LOG_TYPE_VALID
+ 64    * Central function to check the log type. Currently supports INFO, WARNING, ERROR, FATAL, SUCCESS. If log types should get expanded
+ 65    * adjust this function first and probably the default value for SOSL_SERVER_LOG.
+ 66    *
+ 67    * @param p_log_type The log type to check. Case insensitive.
+ 68    *
+ 69    *@return TRUE if the given log type is supported. FALSE if not. Exceptions and errors will lead also to FALSE.
+ 70    */
+ 71    FUNCTION log_type_valid(p_log_type IN VARCHAR2)
+ 72  	 RETURN BOOLEAN
+ 73  	 DETERMINISTIC
+ 74  	 PARALLEL_ENABLE
+ 75    ;
+ 76  
+ 77    /* FUNCTION GET_VALID_LOG_TYPE
+ 78    * Verifies an given log type, returns either the given log type as upper case or the defined error default.
+ 79    *
+ 80    * @param p_log_type The log type to verify and return. Case insensitive.
+ 81    * @param p_error_default The alternative log type to return, if the log type is invalid. Must be a valid log type and not INFO or SUCCESS. If invalid, FATAL is returned.
+ 82    *
+ 83    * @return The valid log type as upper case on success. The valid error default if log type not supported. FATAL if the error default is invalid.
+ 84    */
+ 85    FUNCTION get_valid_log_type( p_log_type	     IN VARCHAR2
+ 86  				  , p_error_default  IN VARCHAR2 DEFAULT sosl_sys.ERROR_TYPE
+ 87  				  )
+ 88  	 RETURN VARCHAR2
+ 89  	 DETERMINISTIC
+ 90  	 PARALLEL_ENABLE
+ 91    ;
+ 92  END;
+ 93  /
+
+Package created.
+
+SQL> @@../sosl_ddl/packages/sosl_sys.pkb
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> CREATE OR REPLACE PACKAGE BODY sosl_sys
+  2  AS
+  3    -- for description see header file
+  4    PROCEDURE split_function_name( p_function_name IN  VARCHAR2
+  5  				    , p_package       OUT VARCHAR2
+  6  				    , p_function      OUT VARCHAR2
+  7  				    )
+  8    IS
+  9    BEGIN
+ 10  	 IF INSTR(p_function_name, '.') > 0
+ 11  	 THEN
+ 12  	   p_package   := TRIM(SUBSTR(p_function_name, 1, INSTR(p_function_name, '.') -1));
+ 13  	   p_function  := TRIM(SUBSTR(p_function_name, INSTR(p_function_name, '.') +1, INSTR(p_function_name, '.', 1, 2) - INSTR(p_function_name, '.') -1));
+ 14  	 ELSE
+ 15  	   p_package   := NULL;
+ 16  	   p_function  := TRIM(p_function_name);
+ 17  	 END IF;
+ 18    END split_function_name;
+ 19  
+ 20    FUNCTION has_db_user(p_username IN VARCHAR2)
+ 21  	 RETURN BOOLEAN
+ 22    IS
+ 23  	 l_has_user  NUMBER;
+ 24  	 l_return    BOOLEAN;
+ 25    BEGIN
+ 26  	 l_return := FALSE;
+ 27  	 SELECT COUNT(*) INTO l_has_user FROM all_users WHERE username = p_username;
+ 28  	 IF l_has_user != 0
+ 29  	 THEN
+ 30  	   l_return := TRUE;
+ 31  	 END IF;
+ 32  	 RETURN l_return;
+ 33    END has_db_user;
+ 34  
+ 35    FUNCTION has_function( p_owner	       IN VARCHAR2
+ 36  			    , p_function_name  IN VARCHAR2
+ 37  			    , p_datatype       IN VARCHAR2
+ 38  			    )
+ 39  	 RETURN BOOLEAN
+ 40    IS
+ 41  	 l_has_function  NUMBER;
+ 42  	 l_package	 VARCHAR2(128);
+ 43  	 l_function	 VARCHAR2(128);
+ 44  	 l_return	 BOOLEAN;
+ 45    BEGIN
+ 46  	 l_return := FALSE;
+ 47  	 sosl_sys.split_function_name(p_function_name, l_package, l_function);
+ 48  	 SELECT COUNT(*)
+ 49  	   INTO l_has_function
+ 50  	   FROM all_arguments
+ 51  	  WHERE position		   = 0				     -- only functions
+ 52  	    AND argument_name		   IS NULL			     -- only functions
+ 53  	    AND data_type		   = p_datatype
+ 54  	    AND owner			   = p_owner
+ 55  	    AND NVL(package_name, 'N/A')   = NVL(UPPER(l_package), 'N/A')    -- may not contain a package name
+ 56  	    AND object_name		   = UPPER(l_function)
+ 57  	 ;
+ 58  	 IF l_has_function != 0
+ 59  	 THEN
+ 60  	   l_return := TRUE;
+ 61  	 END IF;
+ 62  	 RETURN l_return;
+ 63    END has_function;
+ 64  
+ 65    FUNCTION log_type_valid(p_log_type IN VARCHAR2)
+ 66  	 RETURN BOOLEAN
+ 67  	 DETERMINISTIC
+ 68  	 PARALLEL_ENABLE
+ 69    IS
+ 70  	 l_return  BOOLEAN;
+ 71    BEGIN
+ 72  	 l_return := FALSE;
+ 73  	 IF UPPER(p_log_type) IN ( sosl_sys.INFO_TYPE
+ 74  				 , sosl_sys.WARNING_TYPE
+ 75  				 , sosl_sys.ERROR_TYPE
+ 76  				 , sosl_sys.FATAL_TYPE
+ 77  				 , sosl_sys.SUCCESS_TYPE
+ 78  				 )
+ 79  	 THEN
+ 80  	   l_return := TRUE;
+ 81  	 END IF;
+ 82  	 RETURN l_return;
+ 83    EXCEPTION
+ 84  	 WHEN OTHERS THEN
+ 85  	   RETURN FALSE;
+ 86    END log_type_valid;
+ 87  
+ 88    FUNCTION get_valid_log_type( p_log_type	     IN VARCHAR2
+ 89  				  , p_error_default  IN VARCHAR2 DEFAULT sosl_sys.ERROR_TYPE
+ 90  				  )
+ 91  	 RETURN VARCHAR2
+ 92  	 DETERMINISTIC
+ 93  	 PARALLEL_ENABLE
+ 94    IS
+ 95  	 l_return  VARCHAR2(30);
+ 96    BEGIN
+ 97  	 l_return := sosl_sys.FATAL_TYPE;
+ 98  	 IF log_type_valid(p_log_type)
+ 99  	 THEN
+100  	   l_return := UPPER(p_log_type);
+101  	 ELSE
+102  	   IF	   log_type_valid(p_error_default)
+103  	      AND  UPPER(p_error_default) NOT IN ( sosl_sys.INFO_TYPE
+104  						 , sosl_sys.SUCCESS_TYPE
+105  						 )
+106  	   THEN
+107  	     l_return := UPPER(p_error_default);
+108  	   END IF;
+109  	 END IF;
+110  	 RETURN l_return;
+111    EXCEPTION
+112  	 WHEN OTHERS THEN
+113  	   RETURN sosl_sys.FATAL_TYPE;
+114    END get_valid_log_type;
+115  
+116  END;
+117  /
+
+Package body created.
+
+SQL> -- logging table
 SQL> @@../sosl_ddl/tables/sosl_server_log.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- requires login with the correct schema, either SOSL or your on schema
+SQL> -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
 SQL> CREATE TABLE sosl_server_log
-  2    ( exec_timestamp    TIMESTAMP	   DEFAULT SYSTIMESTAMP  NOT NULL
-  3    , log_type	   VARCHAR2(30)    DEFAULT 'INFO'	 NOT NULL
-  4    , message	   VARCHAR2(4000)  NOT NULL
-  5    , full_message	   CLOB
-  6    , guid		   VARCHAR2(64)
-  7    , sosl_identifier   VARCHAR2(256)
-  8    , caller 	   VARCHAR2(256)
-  9    )
- 10    -- monthly partitions
- 11    PARTITION BY RANGE (exec_timestamp)
- 12    INTERVAL (NUMTOYMINTERVAL(1, 'MONTH'))
- 13    (PARTITION P_OLD
- 14  	   VALUES LESS THAN (TO_TIMESTAMP('01-01-2024','DD-MM-YYYY'))
- 15    )
- 16  ;
+  2    ( exec_timestamp    TIMESTAMP	   DEFAULT SYSTIMESTAMP 		     NOT NULL
+  3  	 -- due to Oracle limitations we must use trigger not a package variable, trigger takes care to assign a default INFO log type if getting 'not set'
+  4    , log_type	   VARCHAR2(30)    DEFAULT 'not set'			     NOT NULL
+  5    , log_category	   VARCHAR2(256)   DEFAULT 'not set'			     NOT NULL
+  6    , message	   VARCHAR2(4000)					     NOT NULL
+  7    , run_id 	   NUMBER(38, 0)
+  8    , executor_id	   NUMBER(38, 0)
+  9    , ext_script_id	   VARCHAR2(4000)
+ 10    , guid		   VARCHAR2(64)
+ 11    , sosl_identifier   VARCHAR2(256)
+ 12    , created_by	   VARCHAR2(256)   DEFAULT USER 			     NOT NULL
+ 13    , created_by_os	   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 14    , caller 	   VARCHAR2(256)
+ 15    , full_message	   CLOB
+ 16    )
+ 17    -- monthly partitions
+ 18    PARTITION BY RANGE (exec_timestamp)
+ 19    INTERVAL (NUMTOYMINTERVAL(1, 'MONTH'))
+ 20    (PARTITION P_OLD
+ 21  	   VALUES LESS THAN (TO_TIMESTAMP('01-01-2024','DD-MM-YYYY'))
+ 22    )
+ 23  ;
 
 Table created.
 
-SQL> COMMENT ON TABLE sosl_server_log IS 'Holds the log events of the SOSL server CMD and interaction with the database. Update is not allowed. Will use the alias slog.';
+SQL> COMMENT ON TABLE sosl_server_log IS 'Holds the log events of the SOSL server CMD and interaction with the database as well as database events. Update is not allowed. Will use the alias slog.';
 
 Comment created.
 
-SQL> COMMENT ON COLUMN sosl_server_log.exec_timestamp IS 'The timestamp of the event. Automatically set by trigger, no update allowed.';
+SQL> COMMENT ON COLUMN sosl_server_log.exec_timestamp IS 'The timestamp of the event. Automatically set by trigger, no set allowed.';
 
 Comment created.
 
-SQL> COMMENT ON COLUMN sosl_server_log.log_type IS 'The logging type, supports INFO, WARNING, ERROR, FATAL, SUCCESS. Mandatory.';
+SQL> COMMENT ON COLUMN sosl_server_log.log_type IS 'The logging type, supports currently INFO, WARNING, ERROR, FATAL, SUCCESS. Mandatory. Defined in package SOSL_SYS.';
 
 Comment created.
 
-SQL> COMMENT ON COLUMN sosl_server_log.message IS 'The shortend log message. Mandatory. If only a CLOB is passed, the short message is build from the CLOB.';
+SQL> COMMENT ON COLUMN sosl_server_log.log_category IS 'The log writer may provide an short log category description.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.message IS 'The shortend log message. Mandatory. If only a CLOB is passed, the short message is build from the CLOB. Categories too long will be cutted.';
 
 Comment created.
 
@@ -84,7 +322,19 @@ SQL> COMMENT ON COLUMN sosl_server_log.guid IS 'The GUID the process is running 
 
 Comment created.
 
-SQL> COMMENT ON COLUMN sosl_server_log.sosl_identifier IS 'The exact identifier for SOSLERRORLOG if available.';
+SQL> COMMENT ON COLUMN sosl_server_log.sosl_identifier IS 'The exact identifier for SOSLERRORLOG if available. No constraints active.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.run_id IS 'The associated run id if available. No constraints active.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.executor_id IS 'The associated executor id if available. No constraints active.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.ext_script_id IS 'The (external) script id if available. No constraints active.';
 
 Comment created.
 
@@ -92,43 +342,60 @@ SQL> COMMENT ON COLUMN sosl_server_log.caller IS 'Caller identification if avail
 
 Comment created.
 
+SQL> COMMENT ON COLUMN sosl_server_log.created_by IS 'The logged in DB user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_server_log.created_by_os IS 'OS user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> 
 SQL> -- no primary key, only index
 SQL> CREATE INDEX sosl_server_log_idx
-  2    ON sosl_server_log (exec_timestamp)
+  2    ON sosl_server_log (exec_timestamp, log_type, log_category)
   3  ;
 
 Index created.
 
-SQL> -- constraints
-SQL> ALTER TABLE sosl_server_log
-  2    ADD CONSTRAINT sosl_server_log_chk_type
-  3    CHECK (log_type IN ('INFO', 'WARNING', 'ERROR', 'FATAL', 'SUCCESS'))
-  4  ;
-
-Table altered.
-
+SQL> -- no constraints, as Oracle does not allow package functions in CHECK conditions
+SQL> 
 SQL> -- trigger
 SQL> CREATE OR REPLACE TRIGGER sosl_server_log_ins_trg
   2    BEFORE INSERT ON sosl_server_log
   3    FOR EACH ROW
   4  BEGIN
-  5    :NEW.exec_timestamp := SYSTIMESTAMP;
-  6    IF (:NEW.message IS NULL)
+  5    -- first set default value if not set, as Oracle does not support default values from package variables
+  6    IF :NEW.log_type = 'not set'
   7    THEN
-  8  	 IF :NEW.full_message IS NOT NULL
-  9  	 THEN
- 10  	   IF LENGTH(TRIM(:NEW.full_message)) > 4000
- 11  	   THEN
- 12  	     :NEW.message := TO_CHAR(SUBSTR(TRIM(:NEW.full_message), 1, 3996)) || ' ...';
- 13  	   ELSE
- 14  	     :NEW.message := TO_CHAR(TRIM(:NEW.full_message));
- 15  	   END IF;
- 16  	 ELSE
- 17  	   RAISE_APPLICATION_ERROR(-20003, 'Full message must be given, if message is NULL.');
- 18  	 END IF;
- 19    END IF;
- 20  END;
- 21  /
+  8  	 :NEW.log_type := sosl_sys.INFO_TYPE;
+  9    END IF;
+ 10    -- instead of check constraint to get package support
+ 11    IF NOT sosl_sys.log_type_valid(:NEW.log_type)
+ 12    THEN
+ 13  	 RAISE_APPLICATION_ERROR(-20003, 'Invalid log type. Not supported by package SOSL_SYS. Given log type: ' || :NEW.log_type);
+ 14    ELSE
+ 15  	 :NEW.log_type := sosl_sys.get_valid_log_type(:NEW.log_type);
+ 16    END IF;
+ 17    :NEW.exec_timestamp := SYSTIMESTAMP;
+ 18    :NEW.created_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 19    :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+ 20    IF (:NEW.message IS NULL)
+ 21    THEN
+ 22  	 IF :NEW.full_message IS NOT NULL
+ 23  	 THEN
+ 24  	   IF LENGTH(TRIM(:NEW.full_message)) > 4000
+ 25  	   THEN
+ 26  	     :NEW.message := TO_CHAR(SUBSTR(TRIM(:NEW.full_message), 1, 3996)) || ' ...';
+ 27  	   ELSE
+ 28  	     :NEW.message := TO_CHAR(TRIM(:NEW.full_message));
+ 29  	   END IF;
+ 30  	 ELSE
+ 31  	   RAISE_APPLICATION_ERROR(-20004, 'Full message must be given, if message is NULL.');
+ 32  	 END IF;
+ 33    END IF;
+ 34  END;
+ 35  /
 
 Trigger created.
 
@@ -136,21 +403,149 @@ SQL> CREATE OR REPLACE TRIGGER sosl_server_log_upd_trg
   2    BEFORE UPDATE ON sosl_server_log
   3    FOR EACH ROW
   4  BEGIN
-  5    RAISE_APPLICATION_ERROR(-20004, 'No updates allowed on a log table.');
+  5    RAISE_APPLICATION_ERROR(-20005, 'No updates allowed on a log table.');
   6  END;
   7  /
 
 Trigger created.
 
+SQL> CREATE OR REPLACE TRIGGER sosl_server_log_del_trg
+  2    BEFORE DELETE ON sosl_server_log
+  3    FOR EACH ROW
+  4  BEGIN
+  5    RAISE_APPLICATION_ERROR(-20006, 'Delete records from a log table is not allowed. This is an admin job which needs sufficient rights.');
+  6  END;
+  7  /
+
+Trigger created.
+
+SQL> -- logging package
+SQL> @@../sosl_ddl/packages/sosl_log.pks
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Basic logging package, dependencies only to sosl_server_log.
+SQL> CREATE OR REPLACE PACKAGE sosl_log
+  2  AS
+  3    /**
+  4    * This package contains basic functions and procedures used by the Simple Oracle Script Loader for managing logging.
+  5    * Apart from sosl_server_log table, there are no dependencies, severe exceptions must be catched or handled by the caller.
+  6    * The interface has as well functions and procedures. Functions inform about success or error, whereas procedure exceptions
+  7    * must be handled by the caller.
+  8    */
+  9  
+ 10    /*====================================== start internal functions made visible for testing ======================================*/
+ 11    /* PROCEDURE LOG_EVENT
+ 12    * Writes a log entry as autonomous transaction. This is the internal base procedure, exposed for testing.
+ 13    * If on errors writing log entries is not possible the procedure hands the exception to the caller. This is the pure insert without
+ 14    * any chacks. It takes the values as given and table may trigger exceptions. It is recommended to use the provided interfaces for logging.
+ 15    *
+ 16    * @param p_message The message to log. Limited to 4000 chars. If longer it is split and rest is stored in full_message CLOB by trigger. If NULL p_full_message must be provided.
+ 17    * @param p_log_type The log type is basically defined by SOSL_SYS. Currently: INFO, WARNING, ERROR, FATAL, SUCCESS. Must be valid.
+ 18    * @param p_log_category An optional logging category.
+ 19    * @param p_guid The GUID the process is running with. Can be used as LIKE reference on SOSLERRORLOG. Most likely used by CMD server.
+ 20    * @param p_sosl_identifier The exact identifier for SOSLERRORLOG if available. Most likely used by CMD server.
+ 21    * @param p_executor_id The associated executor id if available. Used as well by CMD server and SOSL packages and functions.
+ 22    * @param p_ext_script_id The (external) script id if available. Used as well by CMD server and SOSL packages and functions.
+ 23    * @param p_caller Caller identification if available, to distinguish database processes from SOSL CMD server processes or external usage.
+ 24    * @param p_run_id The associated run id if available. Most likely used by SOSL packages and functions.
+ 25    * @param p_full_message The full message as CLOB if the message size exceeds the PLSQL limit of 32767 bytes. Must be given if p_message is NULL.
+ 26    */
+ 27    PROCEDURE log_event( p_message	       IN VARCHAR2
+ 28  			  , p_log_type	       IN VARCHAR2
+ 29  			  , p_log_category     IN VARCHAR2
+ 30  			  , p_guid	       IN VARCHAR2
+ 31  			  , p_sosl_identifier  IN VARCHAR2
+ 32  			  , p_executor_id      IN NUMBER
+ 33  			  , p_ext_script_id    IN NUMBER
+ 34  			  , p_caller	       IN VARCHAR2
+ 35  			  , p_run_id	       IN NUMBER
+ 36  			  , p_full_message     IN CLOB
+ 37  			  )
+ 38    ;
+ 39  /*====================================== end internal functions made visible for testing ======================================*/
+ 40  
+ 41  END;
+ 42  /
+
+Package created.
+
+SQL> @@../sosl_ddl/packages/sosl_log.pkb
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> CREATE OR REPLACE PACKAGE BODY sosl_log
+  2  AS
+  3    -- for description see header file
+  4    PROCEDURE log_event( p_message	       IN VARCHAR2
+  5  			  , p_log_type	       IN VARCHAR2
+  6  			  , p_log_category     IN VARCHAR2
+  7  			  , p_guid	       IN VARCHAR2
+  8  			  , p_sosl_identifier  IN VARCHAR2
+  9  			  , p_executor_id      IN NUMBER
+ 10  			  , p_ext_script_id    IN NUMBER
+ 11  			  , p_caller	       IN VARCHAR2
+ 12  			  , p_run_id	       IN NUMBER
+ 13  			  , p_full_message     IN CLOB
+ 14  			  )
+ 15    IS
+ 16  	 PRAGMA AUTONOMOUS_TRANSACTION;
+ 17    BEGIN
+ 18  	 INSERT INTO sosl_server_log
+ 19  	   ( message
+ 20  	   , log_type
+ 21  	   , log_category
+ 22  	   , guid
+ 23  	   , sosl_identifier
+ 24  	   , executor_id
+ 25  	   , ext_script_id
+ 26  	   , caller
+ 27  	   , run_id
+ 28  	   , full_message
+ 29  	   )
+ 30  	   VALUES
+ 31  	     ( p_message
+ 32  	     , p_log_type
+ 33  	     , p_log_category
+ 34  	     , p_guid
+ 35  	     , p_sosl_identifier
+ 36  	     , p_executor_id
+ 37  	     , p_ext_script_id
+ 38  	     , p_caller
+ 39  	     , p_run_id
+ 40  	     , p_full_message
+ 41  	     )
+ 42  	 ;
+ 43  	 COMMIT;
+ 44    EXCEPTION
+ 45  	 WHEN OTHERS THEN
+ 46  	   -- try ROLLBACK
+ 47  	   ROLLBACK;
+ 48  	   -- and raise the error
+ 49  	   RAISE;
+ 50    END log_event;
+ 51  
+ 52  END;
+ 53  /
+
+Package body created.
+
+SQL> 
+SQL> -- SOSL objects with possible references to sosl_log and sosl_sys
 SQL> @@../sosl_ddl/tables/sosl_config.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- requires login with the correct schema, either SOSL or your on schema
+SQL> -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
 SQL> CREATE TABLE sosl_config
-  2    ( config_name	     VARCHAR2(128)		     NOT NULL
-  3    , config_value	     VARCHAR2(4000)		     NOT NULL
-  4    , config_type	     VARCHAR2(6)     DEFAULT 'CHAR'  NOT NULL
-  5    , config_max_length   NUMBER	     DEFAULT -1      NOT NULL
-  6    , config_description  VARCHAR2(4000)
-  7    )
-  8  ;
+  2    ( config_name	     VARCHAR2(128)					       NOT NULL
+  3    , config_value	     VARCHAR2(4000)					       NOT NULL
+  4    , config_max_length   NUMBER	     DEFAULT -1 			       NOT NULL
+  5    , config_type	     VARCHAR2(6)     DEFAULT 'CHAR'			       NOT NULL
+  6    , created	     DATE	     DEFAULT SYSDATE			       NOT NULL
+  7    , updated	     DATE	     DEFAULT SYSDATE			       NOT NULL
+  8    , created_by	     VARCHAR2(256)   DEFAULT USER			       NOT NULL
+  9    , created_by_os	     VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 10    , updated_by	     VARCHAR2(256)   DEFAULT USER			       NOT NULL
+ 11    , updated_by_os	     VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 12    , config_description  VARCHAR2(4000)
+ 13    )
+ 14  ;
 
 Table created.
 
@@ -179,6 +574,31 @@ SQL> COMMENT ON COLUMN sosl_config.config_description IS 'Optional description o
 
 Comment created.
 
+SQL> COMMENT ON COLUMN sosl_config.created IS 'Date created, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_config.updated IS 'Date updated, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_config.created_by IS 'DB user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_config.created_by_os IS 'OS user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_config.updated_by IS 'DB user who updated the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_config.updated_by_os IS 'OS user who updated the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> 
 SQL> -- primary key
 SQL> ALTER TABLE sosl_config
   2    ADD CONSTRAINT sosl_config_pk
@@ -212,36 +632,49 @@ SQL> CREATE OR REPLACE TRIGGER sosl_config_ins_upd_trg
   6    l_date  DATE;
   7  BEGIN
   8    -- remove any leading and trailing blanks from config_value
-  9    :NEW.config_value := TRIM(:NEW.config_value);
- 10    -- check max length if defined
- 11    IF :NEW.config_type = 'CHAR'
- 12    THEN
- 13  	 IF :NEW.config_max_length > 0
- 14  	 THEN
- 15  	   IF LENGTH(:NEW.config_value) > :NEW.config_max_length
- 16  	   THEN
- 17  	     RAISE_APPLICATION_ERROR(-20000, 'The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value));
- 18  	   END IF;
- 19  	 END IF;
- 20    END IF;
- 21    -- check number type
- 22    IF :NEW.config_type = 'NUMBER'
- 23    THEN
- 24  	 l_ok := TRUE;
- 25  	 -- compare TO_NUMBER with implicite conversion, if it fails the config_value cannot be interpreted correctly
- 26  	 BEGIN
- 27  	   l_ok := (TO_NUMBER(:NEW.config_value) = :NEW.config_value);
- 28  	 EXCEPTION
- 29  	   WHEN OTHERS THEN
- 30  	     l_ok := FALSE;
- 31  	 END;
- 32  	 IF NOT l_ok
- 33  	 THEN
- 34  	   RAISE_APPLICATION_ERROR(-20001, 'The given config_value "' || :NEW.config_value || '" could not be converted successfully to a number.');
- 35  	 END IF;
- 36    END IF;
- 37  END;
- 38  /
+  9    :NEW.config_value   := TRIM(:NEW.config_value);
+ 10    IF UPDATING
+ 11    THEN
+ 12  	 :NEW.created	     := :OLD.created;
+ 13  	 :NEW.created_by     := :OLD.created_by;
+ 14  	 :NEW.created_by_os  := :OLD.created_by_os;
+ 15    ELSE
+ 16  	 :NEW.created	     := SYSDATE;
+ 17  	 :NEW.created_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 18  	 :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+ 19    END IF;
+ 20    :NEW.updated	   := SYSDATE;
+ 21    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 22    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+ 23    -- check max length if defined
+ 24    IF :NEW.config_type = 'CHAR'
+ 25    THEN
+ 26  	 IF :NEW.config_max_length > 0
+ 27  	 THEN
+ 28  	   IF LENGTH(:NEW.config_value) > :NEW.config_max_length
+ 29  	   THEN
+ 30  	     RAISE_APPLICATION_ERROR(-20000, 'The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value));
+ 31  	   END IF;
+ 32  	 END IF;
+ 33    END IF;
+ 34    -- check number type
+ 35    IF :NEW.config_type = 'NUMBER'
+ 36    THEN
+ 37  	 l_ok := TRUE;
+ 38  	 -- compare TO_NUMBER with implicite conversion, if it fails the config_value cannot be interpreted correctly
+ 39  	 BEGIN
+ 40  	   l_ok := (TO_NUMBER(:NEW.config_value) = :NEW.config_value);
+ 41  	 EXCEPTION
+ 42  	   WHEN OTHERS THEN
+ 43  	     l_ok := FALSE;
+ 44  	 END;
+ 45  	 IF NOT l_ok
+ 46  	 THEN
+ 47  	   RAISE_APPLICATION_ERROR(-20001, 'The given config_value "' || :NEW.config_value || '" could not be converted successfully to a number.');
+ 48  	 END IF;
+ 49    END IF;
+ 50  END;
+ 51  /
 
 Trigger created.
 
@@ -253,17 +686,28 @@ SQL> CREATE OR REPLACE TRIGGER sosl_config_del_trg
   6    IF :OLD.config_name IN ( 'SOSL_PATH_CFG'
   7  			      , 'SOSL_PATH_TMP'
   8  			      , 'SOSL_PATH_LOG'
-  9  			      , 'SOSL_EXT_LOG'
- 10  			      , 'SOSL_EXT_LOCK'
- 11  			      , 'SOSL_START_LOG'
- 12  			      , 'SOSL_BASE_LOG'
- 13  			      , 'SOSL_MAX_PARALLEL'
- 14  			      )
- 15    THEN
- 16  	 RAISE_APPLICATION_ERROR(-20002, 'The given system config_name "' || :OLD.config_name || '" cannot be deleted.');
- 17    END IF;
- 18  END;
- 19  /
+  9  			      , 'SOSL_START_LOG'
+ 10  			      , 'SOSL_BASE_LOG'
+ 11  			      , 'SOSL_EXT_LOG'
+ 12  			      , 'SOSL_EXT_TMP'
+ 13  			      , 'SOSL_EXT_LOCK'
+ 14  			      , 'SOSL_EXT_ERROR'
+ 15  			      , 'SOSL_MAX_PARALLEL'
+ 16  			      , 'SOSL_RUNMODE'
+ 17  			      , 'SOSL_DEFAULT_WAIT'
+ 18  			      , 'SOSL_NOJOB_WAIT'
+ 19  			      , 'SOSL_PAUSE_WAIT'
+ 20  			      , 'SOSL_USE_MAIL'
+ 21  			      , 'SOSL_MAIL_SENDER'
+ 22  			      , 'SOSL_MAIL_RECIPIENT'
+ 23  			      , 'SOSL_MAIL_API'
+ 24  			      , 'SOSL_HAS_ID_API'
+ 25  			      )
+ 26    THEN
+ 27  	 RAISE_APPLICATION_ERROR(-20002, 'The given system config_name "' || :OLD.config_name || '" cannot be deleted.');
+ 28    END IF;
+ 29  END;
+ 30  /
 
 Trigger created.
 
@@ -271,7 +715,7 @@ SQL> -- load default values that can be configured in the database
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_description)
   3    VALUES
-  4    ('SOSL_PATH_CFG', '..\..\cfg\', 'Path to configuration files the SOSL server uses. Set by SOSL server. As configuration files contain credentials and secrets the path should be in a safe space with controlled user rights.')
+  4    ('SOSL_PATH_CFG', '..\..\sosl_cfg\', 'Relative path with delimiter at path end to configuration files the SOSL server uses. Set by SOSL server. As configuration files contain credentials and secrets the path should be in a safe space with controlled user rights.')
   5  ;
 
 1 row created.
@@ -279,7 +723,7 @@ SQL> INSERT INTO sosl_config
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_max_length, config_description)
   3    VALUES
-  4    ('SOSL_PATH_TMP', '..\..\tmp\', 239, 'Path to temporary files the SOSL server uses. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
+  4    ('SOSL_PATH_TMP', '..\..\sosl_tmp\', 239, 'Relative path with delimiter at path end to temporary files the SOSL server uses. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
   5  ;
 
 1 row created.
@@ -287,23 +731,7 @@ SQL> INSERT INTO sosl_config
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_max_length, config_description)
   3    VALUES
-  4    ('SOSL_PATH_LOG', '..\..\log\', 239, 'Path to log files the SOSL server creates. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
-  5  ;
-
-1 row created.
-
-SQL> INSERT INTO sosl_config
-  2    (config_name, config_value, config_description)
-  3    VALUES
-  4    ('SOSL_EXT_LOG', 'log', 'Log file extension to use. Set by SOSL server.')
-  5  ;
-
-1 row created.
-
-SQL> INSERT INTO sosl_config
-  2    (config_name, config_value, config_description)
-  3    VALUES
-  4    ('SOSL_EXT_LOCK', 'lock', 'Default process lock file extension. Set by SOSL server.')
+  4    ('SOSL_PATH_LOG', '..\..\sosl_log\', 239, 'Relative path with delimiter at path end to log files the SOSL server creates. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
   5  ;
 
 1 row created.
@@ -325,6 +753,38 @@ SQL> INSERT INTO sosl_config
 1 row created.
 
 SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_description)
+  3    VALUES
+  4    ('SOSL_EXT_LOG', 'log', 'Log file extension to use. Set by SOSL server.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_description)
+  3    VALUES
+  4    ('SOSL_EXT_TMP', 'tmp', 'Log file extension for temporary logs to use. On error those file extension will be renamed to SOSL_EXT_ERROR extension. Set by SOSL server.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_description)
+  3    VALUES
+  4    ('SOSL_EXT_LOCK', 'lock', 'Default process lock file extension. Lock files will always get deleted either on service start or after a run. Set by SOSL server.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_description)
+  3    VALUES
+  4    ('SOSL_EXT_ERROR', 'err', 'Default process error file extension. Set by SOSL server.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_type, config_description)
   3    VALUES
   4    ('SOSL_MAX_PARALLEL', '8', 'NUMBER', 'The maximum of parallel started scripts. Read by the SOSL server. After this amount if scripts is started, next scripts are only loaded, if the run count is below this value.')
@@ -335,7 +795,79 @@ SQL> INSERT INTO sosl_config
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_type, config_description)
   3    VALUES
-  4    ('SOSL_RUNMODE', 'RUN', 'CHAR', 'Determines if the server should RUN or STOP. Read by the SOSL server. RUN will cause the SOSL server, if started to run as long as it does not get a STOP signal from the database. Set it to STOP to stop the SOSL server.')
+  4    ('SOSL_RUNMODE', 'RUN', 'CHAR', 'Determines if the server should RUN, WAIT or STOP. Read by the SOSL server. RUN will cause the SOSL server, if started to run as long as it does not get a STOP signal from the database. Set it to STOP to stop the SOSL server. Set to WAIT if the server should not call any script apart the check for the run mode. Can be locally overwritten.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_DEFAULT_WAIT', '1', 'NUMBER', 'Determines the normal sleep time in seconds the sosl server has between calls if scripts are available for processing.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_NOJOB_WAIT', '120', 'NUMBER', 'Determines the sleep time in seconds the sosl server has between calls if no scripts are available for processing.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_PAUSE_WAIT', '3600', 'NUMBER', 'Determines the sleep time in seconds the sosl server has between calls if run mode is set to wait.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_USE_MAIL', 'NO', 'CHAR', 'Determines if sosl should use mail. Set to YES if you want to use mail.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_MAIL_SENDER', 'NOT_SET', 'CHAR', 'The default sender mail address for sending mails.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_MAIL_RECIPIENT', 'NOT_SET', 'CHAR', 'The default recipient mail address for sending mails.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_MAIL_API', 'sosl.send_mail', 'CHAR', 'The name of an existing function that should handle mail. The wrapper function SOSL_SENDMAIL is created dynamically. The function must have four parameters: mail_sender IN VARCHAR2, mail_recipients IN VARCHAR2, mail_subject IN VARCHAR2, mail_text IN VARCHAR2 and must return 0 for success or -1 on errors. It may include a schema, if not sosl schema. Can be a package or standalone function.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_HAS_ID_API', 'sosl.has_ids', 'CHAR', 'The name of an existing function that returns the amount of IDs waiting for processing. The wrapper function SOSL_HAS_IDS is created dynamically. The function expects no parameters and simply returns the amount of IDs waiting for processing. It may include a schema, if not sosl schema. Can be a package procedure or standalone procedure.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_GET_ID_API', 'sosl.get_next_id', 'CHAR', 'The name of an existing procedure that should handle mail. Must work for all plans as the wrapper function SOSL_SENDMAIL is created dynamically. The procedure must have four parameters: mail_sender IN VARCHAR2, mail_recipients IN VARCHAR2, mail_subject IN VARCHAR2, mail_text IN VARCHAR2. It may include a schema, if not sosl schema. Can be a package procedure or standalone procedure.')
   5  ;
 
 1 row created.
@@ -344,44 +876,296 @@ SQL> COMMIT;
 
 Commit complete.
 
-SQL> @@../sosl_ddl/tables/sosl_scripts.sql
-SQL> -- requires login with the correct schema, either SOSL or your on schema
-SQL> -- table is NOT qualified and created in the schema active at execution
-SQL> CREATE TABLE sosl_scripts
-  2    ( script_id	    NUMBER(38, 0)  GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
-  3    , script_name	    VARCHAR2(2000) NOT NULL
-  4    , script_description VARCHAR2(4000)
-  5    )
-  6  ;
+SQL> @@../sosl_ddl/tables/sosl_executor.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> CREATE TABLE sosl_executor
+  2    ( executor_id	       NUMBER(38, 0)   GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
+  3    , db_user	       VARCHAR2(128)						 NOT NULL
+  4    , function_owner        VARCHAR2(128)						 NOT NULL
+  5    , fn_has_ids	       VARCHAR2(520)						 NOT NULL
+  6    , fn_get_next_id        VARCHAR2(520)						 NOT NULL
+  7    , fn_get_executor       VARCHAR2(520)						 NOT NULL
+  8    , fn_get_script	       VARCHAR2(520)						 NOT NULL
+  9    , fn_set_status	       VARCHAR2(520)						 NOT NULL
+ 10    , cfg_file	       VARCHAR2(4000)						 NOT NULL
+ 11    , executor_active       VARCHAR2(3)     DEFAULT 'NO'				 NOT NULL
+ 12    , executor_reviewed     VARCHAR2(3)     DEFAULT 'NO'				 NOT NULL
+ 13    , created	       DATE	       DEFAULT SYSDATE				 NOT NULL
+ 14    , updated	       DATE	       DEFAULT SYSDATE				 NOT NULL
+ 15    , created_by	       VARCHAR2(256)   DEFAULT USER				 NOT NULL
+ 16    , created_by_os	       VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 17    , updated_by	       VARCHAR2(256)   DEFAULT USER				 NOT NULL
+ 18    , updated_by_os	       VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 19    , executor_description  VARCHAR2(4000)
+ 20    )
+ 21  ;
 
 Table created.
 
-SQL> -- description
-SQL> COMMENT ON TABLE sosl_scripts IS 'Holds the script file names that should be executed by SOSL. Will use the alias scrt.';
+SQL> COMMENT ON TABLE sosl_executor IS 'Defines the executors registered with SOSL. To improve security you may activate AUDIT on this table. Will use the alias sexe.';
 
 Comment created.
 
-SQL> COMMENT ON COLUMN sosl_scripts.script_id IS 'The generated unique id of the script file.';
+SQL> COMMENT ON COLUMN sosl_executor.executor_id IS 'The generated unique id that identifies the executor.';
 
 Comment created.
 
-SQL> COMMENT ON COLUMN sosl_scripts.script_name IS 'The name of the script file including full or relative path. Use relative path (relative to repository location) to ensure running scripts from different machines.';
+SQL> COMMENT ON COLUMN sosl_executor.db_user IS 'The login name of the database user must match cfg_file login and be USER after login. No mixed case support, converted to upper case. Must exist and have the necessary rights to execute the queued scripts.';
 
 Comment created.
 
-SQL> COMMENT ON COLUMN sosl_scripts.script_description IS 'Optional description of the script file.';
+SQL> COMMENT ON COLUMN sosl_executor.function_owner IS 'The owner user name of the API functions, refers to the schema where the functions are defined. No mixed case support, converted to upper case. Can differ from the database user that executes SOSL. All API functions must have the same owner for one executor.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.fn_has_ids IS 'The name of the function to use by HAS_IDS wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall not require parameters and return the amount of waiting script as NUMBER.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.fn_get_next_id IS 'The name of the function to use by GET_NEXT_ID wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall not require parameters and return the script id as VARCHAR2. It should manage the given script id to ensure that scripts are not run twice.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.fn_get_executor IS 'The name of the function to use by GET_EXECUTOR wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall require the parameter P_ID IN VARCHAR2 and return the executor id as NUMBER. P_ID is an script id retrieved from GET_NEXT_ID.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.fn_get_script IS 'The name of the function to use by GET_SCRIPT wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall require the parameter P_ID IN VARCHAR2 and return the script name with full or relative path as VARCHAR2. The script must exist in the given path on the local server SOSL is running.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.fn_set_status IS 'The name of the function to use by SET_STATUS wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall require the parameters P_ID IN VARCHAR2, P_STATUS IN VARCHAR2 and return 0 or -1 on errors. P_ID is an script id retrieved from GET_NEXT_ID. P_STATUS will always start with the following key words: PREPARING, ENQUEUED, RUNNING, SUCCESS, ERROR. It may contain additional informations in case of errors separated by at least one space char.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.cfg_file IS 'The filename with absolute or relative path to the login config file for this executor. File and path must exist on the CMD server.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.executor_active IS 'Defines if the executor is active. Accepts NO and YES. Not active and reviewed executors will be ignored if they try to run scripts, every attempt gets logged.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.executor_reviewed IS 'Defines if the executor is reviewed, accepted and ready to be used. Accepts NO and YES. Not active and reviewed executors will be ignored if they try to run scripts, every attempt gets logged.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.created IS 'Date created, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.updated IS 'Date updated, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.created_by IS 'DB user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.created_by_os IS 'OS user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.updated_by IS 'DB user who updated the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.updated_by_os IS 'OS user who updated the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.executor_description IS 'Optional executor description.';
 
 Comment created.
 
 SQL> -- primary key
-SQL> ALTER TABLE sosl_scripts
-  2    ADD CONSTRAINT sosl_scripts_pk
+SQL> ALTER TABLE sosl_executor
+  2    ADD CONSTRAINT sosl_executor_pk
+  3    PRIMARY KEY (executor_id)
+  4    ENABLE
+  5  ;
+
+Table altered.
+
+SQL> -- check constraints
+SQL> ALTER TABLE sosl_executor
+  2    ADD CONSTRAINT sosl_executor_chk_active
+  3    CHECK (UPPER(executor_active) IN ('YES', 'NO'))
+  4    ENABLE
+  5  ;
+
+Table altered.
+
+SQL> ALTER TABLE sosl_executor
+  2    ADD CONSTRAINT sosl_executor_chk_reviewed
+  3    CHECK (UPPER(executor_reviewed) IN ('YES', 'NO'))
+  4    ENABLE
+  5  ;
+
+Table altered.
+
+SQL> -- trigger
+SQL> CREATE OR REPLACE TRIGGER sosl_executor_ins_trg
+  2    BEFORE INSERT ON sosl_executor
+  3    FOR EACH ROW
+  4  BEGIN
+  5    :NEW.created	       := SYSDATE;
+  6    :NEW.created_by	       := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+  7    :NEW.created_by_os      := SYS_CONTEXT('USERENV', 'OS_USER');
+  8    :NEW.updated	       := SYSDATE;
+  9    :NEW.updated_by	       := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 10    :NEW.updated_by_os      := SYS_CONTEXT('USERENV', 'OS_USER');
+ 11    :NEW.executor_active    := UPPER(:NEW.executor_active);
+ 12    :NEW.executor_reviewed  := UPPER(:NEW.executor_reviewed);
+ 13    -- transform users to UPPERCASE, no support currently for special mix-case.
+ 14    :NEW.function_owner     := UPPER(:NEW.function_owner);
+ 15    :NEW.db_user	       := UPPER(:NEW.db_user);
+ 16    :NEW.fn_has_ids	       := UPPER(:NEW.fn_has_ids);
+ 17    :NEW.fn_get_next_id     := UPPER(:NEW.fn_get_next_id);
+ 18    :NEW.fn_get_executor    := UPPER(:NEW.fn_get_executor);
+ 19    :NEW.fn_get_script      := UPPER(:NEW.fn_get_script);
+ 20    :NEW.fn_set_status      := UPPER(:NEW.fn_set_status);
+ 21    -- check user
+ 22    IF NOT sosl_sys.has_db_user(:NEW.db_user)
+ 23    THEN
+ 24  	 RAISE_APPLICATION_ERROR(-20003, 'The given database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
+ 25    END IF;
+ 26    -- check configured functions
+ 27    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_has_ids, 'NUMBER')
+ 28    THEN
+ 29  	 RAISE_APPLICATION_ERROR(-20004, 'The given function ' || :NEW.fn_has_ids || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+ 30    END IF;
+ 31    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_next_id, 'VARCHAR2')
+ 32    THEN
+ 33  	 RAISE_APPLICATION_ERROR(-20005, 'The given function ' || :NEW.fn_get_next_id || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
+ 34    END IF;
+ 35    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_executor, 'NUMBER')
+ 36    THEN
+ 37  	 RAISE_APPLICATION_ERROR(-20006, 'The given function ' || :NEW.fn_get_executor || ' for get_executor is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+ 38    END IF;
+ 39    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_script, 'VARCHAR2')
+ 40    THEN
+ 41  	 RAISE_APPLICATION_ERROR(-20007, 'The given function ' || :NEW.fn_get_script || ' for get_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
+ 42    END IF;
+ 43    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_set_status, 'NUMBER')
+ 44    THEN
+ 45  	 RAISE_APPLICATION_ERROR(-20008, 'The given function ' || :NEW.fn_set_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+ 46    END IF;
+ 47  
+ 48  END;
+ 49  /
+
+Trigger created.
+
+SQL> -- internal objects using the API
+SQL> @@../sosl_ddl/tables/sosl_script.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- requires login with the correct schema, either SOSL or your on schema
+SQL> -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
+SQL> CREATE TABLE sosl_script
+  2    ( script_id	    NUMBER(38, 0)  GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
+  3    , script_name	    VARCHAR2(2000)					     NOT NULL
+  4    , script_schema	    VARCHAR2(256)  DEFAULT 'SOSL'			     NOT NULL
+  5    , created	    DATE	   DEFAULT SYSDATE			     NOT NULL
+  6    , updated	    DATE	   DEFAULT SYSDATE			     NOT NULL
+  7    , created_by	    VARCHAR2(256)  DEFAULT USER 			     NOT NULL
+  8    , created_by_os	    VARCHAR2(256)  DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+  9    , updated_by	    VARCHAR2(256)  DEFAULT USER 			     NOT NULL
+ 10    , updated_by_os	    VARCHAR2(256)  DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 11    , script_description VARCHAR2(4000)
+ 12    )
+ 13  ;
+
+Table created.
+
+SQL> -- description
+SQL> COMMENT ON TABLE sosl_script IS 'Holds the script file names that should be executed by SOSL. Will use the alias scrt.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script.script_id IS 'The generated unique id of the script file.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script.script_name IS 'The name of the script file including full or relative path. Use relative path (relative to batch_base_path or repository location) to ensure running scripts from different machines.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script.script_schema IS 'The schema the script should run in. Will cause an ALTER SESSION SET CURRENT_SCHEMA before executing the script.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script.script_description IS 'Optional description of the script file.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script.created IS 'Date created, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script.updated IS 'Date updated, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script.created_by IS 'DB user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script.created_by_os IS 'OS user who created the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script.updated_by IS 'DB user who updated the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_script.updated_by_os IS 'OS user who updated the record, managed by default and trigger.';
+
+Comment created.
+
+SQL> -- primary key
+SQL> ALTER TABLE sosl_script
+  2    ADD CONSTRAINT sosl_script_pk
   3    PRIMARY KEY (script_id)
   4    ENABLE
   5  ;
 
 Table altered.
 
+SQL> -- trigger
+SQL> CREATE OR REPLACE TRIGGER sosl_script_ins_trg
+  2    BEFORE INSERT ON sosl_script
+  3    FOR EACH ROW
+  4  BEGIN
+  5    :NEW.created	   := SYSDATE;
+  6    :NEW.updated	   := SYSDATE;
+  7    :NEW.created_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+  8    :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+  9    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 10    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+ 11  END;
+ 12  /
+
+Trigger created.
+
+SQL> CREATE OR REPLACE TRIGGER sosl_script_upd_trg
+  2    BEFORE UPDATE ON sosl_script
+  3    FOR EACH ROW
+  4  BEGIN
+  5    -- make sure created is not changed
+  6    :NEW.created	   := :OLD.created;
+  7    :NEW.created_by	   := :OLD.created_by;
+  8    :NEW.created_by_os  := :OLD.created_by_os;
+  9    :NEW.updated	   := SYSDATE;
+ 10    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 11    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+ 12  END;
+ 13  /
+
+Trigger created.
+
+SQL> -- ==============INSTALL done==============
 SQL> @@../sosl_sql/util/log_silent.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> SET ECHO OFF
 SUCCESS - no errors found during setup          0

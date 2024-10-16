@@ -1,3 +1,4 @@
+-- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 -- setup the SOSL environment
 @@../sosl_sql/util/log_visible.sql
 CLEAR COLUMNS
@@ -8,11 +9,24 @@ SELECT 'sosl_setup' || TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS') AS IDENT
 SET ERRORLOGGING ON
 -- try again with identifier
 SET ERRORLOGGING ON IDENTIFIER &IDENT
+-- ==============INSTALL start==============
 SPOOL logs/sosl_setup.log
 @@../sosl_ddl/tables/soslerrorlog.sql
+-- package with no dependency on SOSL objects
+@@../sosl_ddl/packages/sosl_sys.pks
+@@../sosl_ddl/packages/sosl_sys.pkb
+-- logging table
 @@../sosl_ddl/tables/sosl_server_log.sql
+-- logging package
+@@../sosl_ddl/packages/sosl_log.pks
+@@../sosl_ddl/packages/sosl_log.pkb
+
+-- SOSL objects with possible references to sosl_log and sosl_sys
 @@../sosl_ddl/tables/sosl_config.sql
-@@../sosl_ddl/tables/sosl_scripts.sql
+@@../sosl_ddl/tables/sosl_executor.sql
+-- internal objects using the API
+@@../sosl_ddl/tables/sosl_script.sql
+-- ==============INSTALL done==============
 @@../sosl_sql/util/log_silent.sql
 -- check errors and display them, if so
 COLUMN EXITCODE NEW_VAL EXITCODE
