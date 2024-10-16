@@ -79,7 +79,7 @@ AS
   */
   PROCEDURE full_log( p_message          IN VARCHAR2
                     , p_log_type         IN VARCHAR2    DEFAULT sosl_sys.INFO_TYPE
-                    , p_log_category     IN VARCHAR2    DEFAULT NULL
+                    , p_log_category     IN VARCHAR2    DEFAULT 'not set'
                     , p_caller           IN VARCHAR2    DEFAULT NULL
                     , p_guid             IN VARCHAR2    DEFAULT NULL
                     , p_sosl_identifier  IN VARCHAR2    DEFAULT NULL
