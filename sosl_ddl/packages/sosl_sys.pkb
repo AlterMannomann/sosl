@@ -263,7 +263,7 @@ AS
     l_return := FALSE;
     IF sosl_sys.get_col_type(p_table, p_column) IN ('VARCHAR2', 'CHAR')
     THEN
-      IF LENGTH(p_value) <= sosl_sys.get_col_length(p_table, p_column)
+      IF NVL(LENGTH(p_value), 0) <= sosl_sys.get_col_length(p_table, p_column)
       THEN
         l_return := TRUE;
       END IF;
@@ -284,7 +284,7 @@ AS
     IF sosl_sys.get_col_type(p_table, p_column) = 'NUMBER'
     THEN
       l_number := REGEXP_REPLACE(TO_CHAR(p_value), '[^0-9]', '');
-      IF LENGTH(l_number) <= sosl_sys.get_col_length(p_table, p_column)
+      IF NVL(LENGTH(l_number), 0) <= sosl_sys.get_col_length(p_table, p_column)
       THEN
         l_return := TRUE;
       END IF;

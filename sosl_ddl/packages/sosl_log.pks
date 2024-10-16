@@ -49,10 +49,11 @@ AS
                      , p_guid             IN VARCHAR2
                      , p_sosl_identifier  IN VARCHAR2
                      , p_executor_id      IN NUMBER
-                     , p_ext_script_id    IN NUMBER
+                     , p_ext_script_id    IN VARCHAR2
                      , p_caller           IN VARCHAR2
                      , p_run_id           IN NUMBER
                      , p_full_message     IN NOCOPY CLOB
+                     , p_commit           IN BOOLEAN DEFAULT TRUE
                      )
   ;
 /*====================================== end internal functions made visible for testing ======================================*/
@@ -60,7 +61,8 @@ AS
   /* PROCEDURE FULL_LOG
   * Procedure with all parameters for logging. Will check parameters before logging. You should at least set also p_log_category
   * and p_caller, to be able to assign the log entry to a specific event and object. On parameter errors a separate log entry is
-  * created.
+  * created. Intention is to write a log in any case and not throw any exception. This still may happen on main system malfunctions
+  * but is limited to this events.
   *
   * @param p_message The message to log. Limited to 4000 chars. If longer it is split and rest is stored in full_message CLOB by trigger. If NULL p_full_message must be provided.
   * @param p_log_type The log type is basically defined by SOSL_SYS. Currently: INFO, WARNING, ERROR, FATAL, SUCCESS. Will be set to ERROR if not valid.
@@ -80,7 +82,7 @@ AS
                     , p_guid             IN VARCHAR2    DEFAULT NULL
                     , p_sosl_identifier  IN VARCHAR2    DEFAULT NULL
                     , p_executor_id      IN NUMBER      DEFAULT NULL
-                    , p_ext_script_id    IN NUMBER      DEFAULT NULL
+                    , p_ext_script_id    IN VARCHAR2    DEFAULT NULL
                     , p_run_id           IN NUMBER      DEFAULT NULL
                     , p_full_message     IN NOCOPY CLOB DEFAULT NULL
                     )
@@ -92,7 +94,7 @@ AS
                    , p_guid             IN VARCHAR2     DEFAULT NULL
                    , p_sosl_identifier  IN VARCHAR2     DEFAULT NULL
                    , p_executor_id      IN NUMBER       DEFAULT NULL
-                   , p_ext_script_id    IN NUMBER       DEFAULT NULL
+                   , p_ext_script_id    IN VARCHAR2     DEFAULT NULL
                    , p_full_message     IN NOCOPY CLOB  DEFAULT NULL
                    )
   ;
