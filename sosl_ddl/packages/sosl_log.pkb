@@ -109,7 +109,7 @@ AS
                      , p_ext_script_id    IN VARCHAR2
                      , p_caller           IN VARCHAR2
                      , p_run_id           IN NUMBER
-                     , p_full_message     IN NOCOPY CLOB
+                     , p_full_message     IN CLOB
                      )
   IS
     PRAGMA AUTONOMOUS_TRANSACTION;
@@ -159,7 +159,7 @@ AS
                     , p_executor_id      IN NUMBER      DEFAULT NULL
                     , p_ext_script_id    IN VARCHAR2    DEFAULT NULL
                     , p_run_id           IN NUMBER      DEFAULT NULL
-                    , p_full_message     IN NOCOPY CLOB DEFAULT NULL
+                    , p_full_message     IN CLOB        DEFAULT NULL
                     )
   IS
     -- set variables to current type
@@ -272,7 +272,7 @@ AS
       log_event( p_message => 'full log error: ' || TRIM(SUBSTR(SQLERRM, 1, 3900))
                , p_log_type => sosl_sys.FATAL_TYPE
                , p_log_category => 'FULL_LOG ERROR'
-               , p_full_message => SQLERRM || ': ' || (p_message || ' - ' || p_full_message)
+               , p_full_message => SQLERRM || ': ' || p_message
                )
       ;
   END full_log;
@@ -284,7 +284,7 @@ AS
                    , p_sosl_identifier  IN VARCHAR2     DEFAULT NULL
                    , p_executor_id      IN NUMBER       DEFAULT NULL
                    , p_ext_script_id    IN VARCHAR2     DEFAULT NULL
-                   , p_full_message     IN NOCOPY CLOB  DEFAULT NULL
+                   , p_full_message     IN CLOB         DEFAULT NULL
                    )
   IS
   BEGIN
