@@ -7,6 +7,9 @@ AS
   * Apart from sosl_server_log table, there are no dependencies, severe exceptions must be catched or handled by the caller.
   * The interface has as well functions and procedures. Functions inform about success or error, whereas procedure exceptions
   * must be handled by the caller.
+  *
+  * CURRENT ORACLE error: NOCOPY for IN parameters creates compile errors, whereas documentation allows IN NOCOPY var. Any
+  * CLOB handling errors are possibly caused by the inability to provide a CLOB as reference.
   */
 
   /*====================================== start internal functions made visible for testing ======================================*/
@@ -52,8 +55,7 @@ AS
                      , p_ext_script_id    IN VARCHAR2
                      , p_caller           IN VARCHAR2
                      , p_run_id           IN NUMBER
-                     , p_full_message     IN NOCOPY CLOB
-                     , p_commit           IN BOOLEAN DEFAULT TRUE
+                     , p_full_message     IN CLOB
                      )
   ;
 /*====================================== end internal functions made visible for testing ======================================*/
@@ -84,7 +86,7 @@ AS
                     , p_executor_id      IN NUMBER      DEFAULT NULL
                     , p_ext_script_id    IN VARCHAR2    DEFAULT NULL
                     , p_run_id           IN NUMBER      DEFAULT NULL
-                    , p_full_message     IN NOCOPY CLOB DEFAULT NULL
+                    , p_full_message     IN CLOB        DEFAULT NULL
                     )
   ;
 
@@ -95,7 +97,7 @@ AS
                    , p_sosl_identifier  IN VARCHAR2     DEFAULT NULL
                    , p_executor_id      IN NUMBER       DEFAULT NULL
                    , p_ext_script_id    IN VARCHAR2     DEFAULT NULL
-                   , p_full_message     IN NOCOPY CLOB  DEFAULT NULL
+                   , p_full_message     IN CLOB         DEFAULT NULL
                    )
   ;
 
