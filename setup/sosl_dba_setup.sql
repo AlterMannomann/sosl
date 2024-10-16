@@ -93,10 +93,10 @@ SELECT 'Executed: ' || TO_CHAR(SYSTIMESTAMP) || CHR(13) || CHR(10) ||
        'tablespace SOSL_TABLESPACE, 100 MB, data file sosl.dbf' || CHR(13) || CHR(10) ||
        'Granted CREATE VIEW, CONNECT, RESSOURCE, GATHER_SYSTEM_STATISTICS, V$SESSION, CREATE JOB' || CHR(13) || CHR(10) ||
        'Created SOSL roles SOSL_ADMIN, SOSL_EXECUTOR, SOSL_REVIEWER, SOSL_USER, SOSL_GUEST' || CHR(13) || CHR(10) ||
-       'by ' || SYS_CONTEXT ('USERENV', 'OS_USER') || CHR(13) || CHR(10) ||
-       'using ' || SYS_CONTEXT ('USERENV', 'SESSION_USER') || CHR(13) || CHR(10) ||
-       'on database ' || SYS_CONTEXT ('USERENV', 'DB_NAME') || CHR(13) || CHR(10) ||
-       'from terminal ' || SYS_CONTEXT ('USERENV', 'TERMINAL') || CHR(13) || CHR(10) ||
+       'by ' || SYS_CONTEXT('USERENV', 'OS_USER') || CHR(13) || CHR(10) ||
+       'using ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || CHR(13) || CHR(10) ||
+       'on database ' || SYS_CONTEXT('USERENV', 'DB_NAME') || CHR(13) || CHR(10) ||
+       'from terminal ' || SYS_CONTEXT('USERENV', 'TERMINAL') || CHR(13) || CHR(10) ||
        'Created sosl_login.cfg with current values and @soslinstance in template folder.' || CHR(13) || CHR(10) ||
        'Map name soslinstance with TNS and move the file to the desired cfg directory.' AS info
   FROM dual;

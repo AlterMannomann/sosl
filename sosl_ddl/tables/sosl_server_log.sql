@@ -9,12 +9,13 @@ CREATE TABLE sosl_server_log
   , message           VARCHAR2(4000)                                            NOT NULL
   , run_id            NUMBER(38, 0)
   , executor_id       NUMBER(38, 0)
-  , ext_script_id     VARCHAR2(4000)
   , guid              VARCHAR2(64)
   , sosl_identifier   VARCHAR2(256)
+  , caller            VARCHAR2(256)
+  , ext_script_id     VARCHAR2(4000)
+  , script_file       VARCHAR2(4000)
   , created_by        VARCHAR2(256)   DEFAULT USER                              NOT NULL
   , created_by_os     VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
-  , caller            VARCHAR2(256)
   , full_message      CLOB
   )
   -- monthly partitions
@@ -49,6 +50,8 @@ CREATE INDEX sosl_server_log_idx
 CREATE OR REPLACE TRIGGER sosl_server_log_ins_trg
   BEFORE INSERT ON sosl_server_log
   FOR EACH ROW
+DECLARE
+  l_split BOOLEAN;
 BEGIN
   -- first set default value if not set, as Oracle does not support default values from package variables
   IF :NEW.log_type = 'not set'
@@ -58,26 +61,25 @@ BEGIN
   -- instead of check constraint to get package support
   IF NOT sosl_sys.log_type_valid(:NEW.log_type)
   THEN
-    RAISE_APPLICATION_ERROR(-20003, 'Invalid log type. Not supported by package SOSL_SYS. Given log type: ' || :NEW.log_type);
+    -- do not block logging, log the error instead, move message to full message
+    :NEW.full_message := :NEW.message || :NEW.full_message;
+    :NEW.message      := 'Invalid log type. Not supported by package SOSL_SYS. Given log type: ' || :NEW.log_type;
+    :NEW.log_type     := sosl_sys.FATAL_TYPE;
   ELSE
     :NEW.log_type := sosl_sys.get_valid_log_type(:NEW.log_type);
   END IF;
   :NEW.exec_timestamp := SYSTIMESTAMP;
   :NEW.created_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
   :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
-  IF (:NEW.message IS NULL)
+  -- split messages
+  IF NOT sosl_sys.distribute(:NEW.message, :NEW.full_message, 4000)
   THEN
-    IF :NEW.full_message IS NOT NULL
+    -- do not block logging, log the error instead, if :NEW.message contains error information leave it there
+    IF :NEW.message IS NULL AND :NEW.full_message IS NULL
     THEN
-      IF LENGTH(TRIM(:NEW.full_message)) > 4000
-      THEN
-        :NEW.message := TO_CHAR(SUBSTR(TRIM(:NEW.full_message), 1, 3996)) || ' ...';
-      ELSE
-        :NEW.message := TO_CHAR(TRIM(:NEW.full_message));
-      END IF;
-    ELSE
-      RAISE_APPLICATION_ERROR(-20004, 'Full message must be given, if message is NULL.');
+      :NEW.message := 'Full message must be given, if message is NULL or vice versa.';
     END IF;
+    :NEW.log_type := sosl_sys.FATAL_TYPE;
   END IF;
 END;
 /

@@ -91,5 +91,105 @@ AS
     DETERMINISTIC
     PARALLEL_ENABLE
   ;
+
+  /*FUNCTION GET_COL_LENGTH
+  * Returns the column length for a given table and column or -1 if table or column does not exist from USER_TAB_COLUMNS using
+  * DATA_LENGTH. DATA_LENGTH is misleading if not a char type or CLOB, as CLOB types report 4000 which is definitely wrong.
+  * The only types handled are NUMBER and CLOB. All other types return the DATA_LENGTH.
+  *
+  * Length for numbers is calculated by adding precision and scale.
+  *
+  * CLOB will return the PLSQL equation of a VARCHAR2/CLOB, which is 32767 and still wrong, but useful to see if a PLSQL can handle
+  * the CLOB. Be careful with CLOB handling. If source is not a table column, PLSQL most likely limits it to 32767 cutting longer content.
+  *
+  * Objects not in the current schema will not be considered and return -1 AS USER_TAB_COLUMN is used.
+  *
+  * No handling for date and timestamp values, as their char representation has too much dependencies on NLS and formatting to get a
+  * reliable length.
+  *
+  * Byte and char semantic is not considered only the effective chars that can be stored in CHAR or VARCHAR2 as defined by DATA_LENGTH.
+  *
+  * @param p_table The name of the table. Case insensitive. Will be transformed to UPPER.
+  * @param p_column The name of the column. Case insensitive. Will be transformed to UPPER.
+  *
+  * @return The calculated length of the column. Fix PLSQL limit 32767 for CLOB types. DATA_LENGTH for data and timestamp types.
+  */
+  FUNCTION get_col_length( p_table  IN VARCHAR2
+                         , p_column IN VARCHAR2
+                         )
+    RETURN INTEGER
+  ;
+
+  /* FUNCTION GET_COL_TYPE
+  * Returns the type of a column from USER_TAB_COLUMNS as defined in DATA_TYPE or NA_TYPE if table or column doesn't exist.
+  * Objects not in the current schema will not be considered and return NA_TYPE.
+  *
+  * @param p_table The name of the table. Case insensitive. Will be transformed to UPPER.
+  * @param p_column The name of the column. Case insensitive. Will be transformed to UPPER.
+  *
+  * @return The type of the column as defined in DATA_TYPE or sosl_sys.NA_TYPE on errors or not found columns and tables.
+  */
+  FUNCTION get_col_type( p_table  IN VARCHAR2
+                       , p_column IN VARCHAR2
+                       )
+    RETURN VARCHAR2
+  ;
+
+  /* FUNCTION DISTRIBUTE
+  * This functions distributes char data between a VARCHAR2 and a CLOB variable by the following rules:
+  * p_string empty or NULL: Fill p_string to p_max_string_length - p_split_end length.
+  * p_string length > p_max_string_length: Cut p_string to p_max_string_length, including p_split_end appended.
+  *          p_clob NOT EMPTY: add split_start, rest of p_string before p_clob content.
+  *          p_clob EMPTY: add split_start and rest of p_string.
+  * p_string length > 0 and < p_max_string_length: no change of p_string and p_clob.
+  * p_string and p_clob empty or NULL: leave unchanged, return FALSE otherwise always TRUE.
+  * In case of exceptions will try to write SQLERRM to p_string as CLOBs tend to be more error prone.
+  *
+  * @param p_string The string to distribute or check. In PLSQL strings can get 32767 chars long, whereas table columns are limited currently to 4000.
+  * @param p_clob The CLOB to distribute or check. Uses NOCOPY to guarantee that CLOB full length is used as given.
+  * @param p_max_string_length The maximum length p_string should have. If this size is exeeded the string gets distribute between p_string and p_clob.
+  * @param p_split_end The split end characters to indicate that the string is continued in p_clob.
+  * @param p_split_start The split start characters for the continuing string in the CLOB.
+  * @param p_delimiter The delimiter between rest of string in CLOB and original CLOB content, if both have content and string must be splitted.
+  *
+  * @return FALSE if p_string and p_clob are empty/NULL or an exception had occurred, otherwise TRUE.
+  */
+  FUNCTION distribute( p_string            IN OUT         VARCHAR2
+                     , p_clob              IN OUT NOCOPY  CLOB
+                     , p_max_string_length IN             INTEGER   DEFAULT 4000
+                     , p_split_end         IN             VARCHAR2  DEFAULT '...'
+                     , p_split_start       IN             VARCHAR2  DEFAULT '...'
+                     , p_delimiter         IN             VARCHAR2  DEFAULT ' - '
+                     )
+    RETURN BOOLEAN
+  ;
+
+  /* FUNCTION CHECK_COL
+  * This function can check NUMBER and VARCHAR2/CHAR columns for length and type. Passing a number for a char column type will result
+  * in FALSE. Providing a P_VALUE with a length longer than the length calculated, will result in FALSE. It will not consider
+  * implicite Oracle conversions. Expects type like defined.
+  *
+  * Number length is calculated by TO_CHAR string representation removing all delimiters and counting only numbers 0-9.
+  * Passing a VARCHAR2 value is valid for CHAR and VARCHAR2 column types.
+  *
+  * @param p_table The name of the table. Case insensitive. Will be transformed to UPPER.
+  * @param p_column The name of the column. Case insensitive. Will be transformed to UPPER.
+  * @param p_value The value for the table column to check against column definition.
+  *
+  * @return TRUE if value and column match in type and length, otherwise FALSE.
+  */
+  FUNCTION check_col( p_table  IN VARCHAR2
+                    , p_column IN VARCHAR2
+                    , p_value  IN VARCHAR2
+                    )
+    RETURN BOOLEAN
+  ;
+  FUNCTION check_col( p_table  IN VARCHAR2
+                    , p_column IN VARCHAR2
+                    , p_value  IN NUMBER
+                    )
+    RETURN BOOLEAN
+  ;
+
 END;
 /
