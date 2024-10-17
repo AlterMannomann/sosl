@@ -1261,28 +1261,40 @@ SQL> CREATE OR REPLACE TRIGGER sosl_config_ins_upd_trg
  27  	 THEN
  28  	   IF LENGTH(:NEW.config_value) > :NEW.config_max_length
  29  	   THEN
- 30  	     RAISE_APPLICATION_ERROR(-20000, 'The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value));
- 31  	   END IF;
- 32  	 END IF;
- 33    END IF;
- 34    -- check number type
- 35    IF :NEW.config_type = 'NUMBER'
- 36    THEN
- 37  	 l_ok := TRUE;
- 38  	 -- compare TO_NUMBER with implicite conversion, if it fails the config_value cannot be interpreted correctly
- 39  	 BEGIN
- 40  	   l_ok := (TO_NUMBER(:NEW.config_value) = :NEW.config_value);
- 41  	 EXCEPTION
- 42  	   WHEN OTHERS THEN
- 43  	     l_ok := FALSE;
- 44  	 END;
- 45  	 IF NOT l_ok
- 46  	 THEN
- 47  	   RAISE_APPLICATION_ERROR(-20001, 'The given config_value "' || :NEW.config_value || '" could not be converted successfully to a number.');
- 48  	 END IF;
- 49    END IF;
- 50  END;
- 51  /
+ 30  	     sosl_log.full_log( p_message => 'The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value)
+ 31  			      , p_log_type => sosl_sys.FATAL_TYPE
+ 32  			      , p_log_category => 'SOSL_CONFIG/sosl_config_ins_upd_trg'
+ 33  			      , p_caller => 'sosl_config_ins_upd_trg'
+ 34  			      )
+ 35  	     ;
+ 36  	     RAISE_APPLICATION_ERROR(-20000, 'The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value));
+ 37  	   END IF;
+ 38  	 END IF;
+ 39    END IF;
+ 40    -- check number type
+ 41    IF :NEW.config_type = 'NUMBER'
+ 42    THEN
+ 43  	 l_ok := TRUE;
+ 44  	 -- compare TO_NUMBER with implicite conversion, if it fails the config_value cannot be interpreted correctly
+ 45  	 BEGIN
+ 46  	   l_ok := (TO_NUMBER(:NEW.config_value) = :NEW.config_value);
+ 47  	 EXCEPTION
+ 48  	   WHEN OTHERS THEN
+ 49  	     l_ok := FALSE;
+ 50  	 END;
+ 51  	 IF NOT l_ok
+ 52  	 THEN
+ 53  	     sosl_log.full_log( p_message => 'The given config_value "' || :NEW.config_value || '" could not be converted successfully to a number.'
+ 54  			      , p_log_type => sosl_sys.FATAL_TYPE
+ 55  			      , p_log_category => 'SOSL_CONFIG/sosl_config_ins_upd_trg'
+ 56  			      , p_caller => 'sosl_config_ins_upd_trg'
+ 57  			      )
+ 58  	     ;
+ 59  	   RAISE_APPLICATION_ERROR(-20001, 'The given config_value "' || :NEW.config_value || '" could not be converted successfully to a number.');
+ 60  	 END IF;
+ 61    END IF;
+ 62  END;
+ 63  /
 
 Trigger created.
 
@@ -1636,32 +1648,68 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_ins_trg
  21    -- check user
  22    IF NOT sosl_sys.has_db_user(:NEW.db_user)
  23    THEN
- 24  	 RAISE_APPLICATION_ERROR(-20003, 'The given database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
- 25    END IF;
- 26    -- check configured functions
- 27    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_has_ids, 'NUMBER')
- 28    THEN
- 29  	 RAISE_APPLICATION_ERROR(-20004, 'The given function ' || :NEW.fn_has_ids || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
- 30    END IF;
- 31    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_next_id, 'VARCHAR2')
- 32    THEN
- 33  	 RAISE_APPLICATION_ERROR(-20005, 'The given function ' || :NEW.fn_get_next_id || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
- 34    END IF;
- 35    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_executor, 'NUMBER')
- 36    THEN
- 37  	 RAISE_APPLICATION_ERROR(-20006, 'The given function ' || :NEW.fn_get_executor || ' for get_executor is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
- 38    END IF;
- 39    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_script, 'VARCHAR2')
- 40    THEN
- 41  	 RAISE_APPLICATION_ERROR(-20007, 'The given function ' || :NEW.fn_get_script || ' for get_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
+ 24  	 sosl_log.full_log( p_message => 'The given database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
+ 25  			  , p_log_type => sosl_sys.FATAL_TYPE
+ 26  			  , p_log_category => 'SOSL_EXECUTOR/sosl_executor_ins_trg'
+ 27  			  , p_caller => 'sosl_executor_ins_trg'
+ 28  			  )
+ 29  	 ;
+ 30  	 RAISE_APPLICATION_ERROR(-20003, 'The given database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
+ 31    END IF;
+ 32    -- check configured functions
+ 33    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_has_ids, 'NUMBER')
+ 34    THEN
+ 35  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_has_ids || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+ 36  			  , p_log_type => sosl_sys.FATAL_TYPE
+ 37  			  , p_log_category => 'SOSL_EXECUTOR/sosl_executor_ins_trg'
+ 38  			  , p_caller => 'sosl_executor_ins_trg'
+ 39  			  )
+ 40  	 ;
+ 41  	 RAISE_APPLICATION_ERROR(-20004, 'The given function ' || :NEW.fn_has_ids || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
  42    END IF;
- 43    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_set_status, 'NUMBER')
+ 43    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_next_id, 'VARCHAR2')
  44    THEN
- 45  	 RAISE_APPLICATION_ERROR(-20008, 'The given function ' || :NEW.fn_set_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
- 46    END IF;
- 47  
- 48  END;
- 49  /
+ 45  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_next_id || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.'
+ 46  			  , p_log_type => sosl_sys.FATAL_TYPE
+ 47  			  , p_log_category => 'SOSL_EXECUTOR/sosl_executor_ins_trg'
+ 48  			  , p_caller => 'sosl_executor_ins_trg'
+ 49  			  )
+ 50  	 ;
+ 51  	 RAISE_APPLICATION_ERROR(-20005, 'The given function ' || :NEW.fn_get_next_id || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
+ 52    END IF;
+ 53    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_executor, 'NUMBER')
+ 54    THEN
+ 55  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_executor || ' for get_executor is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+ 56  			  , p_log_type => sosl_sys.FATAL_TYPE
+ 57  			  , p_log_category => 'SOSL_EXECUTOR/sosl_executor_ins_trg'
+ 58  			  , p_caller => 'sosl_executor_ins_trg'
+ 59  			  )
+ 60  	 ;
+ 61  	 RAISE_APPLICATION_ERROR(-20006, 'The given function ' || :NEW.fn_get_executor || ' for get_executor is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+ 62    END IF;
+ 63    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_script, 'VARCHAR2')
+ 64    THEN
+ 65  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_script || ' for get_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.'
+ 66  			  , p_log_type => sosl_sys.FATAL_TYPE
+ 67  			  , p_log_category => 'SOSL_EXECUTOR/sosl_executor_ins_trg'
+ 68  			  , p_caller => 'sosl_executor_ins_trg'
+ 69  			  )
+ 70  	 ;
+ 71  	 RAISE_APPLICATION_ERROR(-20007, 'The given function ' || :NEW.fn_get_script || ' for get_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
+ 72    END IF;
+ 73    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_set_status, 'NUMBER')
+ 74    THEN
+ 75  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_set_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+ 76  			  , p_log_type => sosl_sys.FATAL_TYPE
+ 77  			  , p_log_category => 'SOSL_EXECUTOR/sosl_executor_ins_trg'
+ 78  			  , p_caller => 'sosl_executor_ins_trg'
+ 79  			  )
+ 80  	 ;
+ 81  	 RAISE_APPLICATION_ERROR(-20008, 'The given function ' || :NEW.fn_set_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+ 82    END IF;
+ 83  
+ 84  END;
+ 85  /
 
 Trigger created.
 

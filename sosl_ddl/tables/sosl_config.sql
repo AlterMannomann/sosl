@@ -74,6 +74,12 @@ BEGIN
     THEN
       IF LENGTH(:NEW.config_value) > :NEW.config_max_length
       THEN
+        sosl_log.full_log( p_message => 'The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value)
+                         , p_log_type => sosl_sys.FATAL_TYPE
+                         , p_log_category => 'SOSL_CONFIG/sosl_config_ins_upd_trg'
+                         , p_caller => 'sosl_config_ins_upd_trg'
+                         )
+        ;
         RAISE_APPLICATION_ERROR(-20000, 'The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value));
       END IF;
     END IF;
@@ -91,6 +97,12 @@ BEGIN
     END;
     IF NOT l_ok
     THEN
+        sosl_log.full_log( p_message => 'The given config_value "' || :NEW.config_value || '" could not be converted successfully to a number.'
+                         , p_log_type => sosl_sys.FATAL_TYPE
+                         , p_log_category => 'SOSL_CONFIG/sosl_config_ins_upd_trg'
+                         , p_caller => 'sosl_config_ins_upd_trg'
+                         )
+        ;
       RAISE_APPLICATION_ERROR(-20001, 'The given config_value "' || :NEW.config_value || '" could not be converted successfully to a number.');
     END IF;
   END IF;
