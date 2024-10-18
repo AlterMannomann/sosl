@@ -18,19 +18,19 @@ AS
     RETURN NULL;
   END get_config;
 
-  FUNCTION has_run_ids
+  FUNCTION has_ids
     RETURN NUMBER
   IS
   BEGIN
-    RETURN NULL;
-  END has_run_ids;
+    RETURN 0;
+  END has_ids;
 
-  FUNCTION next_run_id
-    RETURN NUMBER
+  FUNCTION get_next_id
+    RETURN VARCHAR2
   IS
   BEGIN
-    RETURN NULL;
-  END next_run_id;
+    RETURN '-1';
+  END get_next_id;
 
   FUNCTION base_path(p_run_id IN NUMBER)
     RETURN VARCHAR2

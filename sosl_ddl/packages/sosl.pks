@@ -26,23 +26,22 @@ AS
     RETURN VARCHAR2
   ;
 
-  /** Function SOSL.HAS_RUN_IDS
-  * Determines if script run ids are available to be executed. Only run ids with run state enqueued
-  * and script id NOT NULL are considered.
+  /** Function SOSL.HAS_IDS
+  * Determines if script ids are available to be executed. To be defined in SOSL_EXECUTOR.
   *
-  * @return The number of script run ids waiting for execution.
+  * @return The number of script ids waiting for execution.
   */
-  FUNCTION has_run_ids
+  FUNCTION has_ids
     RETURN NUMBER
   ;
 
-  /** Function SOSL.NEXT_RUN_ID
-  * Determines the next script run id to execute. Will set the run state from enqueued to started.
+  /** Function SOSL.GET_NEXT_ID
+  * Returns the next script id to execute. To be defined in SOSL_EXECUTOR.
   *
-  * @return The run id of the next script to execute.
+  * @return The id of the next script to execute.
   */
-  FUNCTION next_run_id
-    RETURN NUMBER
+  FUNCTION get_next_id
+    RETURN VARCHAR2
   ;
 
   /** Function SOSL.BASE_PATH

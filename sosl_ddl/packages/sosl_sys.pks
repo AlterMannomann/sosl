@@ -191,5 +191,59 @@ AS
     RETURN BOOLEAN
   ;
 
+  /* FUNCTION TXT_BOOLEAN
+  * Provides text values to display instead of BOOLEAN or NUMBER values interpreted as BOOLEAN. Numbers are interpreted
+  * similar to Oracle SQL, where 0 is FALSE and 1 is TRUE. 1 is considered as TRUE, any other value as FALSE. NULL values
+  * are interpreted as sosl_sys.NA_TYPE. Maximum 10 characters for TRUE/FALSE equation.
+  *
+  * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
+  * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+  * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+  *
+  * @return The text equation for the given p_bool value.
+  */
+  FUNCTION txt_boolean( p_bool   IN BOOLEAN
+                      , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+                      , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+                      )
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  ;
+  FUNCTION txt_boolean( p_bool   IN NUMBER
+                      , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+                      , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+                      )
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  ;
+
+  /* FUNCTION YES_NO
+  * A simple wrapper for txt_boolean with YES/NO instead of TRUE/FALSE.
+  *
+  * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
+  * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+  * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+  *
+  * @return The text equation for the given p_bool value.
+  */
+  FUNCTION yes_no( p_bool   IN BOOLEAN
+                 , p_true   IN VARCHAR2 DEFAULT 'YES'
+                 , p_false  IN VARCHAR2 DEFAULT 'NO'
+                 )
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  ;
+  FUNCTION yes_no( p_bool   IN NUMBER
+                 , p_true   IN VARCHAR2 DEFAULT 'YES'
+                 , p_false  IN VARCHAR2 DEFAULT 'NO'
+                 )
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  ;
+
 END;
 /

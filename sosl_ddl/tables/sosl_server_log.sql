@@ -3,9 +3,10 @@
 -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
 CREATE TABLE sosl_server_log
   ( exec_timestamp    TIMESTAMP       DEFAULT SYSTIMESTAMP                      NOT NULL
-    -- due to Oracle limitations we must use trigger not a package variable, trigger takes care to assign a default INFO log type if getting 'not set'
-  , log_type          VARCHAR2(30)    DEFAULT 'not set'                         NOT NULL
-  , log_category      VARCHAR2(256)   DEFAULT 'not set'                         NOT NULL
+    -- due to Oracle limitations we must use trigger not a package variable, trigger takes care
+    -- to assign a default INFO log type if getting sosl_sys.NA_TYPE
+  , log_type          VARCHAR2(30)    DEFAULT 'n/a'                             NOT NULL
+  , log_category      VARCHAR2(256)   DEFAULT 'n/a'                             NOT NULL
   , message           VARCHAR2(4000)                                            NOT NULL
   , run_id            NUMBER(38, 0)
   , executor_id       NUMBER(38, 0)
@@ -54,7 +55,7 @@ DECLARE
   l_split BOOLEAN;
 BEGIN
   -- first set default value if not set, as Oracle does not support default values from package variables
-  IF :NEW.log_type = 'not set'
+  IF :NEW.log_type = sosl_sys.NA_TYPE
   THEN
     :NEW.log_type := sosl_sys.INFO_TYPE;
   END IF;

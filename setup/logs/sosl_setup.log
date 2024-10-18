@@ -236,8 +236,62 @@ SQL> CREATE OR REPLACE PACKAGE sosl_sys
 189  	 RETURN BOOLEAN
 190    ;
 191  
-192  END;
-193  /
+192    /* FUNCTION TXT_BOOLEAN
+193    * Provides text values to display instead of BOOLEAN or NUMBER values interpreted as BOOLEAN. Numbers are interpreted
+194    * similar to Oracle SQL, where 0 is FALSE and 1 is TRUE. 1 is considered as TRUE, any other value as FALSE. NULL values
+195    * are interpreted as sosl_sys.NA_TYPE. Maximum 10 characters for TRUE/FALSE equation.
+196    *
+197    * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
+198    * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+199    * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+200    *
+201    * @return The text equation for the given p_bool value.
+202    */
+203    FUNCTION txt_boolean( p_bool   IN BOOLEAN
+204  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+205  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+206  			   )
+207  	 RETURN VARCHAR2
+208  	 DETERMINISTIC
+209  	 PARALLEL_ENABLE
+210    ;
+211    FUNCTION txt_boolean( p_bool   IN NUMBER
+212  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+213  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+214  			   )
+215  	 RETURN VARCHAR2
+216  	 DETERMINISTIC
+217  	 PARALLEL_ENABLE
+218    ;
+219  
+220    /* FUNCTION YES_NO
+221    * A simple wrapper for txt_boolean with YES/NO instead of TRUE/FALSE.
+222    *
+223    * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
+224    * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+225    * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+226    *
+227    * @return The text equation for the given p_bool value.
+228    */
+229    FUNCTION yes_no( p_bool	 IN BOOLEAN
+230  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
+231  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
+232  		      )
+233  	 RETURN VARCHAR2
+234  	 DETERMINISTIC
+235  	 PARALLEL_ENABLE
+236    ;
+237    FUNCTION yes_no( p_bool	 IN NUMBER
+238  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
+239  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
+240  		      )
+241  	 RETURN VARCHAR2
+242  	 DETERMINISTIC
+243  	 PARALLEL_ENABLE
+244    ;
+245  
+246  END;
+247  /
 
 Package created.
 
@@ -536,8 +590,61 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_sys
 291  	 RETURN l_return;
 292    END check_col; -- NUMBER variant
 293  
-294  END;
-295  /
+294    FUNCTION txt_boolean( p_bool   IN BOOLEAN
+295  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+296  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+297  			   )
+298  	 RETURN VARCHAR2
+299  	 DETERMINISTIC
+300  	 PARALLEL_ENABLE
+301    IS
+302    BEGIN
+303  	 IF p_bool
+304  	 THEN
+305  	   RETURN TRIM(SUBSTR(NVL(p_true, 'TRUE'), 1, 10));
+306  	 ELSE
+307  	   RETURN TRIM(SUBSTR(NVL(p_false, 'FALSE'), 1, 10));
+308  	 END IF;
+309    END txt_boolean; -- boolean input
+310  
+311    FUNCTION txt_boolean( p_bool   IN NUMBER
+312  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+313  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+314  			   )
+315  	 RETURN VARCHAR2
+316  	 DETERMINISTIC
+317  	 PARALLEL_ENABLE
+318    IS
+319    BEGIN
+320  	 RETURN sosl_sys.txt_boolean((p_bool = 1), p_true, p_false);
+321    END txt_boolean; -- number input
+322  
+323    FUNCTION yes_no( p_bool	 IN BOOLEAN
+324  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
+325  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
+326  		      )
+327  	 RETURN VARCHAR2
+328  	 DETERMINISTIC
+329  	 PARALLEL_ENABLE
+330    IS
+331    BEGIN
+332  	 RETURN sosl_sys.txt_boolean(p_bool, p_true, p_false);
+333    END yes_no;
+334  
+335    FUNCTION yes_no( p_bool	 IN NUMBER
+336  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
+337  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
+338  		      )
+339  	 RETURN VARCHAR2
+340  	 DETERMINISTIC
+341  	 PARALLEL_ENABLE
+342    IS
+343    BEGIN
+344  	 RETURN sosl_sys.txt_boolean((p_bool = 1), p_true, p_false);
+345    END yes_no;
+346  
+347  END;
+348  /
 
 Package body created.
 
@@ -548,28 +655,29 @@ SQL> -- requires login with the correct schema, either SOSL or your on schema
 SQL> -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
 SQL> CREATE TABLE sosl_server_log
   2    ( exec_timestamp    TIMESTAMP	   DEFAULT SYSTIMESTAMP 		     NOT NULL
-  3  	 -- due to Oracle limitations we must use trigger not a package variable, trigger takes care to assign a default INFO log type if getting 'not set'
-  4    , log_type	   VARCHAR2(30)    DEFAULT 'not set'			     NOT NULL
-  5    , log_category	   VARCHAR2(256)   DEFAULT 'not set'			     NOT NULL
-  6    , message	   VARCHAR2(4000)					     NOT NULL
-  7    , run_id 	   NUMBER(38, 0)
-  8    , executor_id	   NUMBER(38, 0)
-  9    , guid		   VARCHAR2(64)
- 10    , sosl_identifier   VARCHAR2(256)
- 11    , caller 	   VARCHAR2(256)
- 12    , ext_script_id	   VARCHAR2(4000)
- 13    , script_file	   VARCHAR2(4000)
- 14    , created_by	   VARCHAR2(256)   DEFAULT USER 			     NOT NULL
- 15    , created_by_os	   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 16    , full_message	   CLOB
- 17    )
- 18    -- monthly partitions
- 19    PARTITION BY RANGE (exec_timestamp)
- 20    INTERVAL (NUMTOYMINTERVAL(1, 'MONTH'))
- 21    (PARTITION P_OLD
- 22  	   VALUES LESS THAN (TO_TIMESTAMP('01-01-2024','DD-MM-YYYY'))
- 23    )
- 24  ;
+  3  	 -- due to Oracle limitations we must use trigger not a package variable, trigger takes care
+  4  	 -- to assign a default INFO log type if getting sosl_sys.NA_TYPE
+  5    , log_type	   VARCHAR2(30)    DEFAULT 'n/a'			     NOT NULL
+  6    , log_category	   VARCHAR2(256)   DEFAULT 'n/a'			     NOT NULL
+  7    , message	   VARCHAR2(4000)					     NOT NULL
+  8    , run_id 	   NUMBER(38, 0)
+  9    , executor_id	   NUMBER(38, 0)
+ 10    , guid		   VARCHAR2(64)
+ 11    , sosl_identifier   VARCHAR2(256)
+ 12    , caller 	   VARCHAR2(256)
+ 13    , ext_script_id	   VARCHAR2(4000)
+ 14    , script_file	   VARCHAR2(4000)
+ 15    , created_by	   VARCHAR2(256)   DEFAULT USER 			     NOT NULL
+ 16    , created_by_os	   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 17    , full_message	   CLOB
+ 18    )
+ 19    -- monthly partitions
+ 20    PARTITION BY RANGE (exec_timestamp)
+ 21    INTERVAL (NUMTOYMINTERVAL(1, 'MONTH'))
+ 22    (PARTITION P_OLD
+ 23  	   VALUES LESS THAN (TO_TIMESTAMP('01-01-2024','DD-MM-YYYY'))
+ 24    )
+ 25  ;
 
 Table created.
 
@@ -647,7 +755,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_server_log_ins_trg
   5    l_split BOOLEAN;
   6  BEGIN
   7    -- first set default value if not set, as Oracle does not support default values from package variables
-  8    IF :NEW.log_type = 'not set'
+  8    IF :NEW.log_type = sosl_sys.NA_TYPE
   9    THEN
  10  	 :NEW.log_type := sosl_sys.INFO_TYPE;
  11    END IF;
@@ -1317,17 +1425,12 @@ SQL> CREATE OR REPLACE TRIGGER sosl_config_del_trg
  17  			      , 'SOSL_DEFAULT_WAIT'
  18  			      , 'SOSL_NOJOB_WAIT'
  19  			      , 'SOSL_PAUSE_WAIT'
- 20  			      , 'SOSL_USE_MAIL'
- 21  			      , 'SOSL_MAIL_SENDER'
- 22  			      , 'SOSL_MAIL_RECIPIENT'
- 23  			      , 'SOSL_MAIL_API'
- 24  			      , 'SOSL_HAS_ID_API'
- 25  			      )
- 26    THEN
- 27  	 RAISE_APPLICATION_ERROR(-20002, 'The given system config_name "' || :OLD.config_name || '" cannot be deleted.');
- 28    END IF;
- 29  END;
- 30  /
+ 20  			      )
+ 21    THEN
+ 22  	 RAISE_APPLICATION_ERROR(-20002, 'The given system config_name "' || :OLD.config_name || '" cannot be deleted.');
+ 23    END IF;
+ 24  END;
+ 25  /
 
 Trigger created.
 
@@ -1444,54 +1547,6 @@ SQL> INSERT INTO sosl_config
 
 1 row created.
 
-SQL> INSERT INTO sosl_config
-  2    (config_name, config_value, config_type, config_description)
-  3    VALUES
-  4    ('SOSL_USE_MAIL', 'NO', 'CHAR', 'Determines if sosl should use mail. Set to YES if you want to use mail.')
-  5  ;
-
-1 row created.
-
-SQL> INSERT INTO sosl_config
-  2    (config_name, config_value, config_type, config_description)
-  3    VALUES
-  4    ('SOSL_MAIL_SENDER', 'NOT_SET', 'CHAR', 'The default sender mail address for sending mails.')
-  5  ;
-
-1 row created.
-
-SQL> INSERT INTO sosl_config
-  2    (config_name, config_value, config_type, config_description)
-  3    VALUES
-  4    ('SOSL_MAIL_RECIPIENT', 'NOT_SET', 'CHAR', 'The default recipient mail address for sending mails.')
-  5  ;
-
-1 row created.
-
-SQL> INSERT INTO sosl_config
-  2    (config_name, config_value, config_type, config_description)
-  3    VALUES
-  4    ('SOSL_MAIL_API', 'sosl.send_mail', 'CHAR', 'The name of an existing function that should handle mail. The wrapper function SOSL_SENDMAIL is created dynamically. The function must have four parameters: mail_sender IN VARCHAR2, mail_recipients IN VARCHAR2, mail_subject IN VARCHAR2, mail_text IN VARCHAR2 and must return 0 for success or -1 on errors. It may include a schema, if not sosl schema. Can be a package or standalone function.')
-  5  ;
-
-1 row created.
-
-SQL> INSERT INTO sosl_config
-  2    (config_name, config_value, config_type, config_description)
-  3    VALUES
-  4    ('SOSL_HAS_ID_API', 'sosl.has_ids', 'CHAR', 'The name of an existing function that returns the amount of IDs waiting for processing. The wrapper function SOSL_HAS_IDS is created dynamically. The function expects no parameters and simply returns the amount of IDs waiting for processing. It may include a schema, if not sosl schema. Can be a package procedure or standalone procedure.')
-  5  ;
-
-1 row created.
-
-SQL> INSERT INTO sosl_config
-  2    (config_name, config_value, config_type, config_description)
-  3    VALUES
-  4    ('SOSL_GET_ID_API', 'sosl.get_next_id', 'CHAR', 'The name of an existing procedure that should handle mail. Must work for all plans as the wrapper function SOSL_SENDMAIL is created dynamically. The procedure must have four parameters: mail_sender IN VARCHAR2, mail_recipients IN VARCHAR2, mail_subject IN VARCHAR2, mail_text IN VARCHAR2. It may include a schema, if not sosl schema. Can be a package procedure or standalone procedure.')
-  5  ;
-
-1 row created.
-
 SQL> COMMIT;
 
 Commit complete.
@@ -1500,25 +1555,31 @@ SQL> @@../sosl_ddl/tables/sosl_executor.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> CREATE TABLE sosl_executor
   2    ( executor_id	       NUMBER(38, 0)   GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
-  3    , db_user	       VARCHAR2(128)						 NOT NULL
-  4    , function_owner        VARCHAR2(128)						 NOT NULL
-  5    , fn_has_ids	       VARCHAR2(520)						 NOT NULL
-  6    , fn_get_next_id        VARCHAR2(520)						 NOT NULL
-  7    , fn_get_executor       VARCHAR2(520)						 NOT NULL
-  8    , fn_get_script	       VARCHAR2(520)						 NOT NULL
-  9    , fn_set_status	       VARCHAR2(520)						 NOT NULL
- 10    , cfg_file	       VARCHAR2(4000)						 NOT NULL
- 11    , executor_active       VARCHAR2(3)     DEFAULT 'NO'				 NOT NULL
- 12    , executor_reviewed     VARCHAR2(3)     DEFAULT 'NO'				 NOT NULL
- 13    , created	       DATE	       DEFAULT SYSDATE				 NOT NULL
- 14    , updated	       DATE	       DEFAULT SYSDATE				 NOT NULL
- 15    , created_by	       VARCHAR2(256)   DEFAULT USER				 NOT NULL
- 16    , created_by_os	       VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 17    , updated_by	       VARCHAR2(256)   DEFAULT USER				 NOT NULL
- 18    , updated_by_os	       VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 19    , executor_description  VARCHAR2(4000)
- 20    )
- 21  ;
+  3    , executor_name	       VARCHAR2(256)						 NOT NULL
+  4    , db_user	       VARCHAR2(128)						 NOT NULL
+  5    , function_owner        VARCHAR2(128)						 NOT NULL
+  6    , fn_has_ids	       VARCHAR2(520)						 NOT NULL
+  7    , fn_get_next_id        VARCHAR2(520)						 NOT NULL
+  8    , fn_get_executor       VARCHAR2(520)						 NOT NULL
+  9    , fn_get_script	       VARCHAR2(520)						 NOT NULL
+ 10    , fn_set_status	       VARCHAR2(520)						 NOT NULL
+ 11    , cfg_file	       VARCHAR2(4000)						 NOT NULL
+ 12    , use_mail	       NUMBER(1, 0)    DEFAULT 0				 NOT NULL
+ 13    , mail_sender	       VARCHAR2(1024)  DEFAULT 'n/a'				 NOT NULL
+ 14    , mail_recipients       VARCHAR2(1024)  DEFAULT 'n/a'				 NOT NULL
+ 15    , fn_send_db_mail       VARCHAR2(520)   DEFAULT 'sosl_sys.dummy_mail'		 NOT NULL
+ 16    , executor_active       NUMBER(1, 0)    DEFAULT 0				 NOT NULL
+ 17    , executor_reviewed     NUMBER(1, 0)    DEFAULT 0				 NOT NULL
+ 18    , created	       DATE	       DEFAULT SYSDATE				 NOT NULL
+ 19    , updated	       DATE	       DEFAULT SYSDATE				 NOT NULL
+ 20    , created_by	       VARCHAR2(256)   DEFAULT USER				 NOT NULL
+ 21    , created_by_os	       VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 22    , updated_by	       VARCHAR2(256)   DEFAULT USER				 NOT NULL
+ 23    , updated_by_os	       VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 24    , script_schema	       VARCHAR2(128)   DEFAULT NULL
+ 25    , executor_description  VARCHAR2(4000)
+ 26    )
+ 27  ;
 
 Table created.
 
@@ -1530,15 +1591,19 @@ SQL> COMMENT ON COLUMN sosl_executor.executor_id IS 'The generated unique id tha
 
 Comment created.
 
-SQL> COMMENT ON COLUMN sosl_executor.db_user IS 'The login name of the database user must match cfg_file login and be USER after login. No mixed case support, converted to upper case. Must exist and have the necessary rights to execute the queued scripts.';
+SQL> COMMENT ON COLUMN sosl_executor.executor_name IS 'The unique name that identifies the executor.';
 
 Comment created.
 
-SQL> COMMENT ON COLUMN sosl_executor.function_owner IS 'The owner user name of the API functions, refers to the schema where the functions are defined. No mixed case support, converted to upper case. Can differ from the database user that executes SOSL. All API functions must have the same owner for one executor.';
+SQL> COMMENT ON COLUMN sosl_executor.db_user IS 'The login name of the database user must match cfg_file login and be USER after login. No mixed case support, converted to upper case. Must exist and have the necessary rights to execute the queued scripts. No update allowed. Create a new executor, if user changes.';
 
 Comment created.
 
-SQL> COMMENT ON COLUMN sosl_executor.fn_has_ids IS 'The name of the function to use by HAS_IDS wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall not require parameters and return the amount of waiting script as NUMBER.';
+SQL> COMMENT ON COLUMN sosl_executor.function_owner IS 'The owner user name of the API functions, refers to the schema where the functions are defined. No mixed case support, converted to upper case. Can differ from the database user that executes SOSL. All API functions must have the same owner for one executor. No update allowed. Create a new executor, if user changes.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_executor.fn_has_ids IS 'The name of the function to use by HAS_IDS wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall not require parameters and return the amount of waiting scripts as NUMBER or -1 on errors.';
 
 Comment created.
 
@@ -1558,15 +1623,19 @@ SQL> COMMENT ON COLUMN sosl_executor.fn_set_status IS 'The name of the function 
 
 Comment created.
 
+SQL> COMMENT ON COLUMN sosl_executor.fn_send_db_mail IS 'The name of the function to use by SEND_DB_MAIL wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall require the parameters P_SENDER IN VARCHAR2, P_RECIPIENTS IN VARCHAR2, P_SUBJECT IN VARCHAR2, P_MESSAGE IN VARCHAR2 and return 0 or -1 on errors. P_SENDER is the email address of the sender. P_RECIPIENTS contains the email addresses of the recipients, delimited by semicolon ";". P_SUBJECT is the email subject to use. P_MESSAGE contains the email message.';
+
+Comment created.
+
 SQL> COMMENT ON COLUMN sosl_executor.cfg_file IS 'The filename with absolute or relative path to the login config file for this executor. File and path must exist on the CMD server.';
 
 Comment created.
 
-SQL> COMMENT ON COLUMN sosl_executor.executor_active IS 'Defines if the executor is active. Accepts NO and YES. Not active and reviewed executors will be ignored if they try to run scripts, every attempt gets logged.';
+SQL> COMMENT ON COLUMN sosl_executor.executor_active IS 'Defines if the executor is active. Accepts 0 (NO/FALSE) and 1 (YES/TRUE). Not active and reviewed executors will be ignored if they try to run scripts, every attempt gets logged. Can only be set by update, on insert always the default is used.';
 
 Comment created.
 
-SQL> COMMENT ON COLUMN sosl_executor.executor_reviewed IS 'Defines if the executor is reviewed, accepted and ready to be used. Accepts NO and YES. Not active and reviewed executors will be ignored if they try to run scripts, every attempt gets logged.';
+SQL> COMMENT ON COLUMN sosl_executor.executor_reviewed IS 'Defines if the executor is reviewed, accepted and ready to be used. Accepts 0 (NO/FALSE) and 1 (YES/TRUE). Not active and reviewed executors will be ignored if they try to run scripts, every attempt gets logged. Can only be set by update, on insert always the default is used.';
 
 Comment created.
 
@@ -1594,6 +1663,10 @@ SQL> COMMENT ON COLUMN sosl_executor.updated_by_os IS 'OS user who updated the r
 
 Comment created.
 
+SQL> COMMENT ON COLUMN sosl_executor.script_schema IS 'The (optional) schema the script should run in. If set will cause an ALTER SESSION SET CURRENT_SCHEMA before executing the script otherwise db user schema is used. DB user must have rights for this schema if set. If acting on own schema or scripts do ALTER SESSION by themselves, you should leave it NULL.';
+
+Comment created.
+
 SQL> COMMENT ON COLUMN sosl_executor.executor_description IS 'Optional executor description.';
 
 Comment created.
@@ -1607,10 +1680,27 @@ SQL> ALTER TABLE sosl_executor
 
 Table altered.
 
+SQL> -- unique constraint
+SQL> ALTER TABLE sosl_executor
+  2    ADD CONSTRAINT sosl_executor_uk
+  3    UNIQUE (executor_name)
+  4    ENABLE
+  5  ;
+
+Table altered.
+
 SQL> -- check constraints
 SQL> ALTER TABLE sosl_executor
+  2    ADD CONSTRAINT sosl_executor_chk_use_mail
+  3    CHECK (use_mail IN (0, 1))
+  4    ENABLE
+  5  ;
+
+Table altered.
+
+SQL> ALTER TABLE sosl_executor
   2    ADD CONSTRAINT sosl_executor_chk_active
-  3    CHECK (UPPER(executor_active) IN ('YES', 'NO'))
+  3    CHECK (executor_active IN (0, 1))
   4    ENABLE
   5  ;
 
@@ -1618,7 +1708,7 @@ Table altered.
 
 SQL> ALTER TABLE sosl_executor
   2    ADD CONSTRAINT sosl_executor_chk_reviewed
-  3    CHECK (UPPER(executor_reviewed) IN ('YES', 'NO'))
+  3    CHECK (executor_reviewed IN (0, 1))
   4    ENABLE
   5  ;
 
@@ -1628,88 +1718,313 @@ SQL> -- trigger
 SQL> CREATE OR REPLACE TRIGGER sosl_executor_ins_trg
   2    BEFORE INSERT ON sosl_executor
   3    FOR EACH ROW
-  4  BEGIN
-  5    :NEW.created	       := SYSDATE;
-  6    :NEW.created_by	       := SYS_CONTEXT('USERENV', 'CURRENT_USER');
-  7    :NEW.created_by_os      := SYS_CONTEXT('USERENV', 'OS_USER');
-  8    :NEW.updated	       := SYSDATE;
-  9    :NEW.updated_by	       := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 10    :NEW.updated_by_os      := SYS_CONTEXT('USERENV', 'OS_USER');
- 11    :NEW.executor_active    := UPPER(:NEW.executor_active);
- 12    :NEW.executor_reviewed  := UPPER(:NEW.executor_reviewed);
- 13    -- transform users to UPPERCASE, no support currently for special mix-case.
- 14    :NEW.function_owner     := UPPER(:NEW.function_owner);
- 15    :NEW.db_user	       := UPPER(:NEW.db_user);
- 16    :NEW.fn_has_ids	       := UPPER(:NEW.fn_has_ids);
- 17    :NEW.fn_get_next_id     := UPPER(:NEW.fn_get_next_id);
- 18    :NEW.fn_get_executor    := UPPER(:NEW.fn_get_executor);
- 19    :NEW.fn_get_script      := UPPER(:NEW.fn_get_script);
- 20    :NEW.fn_set_status      := UPPER(:NEW.fn_set_status);
- 21    -- check user
- 22    IF NOT sosl_sys.has_db_user(:NEW.db_user)
- 23    THEN
- 24  	 sosl_log.full_log( p_message => 'The given database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
- 25  			  , p_log_type => sosl_sys.FATAL_TYPE
- 26  			  , p_log_category => 'SOSL_EXECUTOR/sosl_executor_ins_trg'
- 27  			  , p_caller => 'sosl_executor_ins_trg'
- 28  			  )
- 29  	 ;
- 30  	 RAISE_APPLICATION_ERROR(-20003, 'The given database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
- 31    END IF;
- 32    -- check configured functions
- 33    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_has_ids, 'NUMBER')
- 34    THEN
- 35  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_has_ids || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
- 36  			  , p_log_type => sosl_sys.FATAL_TYPE
- 37  			  , p_log_category => 'SOSL_EXECUTOR/sosl_executor_ins_trg'
- 38  			  , p_caller => 'sosl_executor_ins_trg'
- 39  			  )
- 40  	 ;
- 41  	 RAISE_APPLICATION_ERROR(-20004, 'The given function ' || :NEW.fn_has_ids || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
- 42    END IF;
- 43    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_next_id, 'VARCHAR2')
- 44    THEN
- 45  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_next_id || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.'
- 46  			  , p_log_type => sosl_sys.FATAL_TYPE
- 47  			  , p_log_category => 'SOSL_EXECUTOR/sosl_executor_ins_trg'
- 48  			  , p_caller => 'sosl_executor_ins_trg'
- 49  			  )
- 50  	 ;
- 51  	 RAISE_APPLICATION_ERROR(-20005, 'The given function ' || :NEW.fn_get_next_id || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
- 52    END IF;
- 53    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_executor, 'NUMBER')
- 54    THEN
- 55  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_executor || ' for get_executor is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
- 56  			  , p_log_type => sosl_sys.FATAL_TYPE
- 57  			  , p_log_category => 'SOSL_EXECUTOR/sosl_executor_ins_trg'
- 58  			  , p_caller => 'sosl_executor_ins_trg'
- 59  			  )
- 60  	 ;
- 61  	 RAISE_APPLICATION_ERROR(-20006, 'The given function ' || :NEW.fn_get_executor || ' for get_executor is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
- 62    END IF;
- 63    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_script, 'VARCHAR2')
- 64    THEN
- 65  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_script || ' for get_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.'
- 66  			  , p_log_type => sosl_sys.FATAL_TYPE
- 67  			  , p_log_category => 'SOSL_EXECUTOR/sosl_executor_ins_trg'
- 68  			  , p_caller => 'sosl_executor_ins_trg'
- 69  			  )
- 70  	 ;
- 71  	 RAISE_APPLICATION_ERROR(-20007, 'The given function ' || :NEW.fn_get_script || ' for get_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
- 72    END IF;
- 73    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_set_status, 'NUMBER')
- 74    THEN
- 75  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_set_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
- 76  			  , p_log_type => sosl_sys.FATAL_TYPE
- 77  			  , p_log_category => 'SOSL_EXECUTOR/sosl_executor_ins_trg'
- 78  			  , p_caller => 'sosl_executor_ins_trg'
- 79  			  )
- 80  	 ;
- 81  	 RAISE_APPLICATION_ERROR(-20008, 'The given function ' || :NEW.fn_set_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
- 82    END IF;
- 83  
- 84  END;
- 85  /
+  4  DECLARE
+  5    l_caller    VARCHAR2(256) := 'sosl_executor_ins_trg';
+  6    l_category  VARCHAR2(256) := 'SOSL_EXECUTOR';
+  7  BEGIN
+  8    :NEW.created	       := SYSDATE;
+  9    :NEW.created_by	       := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 10    :NEW.created_by_os      := SYS_CONTEXT('USERENV', 'OS_USER');
+ 11    :NEW.updated	       := SYSDATE;
+ 12    :NEW.updated_by	       := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 13    :NEW.updated_by_os      := SYS_CONTEXT('USERENV', 'OS_USER');
+ 14    :NEW.executor_active    := 0;
+ 15    :NEW.executor_reviewed  := 0;
+ 16    -- transform users and functions to UPPERCASE, no support currently for special mix-case.
+ 17    :NEW.function_owner     := UPPER(:NEW.function_owner);
+ 18    :NEW.db_user	       := UPPER(:NEW.db_user);
+ 19    :NEW.fn_has_ids	       := UPPER(:NEW.fn_has_ids);
+ 20    :NEW.fn_get_next_id     := UPPER(:NEW.fn_get_next_id);
+ 21    :NEW.fn_get_executor    := UPPER(:NEW.fn_get_executor);
+ 22    :NEW.fn_get_script      := UPPER(:NEW.fn_get_script);
+ 23    :NEW.fn_set_status      := UPPER(:NEW.fn_set_status);
+ 24    :NEW.fn_send_db_mail    := UPPER(:NEW.fn_send_db_mail);
+ 25    -- check user
+ 26    IF NOT sosl_sys.has_db_user(:NEW.db_user)
+ 27    THEN
+ 28  	 sosl_log.full_log( p_message => 'The given database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
+ 29  			  , p_log_type => sosl_sys.FATAL_TYPE
+ 30  			  , p_log_category => l_category
+ 31  			  , p_caller => l_caller
+ 32  			  )
+ 33  	 ;
+ 34  	 RAISE_APPLICATION_ERROR(-20003, 'The given database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
+ 35    END IF;
+ 36    IF NOT sosl_sys.has_db_user(:NEW.function_owner)
+ 37    THEN
+ 38  	 sosl_log.full_log( p_message => 'The given function owner database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
+ 39  			  , p_log_type => sosl_sys.FATAL_TYPE
+ 40  			  , p_log_category => l_category
+ 41  			  , p_caller => l_caller
+ 42  			  )
+ 43  	 ;
+ 44  	 RAISE_APPLICATION_ERROR(-20003, 'The given function owner database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
+ 45    END IF;
+ 46    -- check configured functions
+ 47    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_has_ids, 'NUMBER')
+ 48    THEN
+ 49  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_has_ids || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+ 50  			  , p_log_type => sosl_sys.FATAL_TYPE
+ 51  			  , p_log_category => l_category
+ 52  			  , p_caller => l_caller
+ 53  			  )
+ 54  	 ;
+ 55  	 RAISE_APPLICATION_ERROR(-20004, 'The given function ' || :NEW.fn_has_ids || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+ 56    END IF;
+ 57    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_next_id, 'VARCHAR2')
+ 58    THEN
+ 59  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_next_id || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.'
+ 60  			  , p_log_type => sosl_sys.FATAL_TYPE
+ 61  			  , p_log_category => l_category
+ 62  			  , p_caller => l_caller
+ 63  			  )
+ 64  	 ;
+ 65  	 RAISE_APPLICATION_ERROR(-20005, 'The given function ' || :NEW.fn_get_next_id || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
+ 66    END IF;
+ 67    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_executor, 'NUMBER')
+ 68    THEN
+ 69  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_executor || ' for get_executor is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+ 70  			  , p_log_type => sosl_sys.FATAL_TYPE
+ 71  			  , p_log_category => l_category
+ 72  			  , p_caller => l_caller
+ 73  			  )
+ 74  	 ;
+ 75  	 RAISE_APPLICATION_ERROR(-20006, 'The given function ' || :NEW.fn_get_executor || ' for get_executor is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+ 76    END IF;
+ 77    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_script, 'VARCHAR2')
+ 78    THEN
+ 79  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_script || ' for get_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.'
+ 80  			  , p_log_type => sosl_sys.FATAL_TYPE
+ 81  			  , p_log_category => l_category
+ 82  			  , p_caller => l_caller
+ 83  			  )
+ 84  	 ;
+ 85  	 RAISE_APPLICATION_ERROR(-20007, 'The given function ' || :NEW.fn_get_script || ' for get_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
+ 86    END IF;
+ 87    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_set_status, 'NUMBER')
+ 88    THEN
+ 89  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_set_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+ 90  			  , p_log_type => sosl_sys.FATAL_TYPE
+ 91  			  , p_log_category => l_category
+ 92  			  , p_caller => l_caller
+ 93  			  )
+ 94  	 ;
+ 95  	 RAISE_APPLICATION_ERROR(-20008, 'The given function ' || :NEW.fn_set_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+ 96    END IF;
+ 97    IF     :NEW.use_mail = 1
+ 98  	  AND NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_send_db_mail, 'NUMBER')
+ 99    THEN
+100  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_send_db_mail || ' for send db mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+101  			  , p_log_type => sosl_sys.FATAL_TYPE
+102  			  , p_log_category => l_category
+103  			  , p_caller => l_caller
+104  			  )
+105  	 ;
+106  	 RAISE_APPLICATION_ERROR(-20009, 'The given function ' || :NEW.fn_send_db_mail || ' for send db mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+107    END IF;
+108    -- log the insert
+109    sosl_log.full_log( p_message => 'A new executor has been defined for DB user: ' || :NEW.db_user || ' with function owner: ' || :NEW.function_owner || ' created by OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+110  			, p_log_type => sosl_sys.INFO_TYPE
+111  			, p_log_category => l_category
+112  			, p_caller => l_caller
+113  			)
+114    ;
+115  EXCEPTION
+116    WHEN OTHERS THEN
+117  	 -- catch and log all undefined exceptions
+118  	 IF SQLCODE NOT IN (-20003, -20004, -20005, -20006, -20007, -20008, -20009)
+119  	 THEN
+120  	   sosl_log.full_log( p_message => 'Unhandled exception in trigger sosl_executor_ins_trg: ' || SQLERRM
+121  			    , p_log_type => sosl_sys.FATAL_TYPE
+122  			    , p_log_category => l_category
+123  			    , p_caller => l_caller
+124  			    )
+125  	   ;
+126  	 END IF;
+127  	 -- raise all errors
+128  	 RAISE;
+129  END;
+130  /
+
+Trigger created.
+
+SQL> CREATE OR REPLACE TRIGGER sosl_executor_upd_trg
+  2    BEFORE UPDATE ON sosl_executor
+  3    FOR EACH ROW
+  4  DECLARE
+  5    l_change_record VARCHAR2(32767);
+  6    l_caller        VARCHAR2(256) := 'sosl_executor_upd_trg';
+  7    l_category      VARCHAR2(256) := 'SOSL_EXECUTOR';
+  8  BEGIN
+  9    l_change_record := 'Changes by OS user ' || SYS_CONTEXT('USERENV', 'OS_USER') || ': ';
+ 10    :NEW.updated	       := SYSDATE;
+ 11    :NEW.updated_by	       := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 12    :NEW.updated_by_os      := SYS_CONTEXT('USERENV', 'OS_USER');
+ 13    -- no overwrite for this values
+ 14    IF :NEW.created != :OLD.created
+ 15    THEN
+ 16  	 l_change_record := l_change_record || 'Prohibited change of create date to: "' || TO_CHAR(:NEW.created, 'YYYY-MM-DD HH24:MI:SS') || '" ';
+ 17  	 :NEW.created		 := :OLD.created;
+ 18    END IF;
+ 19    :NEW.created_by	       := :OLD.created_by;
+ 20    :NEW.created_by_os      := :OLD.created_by_os;
+ 21    IF UPPER(:NEW.function_owner) != :OLD.function_owner
+ 22    THEN
+ 23  	 l_change_record := l_change_record || 'Prohibited change of function owner to: "' || :NEW.function_owner || '" ';
+ 24  	 :NEW.function_owner := :OLD.function_owner;
+ 25    END IF;
+ 26    IF UPPER(:NEW.db_user) != :OLD.db_user
+ 27    THEN
+ 28  	 l_change_record := l_change_record || 'Prohibited change of db user to: "' || :NEW.db_user || '" ';
+ 29  	 :NEW.db_user := :OLD.db_user;
+ 30    END IF;
+ 31    -- prepare possibly modified values
+ 32    IF :NEW.executor_active != :OLD.executor_active
+ 33    THEN
+ 34  	 l_change_record := l_change_record || 'Modified EXECUTOR_ACTIVE: "' || sosl_sys.yes_no(:NEW.executor_active) || '" ';
+ 35    END IF;
+ 36    IF :NEW.executor_reviewed != :OLD.executor_reviewed
+ 37    THEN
+ 38  	 l_change_record := l_change_record || 'Modified EXECUTOR_REVIEWED: "' || sosl_sys.yes_no(:NEW.executor_reviewed) || '" ';
+ 39    END IF;
+ 40    IF UPPER(:NEW.fn_has_ids) != :OLD.fn_has_ids
+ 41    THEN
+ 42  	 :NEW.fn_has_ids := UPPER(:NEW.fn_has_ids);
+ 43  	 l_change_record := l_change_record || 'Modified FN_HAS_IDS: "' || :NEW.fn_has_ids || '" ';
+ 44    END IF;
+ 45    IF UPPER(:NEW.fn_get_next_id) != :OLD.fn_get_next_id
+ 46    THEN
+ 47  	 :NEW.fn_get_next_id := UPPER(:NEW.fn_get_next_id);
+ 48  	 l_change_record     := l_change_record || 'Modified FN_GET_NEXT_ID: "' || :NEW.fn_get_next_id || '" ';
+ 49    END IF;
+ 50    IF UPPER(:NEW.fn_get_executor) != :NEW.fn_get_executor
+ 51    THEN
+ 52  	 :NEW.fn_get_executor  := UPPER(:NEW.fn_get_executor);
+ 53  	 l_change_record       := l_change_record || 'Modified FN_GET_EXECUTOR: "' || :NEW.fn_get_executor || '" ';
+ 54    END IF;
+ 55    IF UPPER(:NEW.fn_get_script) != :OLD.fn_get_script
+ 56    THEN
+ 57  	 :NEW.fn_get_script  := UPPER(:NEW.fn_get_script);
+ 58  	 l_change_record       := l_change_record || 'Modified FN_GET_SCRIPT: "' || :NEW.fn_get_script || '" ';
+ 59    END IF;
+ 60    IF UPPER(:NEW.fn_set_status) != :OLD.fn_set_status
+ 61    THEN
+ 62  	 :NEW.fn_set_status := UPPER(:NEW.fn_set_status);
+ 63  	 l_change_record       := l_change_record || 'Modified FN_SET_STATUS: "' || :NEW.fn_set_status || '" ';
+ 64    END IF;
+ 65    IF UPPER(:NEW.fn_send_db_mail) != :OLD.fn_send_db_mail
+ 66    THEN
+ 67  	 :NEW.fn_send_db_mail := UPPER(:NEW.fn_send_db_mail);
+ 68  	 l_change_record       := l_change_record || 'Modified FN_SEND_DB_MAIL: "' || :NEW.fn_send_db_mail || '" ';
+ 69    END IF;
+ 70    -- do all checks again including user
+ 71    -- check user
+ 72    IF NOT sosl_sys.has_db_user(:NEW.db_user)
+ 73    THEN
+ 74  	 sosl_log.full_log( p_message => 'The given database user is not longer visible for SOSL in ALL_USERS. Executor deactivated. Either the user does not exist or SOSL has no right to see this user.'
+ 75  			  , p_log_type => sosl_sys.FATAL_TYPE
+ 76  			  , p_log_category => l_category
+ 77  			  , p_caller => l_caller
+ 78  			  )
+ 79  	 ;
+ 80  	 :NEW.executor_active := 0;
+ 81    END IF;
+ 82    IF NOT sosl_sys.has_db_user(:NEW.function_owner)
+ 83    THEN
+ 84  	 sosl_log.full_log( p_message => 'The given function owner database user is not longer visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
+ 85  			  , p_log_type => sosl_sys.FATAL_TYPE
+ 86  			  , p_log_category => l_category
+ 87  			  , p_caller => l_caller
+ 88  			  )
+ 89  	 ;
+ 90  	 :NEW.executor_active := 0;
+ 91    END IF;
+ 92    -- check configured functions
+ 93    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_has_ids, 'NUMBER')
+ 94    THEN
+ 95  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_has_ids || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+ 96  			  , p_log_type => sosl_sys.FATAL_TYPE
+ 97  			  , p_log_category => l_category
+ 98  			  , p_caller => l_caller
+ 99  			  )
+100  	 ;
+101  	 RAISE_APPLICATION_ERROR(-20004, 'The given function ' || :NEW.fn_has_ids || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+102    END IF;
+103    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_next_id, 'VARCHAR2')
+104    THEN
+105  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_next_id || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.'
+106  			  , p_log_type => sosl_sys.FATAL_TYPE
+107  			  , p_log_category => l_category
+108  			  , p_caller => l_caller
+109  			  )
+110  	 ;
+111  	 RAISE_APPLICATION_ERROR(-20005, 'The given function ' || :NEW.fn_get_next_id || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
+112    END IF;
+113    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_executor, 'NUMBER')
+114    THEN
+115  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_executor || ' for get_executor is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+116  			  , p_log_type => sosl_sys.FATAL_TYPE
+117  			  , p_log_category => l_category
+118  			  , p_caller => l_caller
+119  			  )
+120  	 ;
+121  	 RAISE_APPLICATION_ERROR(-20006, 'The given function ' || :NEW.fn_get_executor || ' for get_executor is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+122    END IF;
+123    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_script, 'VARCHAR2')
+124    THEN
+125  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_script || ' for get_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.'
+126  			  , p_log_type => sosl_sys.FATAL_TYPE
+127  			  , p_log_category => l_category
+128  			  , p_caller => l_caller
+129  			  )
+130  	 ;
+131  	 RAISE_APPLICATION_ERROR(-20007, 'The given function ' || :NEW.fn_get_script || ' for get_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
+132    END IF;
+133    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_set_status, 'NUMBER')
+134    THEN
+135  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_set_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+136  			  , p_log_type => sosl_sys.FATAL_TYPE
+137  			  , p_log_category => l_category
+138  			  , p_caller => l_caller
+139  			  )
+140  	 ;
+141  	 RAISE_APPLICATION_ERROR(-20008, 'The given function ' || :NEW.fn_set_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+142    END IF;
+143    IF     :NEW.use_mail = 1
+144  	  AND NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_send_db_mail, 'NUMBER')
+145    THEN
+146  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_send_db_mail || ' for send db mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+147  			  , p_log_type => sosl_sys.FATAL_TYPE
+148  			  , p_log_category => l_category
+149  			  , p_caller => l_caller
+150  			  )
+151  	 ;
+152  	 RAISE_APPLICATION_ERROR(-20009, 'The given function ' || :NEW.fn_send_db_mail || ' for send db mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+153    END IF;
+154    -- log the insert
+155    sosl_log.full_log( p_message => 'The executor ID: ' || :OLD.executor_id || ' has been updated by OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER') || ' see full_message for details.'
+156  			, p_log_type => sosl_sys.INFO_TYPE
+157  			, p_log_category => l_category
+158  			, p_caller => l_caller
+159  			, p_full_message => TO_CLOB(l_change_record)
+160  			)
+161    ;
+162  EXCEPTION
+163    WHEN OTHERS THEN
+164  	 -- catch and log all undefined exceptions
+165  	 IF SQLCODE NOT IN (-20004, -20005, -20006, -20007, -20008, -20009)
+166  	 THEN
+167  	   sosl_log.full_log( p_message => 'Unhandled exception in trigger sosl_executor_upd_trg: ' || SQLERRM
+168  			    , p_log_type => sosl_sys.FATAL_TYPE
+169  			    , p_log_category => l_category
+170  			    , p_caller => l_caller
+171  			    )
+172  	   ;
+173  	 END IF;
+174  	 -- raise all errors
+175  	 RAISE;
+176  END;
+177  /
 
 Trigger created.
 
@@ -1719,18 +2034,19 @@ SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl
 SQL> -- requires login with the correct schema, either SOSL or your on schema
 SQL> -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
 SQL> CREATE TABLE sosl_script
-  2    ( script_id	    NUMBER(38, 0)  GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
-  3    , script_name	    VARCHAR2(2000)					     NOT NULL
-  4    , script_schema	    VARCHAR2(256)  DEFAULT 'SOSL'			     NOT NULL
-  5    , created	    DATE	   DEFAULT SYSDATE			     NOT NULL
-  6    , updated	    DATE	   DEFAULT SYSDATE			     NOT NULL
-  7    , created_by	    VARCHAR2(256)  DEFAULT USER 			     NOT NULL
-  8    , created_by_os	    VARCHAR2(256)  DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
-  9    , updated_by	    VARCHAR2(256)  DEFAULT USER 			     NOT NULL
- 10    , updated_by_os	    VARCHAR2(256)  DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 11    , script_description VARCHAR2(4000)
- 12    )
- 13  ;
+  2    ( script_id	     NUMBER(38, 0)  GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
+  3    , script_name	     VARCHAR2(2000)					      NOT NULL
+  4    , script_order	     NUMBER(38, 0)  DEFAULT 1				      NOT NULL
+  5    , created	     DATE	    DEFAULT SYSDATE			      NOT NULL
+  6    , updated	     DATE	    DEFAULT SYSDATE			      NOT NULL
+  7    , created_by	     VARCHAR2(256)  DEFAULT USER			      NOT NULL
+  8    , created_by_os	     VARCHAR2(256)  DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+  9    , updated_by	     VARCHAR2(256)  DEFAULT USER			      NOT NULL
+ 10    , updated_by_os	     VARCHAR2(256)  DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 11    , executor_id	     NUMBER(38, 0)
+ 12    , script_description  VARCHAR2(4000)
+ 13    )
+ 14  ;
 
 Table created.
 
@@ -1743,11 +2059,15 @@ SQL> COMMENT ON COLUMN sosl_script.script_id IS 'The generated unique id of the 
 
 Comment created.
 
+SQL> COMMENT ON COLUMN sosl_script.executor_id IS 'The related executor id of the script file. If defined, must match an existing executor. If not defined, script is ignored.';
+
+Comment created.
+
 SQL> COMMENT ON COLUMN sosl_script.script_name IS 'The name of the script file including full or relative path. Use relative path (relative to batch_base_path or repository location) to ensure running scripts from different machines.';
 
 Comment created.
 
-SQL> COMMENT ON COLUMN sosl_script.script_schema IS 'The schema the script should run in. Will cause an ALTER SESSION SET CURRENT_SCHEMA before executing the script.';
+SQL> COMMENT ON COLUMN sosl_script.script_order IS 'The order in which the script file should be executed. Same number means in parallel. Higher order numbers wait for scripts with lower order numbers to complete.';
 
 Comment created.
 
@@ -1788,6 +2108,17 @@ SQL> ALTER TABLE sosl_script
 
 Table altered.
 
+SQL> -- foreign key
+SQL> ALTER TABLE sosl_script
+  2    ADD CONSTRAINT sosl_script_fk
+  3    FOREIGN KEY (executor_id)
+  4    REFERENCES sosl_executor (executor_id)
+  5    ON DELETE SET NULL
+  6    ENABLE
+  7  ;
+
+Table altered.
+
 SQL> -- trigger
 SQL> CREATE OR REPLACE TRIGGER sosl_script_ins_trg
   2    BEFORE INSERT ON sosl_script
@@ -1819,6 +2150,112 @@ SQL> CREATE OR REPLACE TRIGGER sosl_script_upd_trg
  13  /
 
 Trigger created.
+
+SQL> -- wrapper functions
+SQL> @@../sosl_ddl/functions/has_ids.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> CREATE OR REPLACE FUNCTION has_ids
+  2    RETURN NUMBER
+  3  IS
+  4    /* Wrapper function for defined executor has_ids functions.
+  5    * Collects and sums the output of all defined executor has_ids functions of active and reviewed executors that
+  6    * return a number greater 0. Will log all functions in error.
+  7    *
+  8    * @return The amount of scripts waiting for all valid executor has_ids functions or -1 if all functions have errors.
+  9    */
+ 10    -- variables
+ 11    l_cnt_valid   NUMBER;
+ 12    l_id_cnt      NUMBER;
+ 13    l_tmp_cnt     NUMBER;
+ 14    l_success_cnt NUMBER;
+ 15    l_category    VARCHAR2(256) := 'HAS_IDS';
+ 16    l_caller      VARCHAR2(256) := 'has_ids';
+ 17    -- cursors
+ 18    CURSOR cur_fn_call
+ 19    IS
+ 20  	 SELECT DISTINCT fn_has_ids AS fn_call
+ 21  	   FROM sosl_executor
+ 22  	  WHERE executor_active   = 1
+ 23  	    AND executor_reviewed = 1
+ 24    ;
+ 25  BEGIN
+ 26    l_id_cnt      := -1;
+ 27    l_success_cnt := 0;
+ 28    -- log the call
+ 29    sosl_log.full_log( p_message => 'HAS_IDS called by OS user ' || SYS_CONTEXT('USERENV', 'OS_USER')
+ 30  			, p_log_type => sosl_sys.INFO_TYPE
+ 31  			, p_log_category => l_category
+ 32  			, p_caller => l_caller
+ 33  			)
+ 34    ;
+ 35    SELECT COUNT(*) INTO l_cnt_valid FROM sosl_executor WHERE executor_active = 1 AND executor_reviewed = 1;
+ 36    IF l_cnt_valid > 0
+ 37    THEN
+ 38  	 -- get the results and sum them up
+ 39  	 FOR rec IN cur_fn_call
+ 40  	 LOOP
+ 41  	   l_tmp_cnt := -1;
+ 42  	   BEGIN
+ 43  	     EXECUTE IMMEDIATE rec.fn_call INTO l_tmp_cnt;
+ 44  	     l_success_cnt := l_success_cnt +1;
+ 45  	   EXCEPTION
+ 46  	     WHEN OTHERS THEN
+ 47  	       -- log the error
+ 48  	       sosl_log.full_log( p_message => 'Exception for defined function ' || rec.fn_call || ': ' || SQLERRM
+ 49  				, p_log_type => sosl_sys.ERROR_TYPE
+ 50  				, p_log_category => l_category
+ 51  				, p_caller => rec.fn_call
+ 52  				)
+ 53  	       ;
+ 54  	   END;
+ 55  	   IF l_tmp_cnt >= 0
+ 56  	   THEN
+ 57  	     l_id_cnt := l_id_cnt + l_tmp_cnt;
+ 58  	   ELSE
+ 59  	     -- log error functions including those returning -1 without throwing exceptions
+ 60  	     sosl_log.full_log( p_message => 'Error using defined function ' || rec.fn_call || ' either an exception occured (separately logged) or the function returned -1'
+ 61  			      , p_log_type => sosl_sys.ERROR_TYPE
+ 62  			      , p_log_category => l_category
+ 63  			      , p_caller => rec.fn_call
+ 64  			      )
+ 65  	     ;
+ 66  	   END IF;
+ 67  	 END LOOP;
+ 68  	 IF l_success_cnt = 0
+ 69  	 THEN
+ 70  	   sosl_log.full_log( p_message => 'HAS_IDS did not find any valid executor has_ids functions'
+ 71  			    , p_log_type => sosl_sys.ERROR_TYPE
+ 72  			    , p_log_category => l_category
+ 73  			    , p_caller => l_caller
+ 74  			    )
+ 75  	   ;
+ 76  	   l_id_cnt := -1;
+ 77  	 END IF;
+ 78    ELSE
+ 79  	 -- log no valid executors
+ 80  	 sosl_log.full_log( p_message => 'HAS_IDS called without valid executors defined'
+ 81  			  , p_log_type => sosl_sys.WARNING_TYPE
+ 82  			  , p_log_category => l_category
+ 83  			  , p_caller => l_caller
+ 84  			  )
+ 85  	 ;
+ 86  	 l_id_cnt := 0;
+ 87    END IF;
+ 88    RETURN l_id_cnt;
+ 89  EXCEPTION
+ 90    WHEN OTHERS THEN
+ 91  	 -- log the error
+ 92  	 sosl_log.full_log( p_message => 'Unhandled exception in HAS_IDS wrapper function: ' || SQLERRM
+ 93  			  , p_log_type => sosl_sys.FATAL_TYPE
+ 94  			  , p_log_category => l_category
+ 95  			  , p_caller => l_caller
+ 96  			  )
+ 97  	 ;
+ 98  	 RETURN -1;
+ 99  END;
+100  /
+
+Function created.
 
 SQL> -- ==============INSTALL done==============
 SQL> @@../sosl_sql/util/log_silent.sql

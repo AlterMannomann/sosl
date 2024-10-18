@@ -12,14 +12,15 @@ SET ERRORLOGGING ON IDENTIFIER &IDENT
 -- ==============UNINSTALL start==============
 SPOOL logs/sosl_cleanup.log
 -- packages and functions
+@@../sosl_ddl/functions/drop/drop_has_ids.sql
 @@../sosl_ddl/packages/drop/drop_sosl_log_pkb.sql
 @@../sosl_ddl/packages/drop/drop_sosl_log_pks.sql
 @@../sosl_ddl/packages/drop/drop_sosl_sys_pkb.sql
 @@../sosl_ddl/packages/drop/drop_sosl_sys_pks.sql
 -- view objects
 -- table objects
-@@../sosl_ddl/tables/drop/drop_sosl_executor.sql
 @@../sosl_ddl/tables/drop/drop_sosl_script.sql
+@@../sosl_ddl/tables/drop/drop_sosl_executor.sql
 @@../sosl_ddl/tables/drop/drop_sosl_config.sql
 @@../sosl_ddl/tables/drop/drop_sosl_server_log.sql
 @@../sosl_ddl/tables/drop/drop_soslerrorlog.sql
@@ -29,8 +30,8 @@ SPOOL logs/sosl_cleanup.log
 COLUMN EXITCODE NEW_VAL EXITCODE
 SELECT CASE
          WHEN COUNT(*) = 0
-         THEN 'SUCCESS - no errors found during setup'
-         ELSE 'ERROR - script has errors'
+         THEN 'SUCCESS - no errors found during cleanup'
+         ELSE 'ERROR - cleanup script has errors'
        END AS info
      , CASE
          WHEN COUNT(*) = 0

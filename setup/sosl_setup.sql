@@ -26,6 +26,8 @@ SPOOL logs/sosl_setup.log
 @@../sosl_ddl/tables/sosl_executor.sql
 -- internal objects using the API
 @@../sosl_ddl/tables/sosl_script.sql
+-- wrapper functions
+@@../sosl_ddl/functions/has_ids.sql
 -- ==============INSTALL done==============
 @@../sosl_sql/util/log_silent.sql
 -- check errors and display them, if so
@@ -33,7 +35,7 @@ COLUMN EXITCODE NEW_VAL EXITCODE
 SELECT CASE
          WHEN COUNT(*) = 0
          THEN 'SUCCESS - no errors found during setup'
-         ELSE 'ERROR - script has errors'
+         ELSE 'ERROR - setup script has errors'
        END AS info
      , CASE
          WHEN COUNT(*) = 0

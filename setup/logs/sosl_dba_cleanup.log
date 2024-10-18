@@ -10,7 +10,7 @@ SQL> DROP ROLE sosl_reviewer;
 SQL> DROP ROLE sosl_user;
 SQL> DROP ROLE sosl_guest;
 SQL> SET ECHO OFF
-Executed: 08-OCT-24 09.38.36.602536 PM +00:00
+Executed: 18-OCT-24 04.32.20.195135 PM +00:00
 User SOSL dropped
 SOSL roles dropped
 Tablespace SOSL_TABLESPACE and datafile dropped

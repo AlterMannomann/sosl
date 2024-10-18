@@ -292,5 +292,58 @@ AS
     RETURN l_return;
   END check_col; -- NUMBER variant
 
+  FUNCTION txt_boolean( p_bool   IN BOOLEAN
+                      , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+                      , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+                      )
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  IS
+  BEGIN
+    IF p_bool
+    THEN
+      RETURN TRIM(SUBSTR(NVL(p_true, 'TRUE'), 1, 10));
+    ELSE
+      RETURN TRIM(SUBSTR(NVL(p_false, 'FALSE'), 1, 10));
+    END IF;
+  END txt_boolean; -- boolean input
+
+  FUNCTION txt_boolean( p_bool   IN NUMBER
+                      , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+                      , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+                      )
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  IS
+  BEGIN
+    RETURN sosl_sys.txt_boolean((p_bool = 1), p_true, p_false);
+  END txt_boolean; -- number input
+
+  FUNCTION yes_no( p_bool   IN BOOLEAN
+                 , p_true   IN VARCHAR2 DEFAULT 'YES'
+                 , p_false  IN VARCHAR2 DEFAULT 'NO'
+                 )
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  IS
+  BEGIN
+    RETURN sosl_sys.txt_boolean(p_bool, p_true, p_false);
+  END yes_no;
+
+  FUNCTION yes_no( p_bool   IN NUMBER
+                 , p_true   IN VARCHAR2 DEFAULT 'YES'
+                 , p_false  IN VARCHAR2 DEFAULT 'NO'
+                 )
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  IS
+  BEGIN
+    RETURN sosl_sys.txt_boolean((p_bool = 1), p_true, p_false);
+  END yes_no;
+
 END;
 /
