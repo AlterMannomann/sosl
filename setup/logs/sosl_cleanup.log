@@ -1,6 +1,6 @@
 SQL> -- packages and functions
-SQL> @@../sosl_ddl/functions/drop/drop_has_ids.sql
-SQL> DROP FUNCTION has_ids;
+SQL> @@../sosl_ddl/functions/drop/drop_has_scripts.sql
+SQL> DROP FUNCTION has_scripts;
 
 Function dropped.
 
@@ -25,6 +25,18 @@ Package body dropped.
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_sys_pks.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> DROP PACKAGE sosl_sys;
+
+Package dropped.
+
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_api_pkb.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> DROP PACKAGE BODY sosl_api;
+
+Package body dropped.
+
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_api_pks.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> DROP PACKAGE sosl_api;
 
 Package dropped.
 
@@ -59,6 +71,24 @@ SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl
 SQL> DROP TABLE soslerrorlog PURGE;
 
 Table dropped.
+
+SQL> -- queues
+SQL> @@../sosl_ddl/queues/drop/drop_sosl_script_queue.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- stop queue and drop it afterwards
+SQL> BEGIN
+  2    DBMS_AQADM.STOP_QUEUE('SOSL_SCRIPT_QUEUE');
+  3    DBMS_AQADM.DROP_QUEUE('SOSL_SCRIPT_QUEUE');
+  4    DBMS_AQADM.DROP_QUEUE_TABLE('SOSL_SCRIPT_QUEUE');
+  5  END;
+  6  /
+
+PL/SQL procedure successfully completed.
+
+SQL> -- drop type for the queue
+SQL> DROP TYPE sosl_payload;
+
+Type dropped.
 
 SQL> -- ==============UNINSTALL done==============
 SQL> @@../sosl_sql/util/log_silent.sql

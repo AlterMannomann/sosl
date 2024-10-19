@@ -20,14 +20,18 @@ SPOOL logs/sosl_setup.log
 -- logging package
 @@../sosl_ddl/packages/sosl_log.pks
 @@../sosl_ddl/packages/sosl_log.pkb
-
+-- queues
+@@../sosl_ddl/queues/sosl_script_queue.sql
 -- SOSL objects with possible references to sosl_log and sosl_sys
 @@../sosl_ddl/tables/sosl_config.sql
 @@../sosl_ddl/tables/sosl_executor.sql
 -- internal objects using the API
 @@../sosl_ddl/tables/sosl_script.sql
+-- packages depending on SOSL objects
+@@../sosl_ddl/packages/sosl_api.pks
+@@../sosl_ddl/packages/sosl_api.pkb
 -- wrapper functions
-@@../sosl_ddl/functions/has_ids.sql
+@@../sosl_ddl/functions/has_scripts.sql
 -- ==============INSTALL done==============
 @@../sosl_sql/util/log_silent.sql
 -- check errors and display them, if so

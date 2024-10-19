@@ -4,11 +4,9 @@ CREATE TABLE sosl_executor
   , executor_name         VARCHAR2(256)                                             NOT NULL
   , db_user               VARCHAR2(128)                                             NOT NULL
   , function_owner        VARCHAR2(128)                                             NOT NULL
-  , fn_has_ids            VARCHAR2(520)                                             NOT NULL
-  , fn_get_next_id        VARCHAR2(520)                                             NOT NULL
-  , fn_get_executor       VARCHAR2(520)                                             NOT NULL
-  , fn_get_script         VARCHAR2(520)                                             NOT NULL
-  , fn_set_status         VARCHAR2(520)                                             NOT NULL
+  , fn_has_scripts        VARCHAR2(520)                                             NOT NULL
+  , fn_get_next_script    VARCHAR2(520)                                             NOT NULL
+  , fn_set_script_status  VARCHAR2(520)                                             NOT NULL
   , cfg_file              VARCHAR2(4000)                                            NOT NULL
   , use_mail              NUMBER(1, 0)    DEFAULT 0                                 NOT NULL
   , mail_sender           VARCHAR2(1024)  DEFAULT 'n/a'                             NOT NULL
@@ -31,11 +29,9 @@ COMMENT ON COLUMN sosl_executor.executor_id IS 'The generated unique id that ide
 COMMENT ON COLUMN sosl_executor.executor_name IS 'The unique name that identifies the executor.';
 COMMENT ON COLUMN sosl_executor.db_user IS 'The login name of the database user must match cfg_file login and be USER after login. No mixed case support, converted to upper case. Must exist and have the necessary rights to execute the queued scripts. No update allowed. Create a new executor, if user changes.';
 COMMENT ON COLUMN sosl_executor.function_owner IS 'The owner user name of the API functions, refers to the schema where the functions are defined. No mixed case support, converted to upper case. Can differ from the database user that executes SOSL. All API functions must have the same owner for one executor. No update allowed. Create a new executor, if user changes.';
-COMMENT ON COLUMN sosl_executor.fn_has_ids IS 'The name of the function to use by HAS_IDS wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall not require parameters and return the amount of waiting scripts as NUMBER or -1 on errors.';
-COMMENT ON COLUMN sosl_executor.fn_get_next_id IS 'The name of the function to use by GET_NEXT_ID wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall not require parameters and return the script id as VARCHAR2. It should manage the given script id to ensure that scripts are not run twice.';
-COMMENT ON COLUMN sosl_executor.fn_get_executor IS 'The name of the function to use by GET_EXECUTOR wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall require the parameter P_ID IN VARCHAR2 and return the executor id as NUMBER. P_ID is an script id retrieved from GET_NEXT_ID.';
-COMMENT ON COLUMN sosl_executor.fn_get_script IS 'The name of the function to use by GET_SCRIPT wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall require the parameter P_ID IN VARCHAR2 and return the script name with full or relative path as VARCHAR2. The script must exist in the given path on the local server SOSL is running.';
-COMMENT ON COLUMN sosl_executor.fn_set_status IS 'The name of the function to use by SET_STATUS wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall require the parameters P_ID IN VARCHAR2, P_STATUS IN VARCHAR2 and return 0 or -1 on errors. P_ID is an script id retrieved from GET_NEXT_ID. P_STATUS will always start with the following key words: PREPARING, ENQUEUED, RUNNING, SUCCESS, ERROR. It may contain additional informations in case of errors separated by at least one space char.';
+COMMENT ON COLUMN sosl_executor.fn_has_scripts IS 'The name of the function to use by HAS_SCRIPTS wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall not require parameters and return the amount of waiting scripts as NUMBER or -1 on errors.';
+COMMENT ON COLUMN sosl_executor.fn_get_next_script IS 'The name of the function to use by GET_NEXT_SCRIPT wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall not require parameters and return the script id, executor id and script file name as type SOSL_PAYLOAD. It should manage the given script id to ensure that scripts are not run twice.';
+COMMENT ON COLUMN sosl_executor.fn_set_script_status IS 'The name of the function to use by SET_SCRIPT_STATUS wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall require the parameters P_REFERENCE IN SOSL_PAYLOAD, P_STATUS IN VARCHAR2 and return 0 or -1 on errors. P_REFERENCE is an object retrieved from GET_NEXT_ID. P_STATUS will always start with the following key words: PREPARING, ENQUEUED, RUNNING, SUCCESS, ERROR. It may contain additional informations in case of errors separated by at least one space char.';
 COMMENT ON COLUMN sosl_executor.fn_send_db_mail IS 'The name of the function to use by SEND_DB_MAIL wrapper function, e.g. package.function or function. No mixed case support, converted to upper case. The function must have been granted with EXECUTE privilege to SOSL. It shall require the parameters P_SENDER IN VARCHAR2, P_RECIPIENTS IN VARCHAR2, P_SUBJECT IN VARCHAR2, P_MESSAGE IN VARCHAR2 and return 0 or -1 on errors. P_SENDER is the email address of the sender. P_RECIPIENTS contains the email addresses of the recipients, delimited by semicolon ";". P_SUBJECT is the email subject to use. P_MESSAGE contains the email message.';
 COMMENT ON COLUMN sosl_executor.cfg_file IS 'The filename with absolute or relative path to the login config file for this executor. File and path must exist on the CMD server.';
 COMMENT ON COLUMN sosl_executor.executor_active IS 'Defines if the executor is active. Accepts 0 (NO/FALSE) and 1 (YES/TRUE). Not active and reviewed executors will be ignored if they try to run scripts, every attempt gets logged. Can only be set by update, on insert always the default is used.';
@@ -95,11 +91,9 @@ BEGIN
   -- transform users and functions to UPPERCASE, no support currently for special mix-case.
   :NEW.function_owner     := UPPER(:NEW.function_owner);
   :NEW.db_user            := UPPER(:NEW.db_user);
-  :NEW.fn_has_ids         := UPPER(:NEW.fn_has_ids);
-  :NEW.fn_get_next_id     := UPPER(:NEW.fn_get_next_id);
-  :NEW.fn_get_executor    := UPPER(:NEW.fn_get_executor);
-  :NEW.fn_get_script      := UPPER(:NEW.fn_get_script);
-  :NEW.fn_set_status      := UPPER(:NEW.fn_set_status);
+  :NEW.fn_has_scripts         := UPPER(:NEW.fn_has_scripts);
+  :NEW.fn_get_next_script     := UPPER(:NEW.fn_get_next_script);
+  :NEW.fn_set_script_status      := UPPER(:NEW.fn_set_script_status);
   :NEW.fn_send_db_mail    := UPPER(:NEW.fn_send_db_mail);
   -- check user
   IF NOT sosl_sys.has_db_user(:NEW.db_user)
@@ -123,66 +117,46 @@ BEGIN
     RAISE_APPLICATION_ERROR(-20003, 'The given function owner database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
   END IF;
   -- check configured functions
-  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_has_ids, 'NUMBER')
+  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_has_scripts, 'NUMBER')
   THEN
-    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_has_ids || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_has_scripts || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
                      , p_log_type => sosl_sys.FATAL_TYPE
                      , p_log_category => l_category
                      , p_caller => l_caller
                      )
     ;
-    RAISE_APPLICATION_ERROR(-20004, 'The given function ' || :NEW.fn_has_ids || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+    RAISE_APPLICATION_ERROR(-20004, 'The given function ' || :NEW.fn_has_scripts || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
   END IF;
-  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_next_id, 'VARCHAR2')
+  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_next_script, 'VARCHAR2')
   THEN
-    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_next_id || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.'
+    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_next_script || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.'
                      , p_log_type => sosl_sys.FATAL_TYPE
                      , p_log_category => l_category
                      , p_caller => l_caller
                      )
     ;
-    RAISE_APPLICATION_ERROR(-20005, 'The given function ' || :NEW.fn_get_next_id || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
+    RAISE_APPLICATION_ERROR(-20005, 'The given function ' || :NEW.fn_get_next_script || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
   END IF;
-  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_executor, 'NUMBER')
+  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_set_script_status, 'NUMBER')
   THEN
-    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_executor || ' for get_executor is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_set_script_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
                      , p_log_type => sosl_sys.FATAL_TYPE
                      , p_log_category => l_category
                      , p_caller => l_caller
                      )
     ;
-    RAISE_APPLICATION_ERROR(-20006, 'The given function ' || :NEW.fn_get_executor || ' for get_executor is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
-  END IF;
-  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_script, 'VARCHAR2')
-  THEN
-    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_script || ' for get_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.'
-                     , p_log_type => sosl_sys.FATAL_TYPE
-                     , p_log_category => l_category
-                     , p_caller => l_caller
-                     )
-    ;
-    RAISE_APPLICATION_ERROR(-20007, 'The given function ' || :NEW.fn_get_script || ' for get_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
-  END IF;
-  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_set_status, 'NUMBER')
-  THEN
-    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_set_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
-                     , p_log_type => sosl_sys.FATAL_TYPE
-                     , p_log_category => l_category
-                     , p_caller => l_caller
-                     )
-    ;
-    RAISE_APPLICATION_ERROR(-20008, 'The given function ' || :NEW.fn_set_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+    RAISE_APPLICATION_ERROR(-20008, 'The given function ' || :NEW.fn_set_script_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
   END IF;
   IF     :NEW.use_mail = 1
      AND NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_send_db_mail, 'NUMBER')
   THEN
-    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_send_db_mail || ' for send db mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_send_db_mail || ' for send db mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
                      , p_log_type => sosl_sys.FATAL_TYPE
                      , p_log_category => l_category
                      , p_caller => l_caller
                      )
     ;
-    RAISE_APPLICATION_ERROR(-20009, 'The given function ' || :NEW.fn_send_db_mail || ' for send db mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+    RAISE_APPLICATION_ERROR(-20009, 'The given function ' || :NEW.fn_send_db_mail || ' for send db mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
   END IF;
   -- log the insert
   sosl_log.full_log( p_message => 'A new executor has been defined for DB user: ' || :NEW.db_user || ' with function owner: ' || :NEW.function_owner || ' created by OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
@@ -246,30 +220,20 @@ BEGIN
   THEN
     l_change_record := l_change_record || 'Modified EXECUTOR_REVIEWED: "' || sosl_sys.yes_no(:NEW.executor_reviewed) || '" ';
   END IF;
-  IF UPPER(:NEW.fn_has_ids) != :OLD.fn_has_ids
+  IF UPPER(:NEW.fn_has_scripts) != :OLD.fn_has_scripts
   THEN
-    :NEW.fn_has_ids := UPPER(:NEW.fn_has_ids);
-    l_change_record := l_change_record || 'Modified FN_HAS_IDS: "' || :NEW.fn_has_ids || '" ';
+    :NEW.fn_has_scripts := UPPER(:NEW.fn_has_scripts);
+    l_change_record := l_change_record || 'Modified fn_has_scripts: "' || :NEW.fn_has_scripts || '" ';
   END IF;
-  IF UPPER(:NEW.fn_get_next_id) != :OLD.fn_get_next_id
+  IF UPPER(:NEW.fn_get_next_script) != :OLD.fn_get_next_script
   THEN
-    :NEW.fn_get_next_id := UPPER(:NEW.fn_get_next_id);
-    l_change_record     := l_change_record || 'Modified FN_GET_NEXT_ID: "' || :NEW.fn_get_next_id || '" ';
+    :NEW.fn_get_next_script := UPPER(:NEW.fn_get_next_script);
+    l_change_record     := l_change_record || 'Modified fn_get_next_script: "' || :NEW.fn_get_next_script || '" ';
   END IF;
-  IF UPPER(:NEW.fn_get_executor) != :NEW.fn_get_executor
+  IF UPPER(:NEW.fn_set_script_status) != :OLD.fn_set_script_status
   THEN
-    :NEW.fn_get_executor  := UPPER(:NEW.fn_get_executor);
-    l_change_record       := l_change_record || 'Modified FN_GET_EXECUTOR: "' || :NEW.fn_get_executor || '" ';
-  END IF;
-  IF UPPER(:NEW.fn_get_script) != :OLD.fn_get_script
-  THEN
-    :NEW.fn_get_script  := UPPER(:NEW.fn_get_script);
-    l_change_record       := l_change_record || 'Modified FN_GET_SCRIPT: "' || :NEW.fn_get_script || '" ';
-  END IF;
-  IF UPPER(:NEW.fn_set_status) != :OLD.fn_set_status
-  THEN
-    :NEW.fn_set_status := UPPER(:NEW.fn_set_status);
-    l_change_record       := l_change_record || 'Modified FN_SET_STATUS: "' || :NEW.fn_set_status || '" ';
+    :NEW.fn_set_script_status := UPPER(:NEW.fn_set_script_status);
+    l_change_record       := l_change_record || 'Modified fn_set_script_status: "' || :NEW.fn_set_script_status || '" ';
   END IF;
   IF UPPER(:NEW.fn_send_db_mail) != :OLD.fn_send_db_mail
   THEN
@@ -299,66 +263,46 @@ BEGIN
     :NEW.executor_active := 0;
   END IF;
   -- check configured functions
-  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_has_ids, 'NUMBER')
+  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_has_scripts, 'NUMBER')
   THEN
-    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_has_ids || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_has_scripts || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
                      , p_log_type => sosl_sys.FATAL_TYPE
                      , p_log_category => l_category
                      , p_caller => l_caller
                      )
     ;
-    RAISE_APPLICATION_ERROR(-20004, 'The given function ' || :NEW.fn_has_ids || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+    RAISE_APPLICATION_ERROR(-20004, 'The given function ' || :NEW.fn_has_scripts || ' for has_ids is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
   END IF;
-  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_next_id, 'VARCHAR2')
+  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_next_script, 'VARCHAR2')
   THEN
-    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_next_id || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.'
+    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_next_script || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.'
                      , p_log_type => sosl_sys.FATAL_TYPE
                      , p_log_category => l_category
                      , p_caller => l_caller
                      )
     ;
-    RAISE_APPLICATION_ERROR(-20005, 'The given function ' || :NEW.fn_get_next_id || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
+    RAISE_APPLICATION_ERROR(-20005, 'The given function ' || :NEW.fn_get_next_script || ' for get_next_id is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
   END IF;
-  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_executor, 'NUMBER')
+  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_set_script_status, 'NUMBER')
   THEN
-    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_executor || ' for get_executor is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_set_script_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
                      , p_log_type => sosl_sys.FATAL_TYPE
                      , p_log_category => l_category
                      , p_caller => l_caller
                      )
     ;
-    RAISE_APPLICATION_ERROR(-20006, 'The given function ' || :NEW.fn_get_executor || ' for get_executor is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
-  END IF;
-  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_script, 'VARCHAR2')
-  THEN
-    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_script || ' for get_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.'
-                     , p_log_type => sosl_sys.FATAL_TYPE
-                     , p_log_category => l_category
-                     , p_caller => l_caller
-                     )
-    ;
-    RAISE_APPLICATION_ERROR(-20007, 'The given function ' || :NEW.fn_get_script || ' for get_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype VARCHAR2 or is not granted with EXECUTE rights to SOSL.');
-  END IF;
-  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_set_status, 'NUMBER')
-  THEN
-    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_set_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
-                     , p_log_type => sosl_sys.FATAL_TYPE
-                     , p_log_category => l_category
-                     , p_caller => l_caller
-                     )
-    ;
-    RAISE_APPLICATION_ERROR(-20008, 'The given function ' || :NEW.fn_set_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+    RAISE_APPLICATION_ERROR(-20008, 'The given function ' || :NEW.fn_set_script_status || ' for set_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
   END IF;
   IF     :NEW.use_mail = 1
      AND NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_send_db_mail, 'NUMBER')
   THEN
-    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_send_db_mail || ' for send db mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+    sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_send_db_mail || ' for send db mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
                      , p_log_type => sosl_sys.FATAL_TYPE
                      , p_log_category => l_category
                      , p_caller => l_caller
                      )
     ;
-    RAISE_APPLICATION_ERROR(-20009, 'The given function ' || :NEW.fn_send_db_mail || ' for send db mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has wrong return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+    RAISE_APPLICATION_ERROR(-20009, 'The given function ' || :NEW.fn_send_db_mail || ' for send db mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
   END IF;
   -- log the insert
   sosl_log.full_log( p_message => 'The executor ID: ' || :OLD.executor_id || ' has been updated by OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER') || ' see full_message for details.'

@@ -1,1 +1,0 @@
-DROP FUNCTION has_ids;
