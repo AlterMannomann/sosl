@@ -21,7 +21,7 @@ AS
   /*====================================== end package constants used by SOSL ======================================*/
 
   /*====================================== start internal functions made visible for testing ======================================*/
-  /* PROCEDURE SPLIT_FUNCTION_NAME
+  /* PROCEDURE SOSL_SYS.SPLIT_FUNCTION_NAME
   * Splits the given function name into its parts. Supposed delimiter is the point ".".
   * @param p_function_name The function or package function name to check. Package functions must be qualified with the package name, e.g. my_package.my_function.
   * @param p_package OUT parameter, contains the package name if any or NULL.
@@ -34,7 +34,7 @@ AS
   ;
   /*====================================== end internal functions made visible for testing ======================================*/
 
-  /* FUNCTION HAS_DB_USER
+  /* FUNCTION SOSL_SYS.HAS_DB_USER
   * Checks if a given user is visible for SOSL by checking ALL_USERS. Users must be visible to SOSL to be able to dynamically
   * grant the necessary rights on the API for script execution.
   *
@@ -46,8 +46,9 @@ AS
     RETURN BOOLEAN
   ;
 
-  /* FUNCTION HAS_FUNCTION
-  * Checks if a given function or package function name is visible for SOSL by checking ALL_ATTRIBUTES.
+  /* FUNCTION SOSL_SYS.HAS_FUNCTION
+  * Checks if a given function or package function name is visible for SOSL by checking ALL_ATTRIBUTES. The package SOSL_API is
+  * excluded from the search to avoid references in SOSL_EXECUTOR.
   *
   * @param p_owner The owner of the function or package function name to check.
   * @param p_function_name The function or package function name to check. Package functions must be qualified with the package name, e.g. my_package.my_function.
@@ -62,7 +63,7 @@ AS
     RETURN BOOLEAN
   ;
 
-  /* FUNCTION LOG_TYPE_VALID
+  /* FUNCTION SOSL_SYS.LOG_TYPE_VALID
   * Central function to check the log type. Currently supports INFO, WARNING, ERROR, FATAL, SUCCESS. If log types should get expanded
   * adjust this function first and probably the default value for SOSL_SERVER_LOG.
   *
@@ -76,7 +77,7 @@ AS
     PARALLEL_ENABLE
   ;
 
-  /* FUNCTION GET_VALID_LOG_TYPE
+  /* FUNCTION SOSL_SYS.GET_VALID_LOG_TYPE
   * Verifies an given log type, returns either the given log type as upper case or the defined error default.
   *
   * @param p_log_type The log type to verify and return. Case insensitive.
@@ -92,7 +93,7 @@ AS
     PARALLEL_ENABLE
   ;
 
-  /*FUNCTION GET_COL_LENGTH
+  /*FUNCTION SOSL_SYS.GET_COL_LENGTH
   * Returns the column length for a given table and column or -1 if table or column does not exist from USER_TAB_COLUMNS using
   * DATA_LENGTH. DATA_LENGTH is misleading if not a char type or CLOB, as CLOB types report 4000 which is definitely wrong.
   * The only types handled are NUMBER and CLOB. All other types return the DATA_LENGTH.
@@ -120,7 +121,7 @@ AS
     RETURN INTEGER
   ;
 
-  /* FUNCTION GET_COL_TYPE
+  /* FUNCTION SOSL_SYS.GET_COL_TYPE
   * Returns the type of a column from USER_TAB_COLUMNS as defined in DATA_TYPE or NA_TYPE if table or column doesn't exist.
   * Objects not in the current schema will not be considered and return NA_TYPE.
   *
@@ -135,7 +136,7 @@ AS
     RETURN VARCHAR2
   ;
 
-  /* FUNCTION DISTRIBUTE
+  /* FUNCTION SOSL_SYS.DISTRIBUTE
   * This functions distributes char data between a VARCHAR2 and a CLOB variable by the following rules:
   * p_string empty or NULL: Fill p_string to p_max_string_length - p_split_end length.
   * p_string length > p_max_string_length: Cut p_string to p_max_string_length, including p_split_end appended.
@@ -164,7 +165,7 @@ AS
     RETURN BOOLEAN
   ;
 
-  /* FUNCTION CHECK_COL
+  /* FUNCTION SOSL_SYS.CHECK_COL
   * This function can check NUMBER and VARCHAR2/CHAR columns for length and type. Passing a number for a char column type will result
   * in FALSE. Providing a P_VALUE with a length longer than the length calculated, will result in FALSE. It will not consider
   * implicite Oracle conversions. Expects type like defined.
@@ -191,7 +192,7 @@ AS
     RETURN BOOLEAN
   ;
 
-  /* FUNCTION TXT_BOOLEAN
+  /* FUNCTION SOSL_SYS.TXT_BOOLEAN
   * Provides text values to display instead of BOOLEAN or NUMBER values interpreted as BOOLEAN. Numbers are interpreted
   * similar to Oracle SQL, where 0 is FALSE and 1 is TRUE. 1 is considered as TRUE, any other value as FALSE. NULL values
   * are interpreted as sosl_sys.NA_TYPE. Maximum 10 characters for TRUE/FALSE equation.
@@ -219,7 +220,7 @@ AS
     PARALLEL_ENABLE
   ;
 
-  /* FUNCTION YES_NO
+  /* FUNCTION SOSL_SYS.YES_NO
   * A simple wrapper for txt_boolean with YES/NO instead of TRUE/FALSE.
   *
   * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
@@ -243,6 +244,36 @@ AS
     RETURN VARCHAR2
     DETERMINISTIC
     PARALLEL_ENABLE
+  ;
+
+  /* FUNCTION SOSL_SYS.UTC_MAIL_DATE
+  * Returns the current date timestamp as a formatted string for date values in mail.
+  *
+  * @return A date string conform to RFC5322 for using mail.
+  *
+  * @see https://datatracker.ietf.org/doc/html/rfc5322
+  */
+  FUNCTION utc_mail_date
+    RETURN VARCHAR2
+  ;
+
+  /* FUNCTION SOSL_SYS.FORMAT_MAIL
+  * This function formats a mail message conforming to RFC5322. The content of p_message is not checked against RFC. This is
+  * the repsonsibility of the user. This is for small messages that do not exceed 32k in total.
+  *
+  * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
+  * @param p_recipients The semicolon separated list of mail recipient addresses.
+  * @param p_subject A preferablly short subject for the mail.
+  * @param p_message The correctly formatted mail message.
+  *
+  * @return A formatted string with complete mail message that can be used with RFC compliant mail servers.
+  */
+  FUNCTION format_mail( p_sender      IN VARCHAR2
+                      , p_recipients  IN VARCHAR2
+                      , p_subject     IN VARCHAR2
+                      , p_message     IN VARCHAR2
+                      )
+    RETURN VARCHAR2
   ;
 
 END;

@@ -4,6 +4,30 @@ SQL> DROP FUNCTION has_scripts;
 
 Function dropped.
 
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_pkb.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> DROP PACKAGE BODY sosl;
+
+Package body dropped.
+
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_pks.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> DROP PACKAGE sosl;
+
+Package dropped.
+
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_api_pkb.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> DROP PACKAGE BODY sosl_api;
+
+Package body dropped.
+
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_api_pks.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> DROP PACKAGE sosl_api;
+
+Package dropped.
+
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_log_pkb.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> DROP PACKAGE BODY sosl_log;
@@ -25,18 +49,6 @@ Package body dropped.
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_sys_pks.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> DROP PACKAGE sosl_sys;
-
-Package dropped.
-
-SQL> @@../sosl_ddl/packages/drop/drop_sosl_api_pkb.sql
-SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
-SQL> DROP PACKAGE BODY sosl_api;
-
-Package body dropped.
-
-SQL> @@../sosl_ddl/packages/drop/drop_sosl_api_pks.sql
-SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
-SQL> DROP PACKAGE sosl_api;
 
 Package dropped.
 

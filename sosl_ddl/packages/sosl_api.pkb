@@ -279,5 +279,56 @@ AS
       RETURN -1;
   END has_scripts_for_fn;
 
+  FUNCTION get_next_script
+    RETURN SOSL_PAYLOAD
+  IS
+  BEGIN
+    RETURN NULL;
+  END get_next_script;
+
+  FUNCTION set_config( p_config_name  IN VARCHAR2
+                     , p_config_value IN VARCHAR2
+                     )
+    RETURN NUMBER
+  IS
+  BEGIN
+    RETURN NULL;
+  END set_config;
+
+  FUNCTION get_config(p_config_name IN VARCHAR2)
+    RETURN VARCHAR2
+  IS
+  BEGIN
+    RETURN NULL;
+  END get_config;
+
+  FUNCTION base_path(p_run_id IN NUMBER)
+    RETURN VARCHAR2
+  IS
+  BEGIN
+    RETURN NULL;
+  END base_path;
+
+  FUNCTION cfg_path(p_run_id IN NUMBER)
+    RETURN VARCHAR2
+  IS
+  BEGIN
+    RETURN NULL;
+  END cfg_path;
+
+  FUNCTION tmp_path(p_run_id IN NUMBER)
+    RETURN VARCHAR2
+  IS
+  BEGIN
+    RETURN NULL;
+  END tmp_path;
+
+  FUNCTION log_path(p_run_id IN NUMBER)
+    RETURN VARCHAR2
+  IS
+  BEGIN
+    RETURN NULL;
+  END log_path;
+
 END;
 /

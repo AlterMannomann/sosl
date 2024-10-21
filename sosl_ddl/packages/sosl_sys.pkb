@@ -11,7 +11,7 @@ AS
     IF INSTR(p_function_name, '.') > 0
     THEN
       p_package   := TRIM(SUBSTR(p_function_name, 1, INSTR(p_function_name, '.') -1));
-      p_function  := TRIM(SUBSTR(p_function_name, INSTR(p_function_name, '.') +1, INSTR(p_function_name, '.', 1, 2) - INSTR(p_function_name, '.') -1));
+      p_function  := TRIM(SUBSTR(p_function_name, INSTR(p_function_name, '.') +1));
     ELSE
       p_package   := NULL;
       p_function  := TRIM(p_function_name);
@@ -52,9 +52,10 @@ AS
      WHERE position                   = 0                               -- only functions
        AND argument_name              IS NULL                           -- only functions
        AND data_type                  = p_datatype
-       AND owner                      = p_owner
+       AND owner                      = UPPER(p_owner)
        AND NVL(package_name, 'N/A')   = NVL(UPPER(l_package), 'N/A')    -- may not contain a package name
        AND object_name                = UPPER(l_function)
+       AND package_name              != 'SOSL_API'                      -- exclude API package should never be referenced
     ;
     IF l_has_function != 0
     THEN
@@ -344,6 +345,34 @@ AS
   BEGIN
     RETURN sosl_sys.txt_boolean((p_bool = 1), p_true, p_false);
   END yes_no;
+
+  FUNCTION utc_mail_date
+    RETURN VARCHAR2
+  IS
+    l_date VARCHAR2(500);
+  BEGIN
+    l_date := TO_CHAR(SYSTIMESTAMP AT TIME ZONE SESSIONTIMEZONE, 'Dy, DD Mon YYYY HH24:MI:SS TZHTZM');
+    RETURN l_date;
+  END utc_mail_date;
+
+  FUNCTION format_mail( p_sender      IN VARCHAR2
+                      , p_recipients  IN VARCHAR2
+                      , p_subject     IN VARCHAR2
+                      , p_message     IN VARCHAR2
+                      )
+    RETURN VARCHAR2
+  IS
+    l_crlf          VARCHAR2(2)       := CHR(13) || CHR(10);
+    l_mail_message  VARCHAR2(32767);
+  BEGIN
+    l_mail_message := 'From: ' || p_sender || l_crlf ||
+                      'To: ' || p_recipients || l_crlf ||
+                      'Date: ' || sosl_sys.utc_mail_date || l_crlf ||
+                      'Subject: ' || p_subject || l_crlf ||
+                      p_message
+    ;
+    RETURN l_mail_message;
+  END format_mail;
 
 END;
 /

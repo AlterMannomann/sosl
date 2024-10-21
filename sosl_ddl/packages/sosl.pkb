@@ -2,63 +2,29 @@
 CREATE OR REPLACE PACKAGE BODY sosl
 AS
   -- see package header for documentation
-  FUNCTION set_config( p_config_name  IN VARCHAR2
-                     , p_config_value IN VARCHAR2
-                     )
+  FUNCTION has_scripts
     RETURN NUMBER
   IS
   BEGIN
-    RETURN NULL;
-  END set_config;
+    RETURN -1;
+  END has_scripts;
 
-  FUNCTION get_config(p_config_name IN VARCHAR2)
-    RETURN VARCHAR2
+  FUNCTION get_next_script
+    RETURN SOSL_PAYLOAD
   IS
   BEGIN
     RETURN NULL;
-  END get_config;
+  END get_next_script;
 
-  FUNCTION has_ids
+  FUNCTION set_script_status( p_reference   IN SOSL_PAYLOAD
+                            , p_status      IN NUMBER
+                            , p_status_msg  IN VARCHAR2 DEFAULT NULL
+                            )
     RETURN NUMBER
   IS
   BEGIN
-    RETURN 0;
-  END has_ids;
-
-  FUNCTION get_next_id
-    RETURN VARCHAR2
-  IS
-  BEGIN
-    RETURN '-1';
-  END get_next_id;
-
-  FUNCTION base_path(p_run_id IN NUMBER)
-    RETURN VARCHAR2
-  IS
-  BEGIN
-    RETURN NULL;
-  END base_path;
-
-  FUNCTION cfg_path(p_run_id IN NUMBER)
-    RETURN VARCHAR2
-  IS
-  BEGIN
-    RETURN NULL;
-  END cfg_path;
-
-  FUNCTION tmp_path(p_run_id IN NUMBER)
-    RETURN VARCHAR2
-  IS
-  BEGIN
-    RETURN NULL;
-  END tmp_path;
-
-  FUNCTION log_path(p_run_id IN NUMBER)
-    RETURN VARCHAR2
-  IS
-  BEGIN
-    RETURN NULL;
-  END log_path;
+    RETURN -1;
+  END set_script_status;
 
 END;
 /

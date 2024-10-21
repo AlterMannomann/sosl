@@ -317,5 +317,37 @@ AS
       ;
   END cmd_log;
 
+  FUNCTION dummy_mail( p_sender      IN VARCHAR2
+                     , p_recipients  IN VARCHAR2
+                     , p_subject     IN VARCHAR2
+                     , p_message     IN VARCHAR2
+                     )
+    RETURN NUMBER
+  IS
+    l_message       VARCHAR2(32767);
+    l_category      sosl_server_log.log_category%TYPE   := 'MAIL DUMMY';
+    l_caller        sosl_server_log.caller%TYPE         := 'sosl_log.dummy_mail';
+  BEGIN
+    l_message := sosl_sys.format_mail(p_sender, p_recipients, p_subject, p_message);
+    full_log( p_message => 'Fake mail with subject "' || p_subject || '" created in full_message. Check the results.'
+            , p_log_type => sosl_sys.INFO_TYPE
+            , p_log_category => l_category
+            , p_caller => l_caller
+            , p_full_message => l_message
+            )
+    ;
+    RETURN 0;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.full_log( p_message => 'Unhandled exception in sosl_log.dummy_mail function: ' || SQLERRM
+                       , p_log_type => sosl_sys.FATAL_TYPE
+                       , p_log_category => l_category
+                       , p_caller => l_caller
+                       )
+      ;
+      RETURN -1;
+  END dummy_mail;
+
 END;
 /

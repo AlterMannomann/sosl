@@ -30,6 +30,8 @@ SPOOL logs/sosl_setup.log
 -- packages depending on SOSL objects
 @@../sosl_ddl/packages/sosl_api.pks
 @@../sosl_ddl/packages/sosl_api.pkb
+@@../sosl_ddl/packages/sosl.pks
+@@../sosl_ddl/packages/sosl.pkb
 -- wrapper functions
 @@../sosl_ddl/functions/has_scripts.sql
 -- ==============INSTALL done==============

@@ -13,7 +13,7 @@ AS
   */
 
   /*====================================== start internal functions made visible for testing ======================================*/
-  /* PROCEDURE LOG_FALLBACK
+  /* PROCEDURE SOSL_LOG.LOG_FALLBACK
   * This procedure tries some fallback actions, if logging raised an exception. It will not throw an exception. It will try to log the error in
   * SOSL_SERVER_LOG, SOSLERRORLOG, SPERRORLOG or, if everything fails output the error via DBMS_OUTPUT. As we can't determine if the message contains
   * an illegal character forcing the exception, the caller should transfer SQLERRM and verify the transmitted content before passing it to this procedure
@@ -30,7 +30,7 @@ AS
                         , p_message     IN VARCHAR2
                         )
   ;
-  /* PROCEDURE LOG_EVENT
+  /* PROCEDURE SOSL_LOG.LOG_EVENT
   * Writes a log entry as autonomous transaction. This is the internal base procedure, exposed for testing.
   * If on errors writing log entries is not possible the procedure hands the exception to the caller. This is the pure insert without
   * any checks. It takes the values as given and table may trigger exceptions. DO NOT USE THIS PROCEDURE. It is internal for this package.
@@ -60,7 +60,7 @@ AS
   ;
 /*====================================== end internal functions made visible for testing ======================================*/
 
-  /* PROCEDURE FULL_LOG
+  /* PROCEDURE SOSL_LOG.FULL_LOG
   * Procedure with all parameters for logging. Will check parameters before logging. You should at least set also p_log_category
   * and p_caller, to be able to assign the log entry to a specific event and object. On parameter errors a separate log entry is
   * created. Intention is to write a log in any case and not throw any exception. This still may happen on main system malfunctions
@@ -99,6 +99,25 @@ AS
                    , p_ext_script_id    IN VARCHAR2     DEFAULT NULL
                    , p_full_message     IN CLOB         DEFAULT NULL
                    )
+  ;
+
+  /* FUNCTION SOSL_LOG.DUMMY_MAIL
+  * This is a testing function that will NOT send any mail. It will log the mail message created in SOSL_SERVER_LOG using
+  * the field full_message, so output can be controlled.
+  *
+  * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
+  * @param p_recipients The semicolon separated list of mail recipient addresses.
+  * @param p_subject A preferablly short subject for the mail.
+  * @param p_message The correctly formatted mail message.
+  *
+  * @return Will return 0 on success or -1 on errors.
+  */
+  FUNCTION dummy_mail( p_sender      IN VARCHAR2
+                     , p_recipients  IN VARCHAR2
+                     , p_subject     IN VARCHAR2
+                     , p_message     IN VARCHAR2
+                     )
+    RETURN NUMBER
   ;
 
 END;
