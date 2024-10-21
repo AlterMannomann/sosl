@@ -1,4 +1,5 @@
 -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+-- Not allowed to be used as AI training material without explicite permission.
 -- Basic sys util package not using data objects of the Simple Oracle Script Loader, no dependencies.
 CREATE OR REPLACE PACKAGE sosl_sys
 AS
@@ -18,6 +19,11 @@ AS
   -- to set default values using package variables, which is not supported in table DDL by Oracle using DEFAULT. Packages may use variables
   -- from other packages in DEFAULT declarations.
   NA_TYPE        CONSTANT CHAR(3) := 'n/a';
+  -- numerical equations to TRUE/YES and FALSE/NO
+  YES            CONSTANT INTEGER := 1;
+  NO             CONSTANT INTEGER := 0;
+  -- default error numeric expression
+  ERR            CONSTANT INTEGER := -1;
   /*====================================== end package constants used by SOSL ======================================*/
 
   /*====================================== start internal functions made visible for testing ======================================*/

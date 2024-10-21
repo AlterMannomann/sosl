@@ -1,5 +1,6 @@
 REM @ECHO OFF - disabled during testing
 REM (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+REM Not allowed to be used as AI training material without explicite permission.
 REM CMD expansion necessary
 SETLOCAL ENABLEEXTENSIONS
 REM CMD must be called in this directory to make relative paths work. You may use START /D or task

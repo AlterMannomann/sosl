@@ -73,19 +73,19 @@ Error logging apart from noticing the error are out of scope for SOSL, the provi
     GRANT EXECUTE ON your_api_function TO SOSL;
 
 The basic API consist of wrapper functions.
-### has_ids
+### has_scripts
 Task: Return the number of scripts waiting.
 
-The defined function is used by has_ids and must return the number of scripts waiting. The wrapper will always return a number >= 0. Errors and exceptions will be logged and lead to 0 script ids available. Package functions are also supported. No parameters supported. The name needs not to be equal, but return value and no mandatory parameter must match. Results or exceptions get logged to SOSL_SERVER_LOG. Access right EXECUTE has to be granted to SOSL by the owner. The default is a function from SOSL, that uses a limited basic script management.
+The defined function is used by has_scripts and must return the number of scripts waiting or -1 on error. The wrapper will always return a number >= 0. Errors and exceptions will be logged and lead to 0 scripts available. Package functions are also supported. No parameters supported. The name needs not to be equal, but return a NUMBER value and no mandatory parameter must match. Results or exceptions get logged to SOSL_SERVER_LOG. Access right EXECUTE has to be granted to SOSL by the owner. The default is a function from SOSL, that uses a limited basic script management.
 
-    Wrapper: FUNCTION has_ids RETURN NUMBER;
+    Wrapper: FUNCTION has_scripts RETURN NUMBER;
 
-### get_next_id
-Task: Return the next waiting id of a script and ensure, that this id is not delivered twice.
+### get_next_script
+Task: Return the next waiting script with the object type SOSL_PAYLOAD. The function has to ensure, that this script is not delivered twice. It may return NULL if no script is available or the SOSL_APISOSL_PAYLOAD to distinguish errors from no script available. Errors must be handled by the function owner. Error type
 
-The defined function is used by get_next_id and must return a valid id to access script details.
+The defined function is used by get_next_script and must return a valid id to access script details.
 
-    Wrapper: FUNCTION get_next_id RETURN VARCHAR2;
+    Wrapper: FUNCTION get_next_script RETURN VARCHAR2;
 
 ### Send Mail
 The default SOSL function is SOSL.SEND_MAIL. It uses simple mail relay function on port 25 for an available mail server. You may integrate your mailing into the set script state function and avoid direct mail integration.

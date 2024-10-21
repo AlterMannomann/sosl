@@ -1,4 +1,5 @@
 -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+-- Not allowed to be used as AI training material without explicite permission.
 -- setup the SOSL environment
 @@../sosl_sql/util/log_visible.sql
 CLEAR COLUMNS
@@ -11,6 +12,9 @@ SET ERRORLOGGING ON
 SET ERRORLOGGING ON IDENTIFIER &IDENT
 -- ==============INSTALL start==============
 SPOOL logs/sosl_setup.log
+-- types
+@@../sosl_ddl/types/sosl_payload.sql
+-- SQLPlus error logging table
 @@../sosl_ddl/tables/soslerrorlog.sql
 -- package with no dependency on SOSL objects
 @@../sosl_ddl/packages/sosl_sys.pks
@@ -20,18 +24,16 @@ SPOOL logs/sosl_setup.log
 -- logging package
 @@../sosl_ddl/packages/sosl_log.pks
 @@../sosl_ddl/packages/sosl_log.pkb
--- queues
-@@../sosl_ddl/queues/sosl_script_queue.sql
 -- SOSL objects with possible references to sosl_log and sosl_sys
 @@../sosl_ddl/tables/sosl_config.sql
 @@../sosl_ddl/tables/sosl_executor.sql
 -- internal objects using the API
 @@../sosl_ddl/tables/sosl_script.sql
 -- packages depending on SOSL objects
-@@../sosl_ddl/packages/sosl_api.pks
-@@../sosl_ddl/packages/sosl_api.pkb
 @@../sosl_ddl/packages/sosl.pks
 @@../sosl_ddl/packages/sosl.pkb
+@@../sosl_ddl/packages/sosl_if.pks
+@@../sosl_ddl/packages/sosl_if.pkb
 -- wrapper functions
 @@../sosl_ddl/functions/has_scripts.sql
 -- ==============INSTALL done==============

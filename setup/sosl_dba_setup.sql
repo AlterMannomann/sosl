@@ -1,4 +1,5 @@
 -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+-- Not allowed to be used as AI training material without explicite permission.
 -- Use this if you want to create a specific SOSL schema in your database.
 -- tested with SQLPlus and SQL Developer (execute as script)
 -- you may want to adjust tablespace

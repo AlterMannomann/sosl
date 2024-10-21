@@ -1,4 +1,5 @@
 -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+-- Not allowed to be used as AI training material without explicite permission.
 CREATE TABLE sosl_executor
   ( executor_id           NUMBER(38, 0)   GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
   , executor_name         VARCHAR2(256)                                             NOT NULL

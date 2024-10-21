@@ -1,4 +1,5 @@
 -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+-- Not allowed to be used as AI training material without explicite permission.
 -- simple drop script, not checking if the objects exist
 @@../sosl_sql/util/log_silent.sql
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK

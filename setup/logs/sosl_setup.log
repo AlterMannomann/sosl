@@ -1,3 +1,29 @@
+SQL> -- types
+SQL> @@../sosl_ddl/types/sosl_payload.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- basic api exchange type, only header, no member function
+SQL> CREATE OR REPLACE TYPE sosl_payload
+  2    AS OBJECT
+  3  	 /* This type is used to exchange information on executor, external script id and the script filename including
+  4  	 * relative or full path which must exist on the server SOSL is running.
+  5  	 * It does not provide any member functions only fields to fill. Object initialization basic example:
+  6  	 * DECLARE
+  7  	 *   -- to access the type from other schemas, do not forget to qualify it with the SOSL schema used
+  8  	 *   l_sosl_payload SOSL.SOSL_PAYLOAD;
+  9  	 * BEGIN
+ 10  	 *   l_sosl_payload := sosl_payload(1, 'My script ID', '../../mydir/scriptfile.sql');
+ 11  	 * END;
+ 12  	 */
+ 13  	 ( executor_id	  NUMBER(38, 0)  -- the executor_id from SOSL_EXECUTOR responsible for the script
+ 14  	 , ext_script_id  VARCHAR2(4000) -- the external script id managed by the executor
+ 15  	 , script_file	  VARCHAR2(4000) -- the script file name with full or relative path on the server where SOSL is running locally
+ 16  	 )
+ 17  ;
+ 18  /
+
+Type created.
+
+SQL> -- SQLPlus error logging table
 SQL> @@../sosl_ddl/tables/soslerrorlog.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> CREATE TABLE soslerrorlog
@@ -63,266 +89,271 @@ SQL> CREATE OR REPLACE PACKAGE sosl_sys
  16    -- to set default values using package variables, which is not supported in table DDL by Oracle using DEFAULT. Packages may use variables
  17    -- from other packages in DEFAULT declarations.
  18    NA_TYPE	      CONSTANT CHAR(3) := 'n/a';
- 19    /*====================================== end package constants used by SOSL ======================================*/
- 20  
- 21    /*====================================== start internal functions made visible for testing ======================================*/
- 22    /* PROCEDURE SOSL_SYS.SPLIT_FUNCTION_NAME
- 23    * Splits the given function name into its parts. Supposed delimiter is the point ".".
- 24    * @param p_function_name The function or package function name to check. Package functions must be qualified with the package name, e.g. my_package.my_function.
- 25    * @param p_package OUT parameter, contains the package name if any or NULL.
- 26    * @param p_function OUT parameter, contains the pure function name.
- 27    */
- 28    PROCEDURE split_function_name( p_function_name IN  VARCHAR2
- 29  				    , p_package       OUT VARCHAR2
- 30  				    , p_function      OUT VARCHAR2
- 31  				    )
- 32    ;
- 33    /*====================================== end internal functions made visible for testing ======================================*/
- 34  
- 35    /* FUNCTION SOSL_SYS.HAS_DB_USER
- 36    * Checks if a given user is visible for SOSL by checking ALL_USERS. Users must be visible to SOSL to be able to dynamically
- 37    * grant the necessary rights on the API for script execution.
- 38    *
- 39    * @param p_username The database user name to check.
- 40    *
- 41    * @return TRUE if the user is visible in ALL_USERS to SOSL, otherwise FALSE.
- 42    */
- 43    FUNCTION has_db_user(p_username IN VARCHAR2)
- 44  	 RETURN BOOLEAN
- 45    ;
- 46  
- 47    /* FUNCTION SOSL_SYS.HAS_FUNCTION
- 48    * Checks if a given function or package function name is visible for SOSL by checking ALL_ATTRIBUTES. The package SOSL_API is
- 49    * excluded from the search to avoid references in SOSL_EXECUTOR.
- 50    *
- 51    * @param p_owner The owner of the function or package function name to check.
- 52    * @param p_function_name The function or package function name to check. Package functions must be qualified with the package name, e.g. my_package.my_function.
- 53    * @param p_datatype The return datatype of the function expected, e.g. a valid Oracle datatype like NUMBER or VARCHAR2.
- 54    *
- 55    * @return TRUE if the function is visible in ALL_ATTRIBUTES to SOSL and has the required return datatype, otherwise FALSE.
- 56    */
- 57    FUNCTION has_function( p_owner	       IN VARCHAR2
- 58  			    , p_function_name  IN VARCHAR2
- 59  			    , p_datatype       IN VARCHAR2
- 60  			    )
- 61  	 RETURN BOOLEAN
- 62    ;
- 63  
- 64    /* FUNCTION SOSL_SYS.LOG_TYPE_VALID
- 65    * Central function to check the log type. Currently supports INFO, WARNING, ERROR, FATAL, SUCCESS. If log types should get expanded
- 66    * adjust this function first and probably the default value for SOSL_SERVER_LOG.
- 67    *
- 68    * @param p_log_type The log type to check. Case insensitive.
- 69    *
- 70    *@return TRUE if the given log type is supported. FALSE if not. Exceptions and errors will lead also to FALSE.
- 71    */
- 72    FUNCTION log_type_valid(p_log_type IN VARCHAR2)
- 73  	 RETURN BOOLEAN
- 74  	 DETERMINISTIC
- 75  	 PARALLEL_ENABLE
- 76    ;
- 77  
- 78    /* FUNCTION SOSL_SYS.GET_VALID_LOG_TYPE
- 79    * Verifies an given log type, returns either the given log type as upper case or the defined error default.
- 80    *
- 81    * @param p_log_type The log type to verify and return. Case insensitive.
- 82    * @param p_error_default The alternative log type to return, if the log type is invalid. Must be a valid log type and not INFO or SUCCESS. If invalid, FATAL is returned.
- 83    *
- 84    * @return The valid log type as upper case on success. The valid error default if log type not supported. FATAL if the error default is invalid.
- 85    */
- 86    FUNCTION get_valid_log_type( p_log_type	     IN VARCHAR2
- 87  				  , p_error_default  IN VARCHAR2 DEFAULT sosl_sys.ERROR_TYPE
- 88  				  )
- 89  	 RETURN VARCHAR2
- 90  	 DETERMINISTIC
- 91  	 PARALLEL_ENABLE
- 92    ;
- 93  
- 94    /*FUNCTION SOSL_SYS.GET_COL_LENGTH
- 95    * Returns the column length for a given table and column or -1 if table or column does not exist from USER_TAB_COLUMNS using
- 96    * DATA_LENGTH. DATA_LENGTH is misleading if not a char type or CLOB, as CLOB types report 4000 which is definitely wrong.
- 97    * The only types handled are NUMBER and CLOB. All other types return the DATA_LENGTH.
- 98    *
- 99    * Length for numbers is calculated by adding precision and scale.
-100    *
-101    * CLOB will return the PLSQL equation of a VARCHAR2/CLOB, which is 32767 and still wrong, but useful to see if a PLSQL can handle
-102    * the CLOB. Be careful with CLOB handling. If source is not a table column, PLSQL most likely limits it to 32767 cutting longer content.
+ 19    -- numerical equations to TRUE/YES and FALSE/NO
+ 20    YES	      CONSTANT INTEGER := 1;
+ 21    NO	      CONSTANT INTEGER := 0;
+ 22    -- default error numeric expression
+ 23    ERR	      CONSTANT INTEGER := -1;
+ 24    /*====================================== end package constants used by SOSL ======================================*/
+ 25  
+ 26    /*====================================== start internal functions made visible for testing ======================================*/
+ 27    /* PROCEDURE SOSL_SYS.SPLIT_FUNCTION_NAME
+ 28    * Splits the given function name into its parts. Supposed delimiter is the point ".".
+ 29    * @param p_function_name The function or package function name to check. Package functions must be qualified with the package name, e.g. my_package.my_function.
+ 30    * @param p_package OUT parameter, contains the package name if any or NULL.
+ 31    * @param p_function OUT parameter, contains the pure function name.
+ 32    */
+ 33    PROCEDURE split_function_name( p_function_name IN  VARCHAR2
+ 34  				    , p_package       OUT VARCHAR2
+ 35  				    , p_function      OUT VARCHAR2
+ 36  				    )
+ 37    ;
+ 38    /*====================================== end internal functions made visible for testing ======================================*/
+ 39  
+ 40    /* FUNCTION SOSL_SYS.HAS_DB_USER
+ 41    * Checks if a given user is visible for SOSL by checking ALL_USERS. Users must be visible to SOSL to be able to dynamically
+ 42    * grant the necessary rights on the API for script execution.
+ 43    *
+ 44    * @param p_username The database user name to check.
+ 45    *
+ 46    * @return TRUE if the user is visible in ALL_USERS to SOSL, otherwise FALSE.
+ 47    */
+ 48    FUNCTION has_db_user(p_username IN VARCHAR2)
+ 49  	 RETURN BOOLEAN
+ 50    ;
+ 51  
+ 52    /* FUNCTION SOSL_SYS.HAS_FUNCTION
+ 53    * Checks if a given function or package function name is visible for SOSL by checking ALL_ATTRIBUTES. The package SOSL_API is
+ 54    * excluded from the search to avoid references in SOSL_EXECUTOR.
+ 55    *
+ 56    * @param p_owner The owner of the function or package function name to check.
+ 57    * @param p_function_name The function or package function name to check. Package functions must be qualified with the package name, e.g. my_package.my_function.
+ 58    * @param p_datatype The return datatype of the function expected, e.g. a valid Oracle datatype like NUMBER or VARCHAR2.
+ 59    *
+ 60    * @return TRUE if the function is visible in ALL_ATTRIBUTES to SOSL and has the required return datatype, otherwise FALSE.
+ 61    */
+ 62    FUNCTION has_function( p_owner	       IN VARCHAR2
+ 63  			    , p_function_name  IN VARCHAR2
+ 64  			    , p_datatype       IN VARCHAR2
+ 65  			    )
+ 66  	 RETURN BOOLEAN
+ 67    ;
+ 68  
+ 69    /* FUNCTION SOSL_SYS.LOG_TYPE_VALID
+ 70    * Central function to check the log type. Currently supports INFO, WARNING, ERROR, FATAL, SUCCESS. If log types should get expanded
+ 71    * adjust this function first and probably the default value for SOSL_SERVER_LOG.
+ 72    *
+ 73    * @param p_log_type The log type to check. Case insensitive.
+ 74    *
+ 75    *@return TRUE if the given log type is supported. FALSE if not. Exceptions and errors will lead also to FALSE.
+ 76    */
+ 77    FUNCTION log_type_valid(p_log_type IN VARCHAR2)
+ 78  	 RETURN BOOLEAN
+ 79  	 DETERMINISTIC
+ 80  	 PARALLEL_ENABLE
+ 81    ;
+ 82  
+ 83    /* FUNCTION SOSL_SYS.GET_VALID_LOG_TYPE
+ 84    * Verifies an given log type, returns either the given log type as upper case or the defined error default.
+ 85    *
+ 86    * @param p_log_type The log type to verify and return. Case insensitive.
+ 87    * @param p_error_default The alternative log type to return, if the log type is invalid. Must be a valid log type and not INFO or SUCCESS. If invalid, FATAL is returned.
+ 88    *
+ 89    * @return The valid log type as upper case on success. The valid error default if log type not supported. FATAL if the error default is invalid.
+ 90    */
+ 91    FUNCTION get_valid_log_type( p_log_type	     IN VARCHAR2
+ 92  				  , p_error_default  IN VARCHAR2 DEFAULT sosl_sys.ERROR_TYPE
+ 93  				  )
+ 94  	 RETURN VARCHAR2
+ 95  	 DETERMINISTIC
+ 96  	 PARALLEL_ENABLE
+ 97    ;
+ 98  
+ 99    /*FUNCTION SOSL_SYS.GET_COL_LENGTH
+100    * Returns the column length for a given table and column or -1 if table or column does not exist from USER_TAB_COLUMNS using
+101    * DATA_LENGTH. DATA_LENGTH is misleading if not a char type or CLOB, as CLOB types report 4000 which is definitely wrong.
+102    * The only types handled are NUMBER and CLOB. All other types return the DATA_LENGTH.
 103    *
-104    * Objects not in the current schema will not be considered and return -1 AS USER_TAB_COLUMN is used.
+104    * Length for numbers is calculated by adding precision and scale.
 105    *
-106    * No handling for date and timestamp values, as their char representation has too much dependencies on NLS and formatting to get a
-107    * reliable length.
+106    * CLOB will return the PLSQL equation of a VARCHAR2/CLOB, which is 32767 and still wrong, but useful to see if a PLSQL can handle
+107    * the CLOB. Be careful with CLOB handling. If source is not a table column, PLSQL most likely limits it to 32767 cutting longer content.
 108    *
-109    * Byte and char semantic is not considered only the effective chars that can be stored in CHAR or VARCHAR2 as defined by DATA_LENGTH.
+109    * Objects not in the current schema will not be considered and return -1 AS USER_TAB_COLUMN is used.
 110    *
-111    * @param p_table The name of the table. Case insensitive. Will be transformed to UPPER.
-112    * @param p_column The name of the column. Case insensitive. Will be transformed to UPPER.
+111    * No handling for date and timestamp values, as their char representation has too much dependencies on NLS and formatting to get a
+112    * reliable length.
 113    *
-114    * @return The calculated length of the column. Fix PLSQL limit 32767 for CLOB types. DATA_LENGTH for data and timestamp types.
-115    */
-116    FUNCTION get_col_length( p_table  IN VARCHAR2
-117  			      , p_column IN VARCHAR2
-118  			      )
-119  	 RETURN INTEGER
-120    ;
-121  
-122    /* FUNCTION SOSL_SYS.GET_COL_TYPE
-123    * Returns the type of a column from USER_TAB_COLUMNS as defined in DATA_TYPE or NA_TYPE if table or column doesn't exist.
-124    * Objects not in the current schema will not be considered and return NA_TYPE.
-125    *
-126    * @param p_table The name of the table. Case insensitive. Will be transformed to UPPER.
-127    * @param p_column The name of the column. Case insensitive. Will be transformed to UPPER.
-128    *
-129    * @return The type of the column as defined in DATA_TYPE or sosl_sys.NA_TYPE on errors or not found columns and tables.
-130    */
-131    FUNCTION get_col_type( p_table  IN VARCHAR2
-132  			    , p_column IN VARCHAR2
-133  			    )
-134  	 RETURN VARCHAR2
-135    ;
-136  
-137    /* FUNCTION SOSL_SYS.DISTRIBUTE
-138    * This functions distributes char data between a VARCHAR2 and a CLOB variable by the following rules:
-139    * p_string empty or NULL: Fill p_string to p_max_string_length - p_split_end length.
-140    * p_string length > p_max_string_length: Cut p_string to p_max_string_length, including p_split_end appended.
-141    *	  p_clob NOT EMPTY: add split_start, rest of p_string before p_clob content.
-142    *	  p_clob EMPTY: add split_start and rest of p_string.
-143    * p_string length > 0 and < p_max_string_length: no change of p_string and p_clob.
-144    * p_string and p_clob empty or NULL: leave unchanged, return FALSE otherwise always TRUE.
-145    * In case of exceptions will try to write SQLERRM to p_string as CLOBs tend to be more error prone.
-146    *
-147    * @param p_string The string to distribute or check. In PLSQL strings can get 32767 chars long, whereas table columns are limited currently to 4000.
-148    * @param p_clob The CLOB to distribute or check. Uses NOCOPY to guarantee that CLOB full length is used as given.
-149    * @param p_max_string_length The maximum length p_string should have. If this size is exeeded the string gets distribute between p_string and p_clob.
-150    * @param p_split_end The split end characters to indicate that the string is continued in p_clob.
-151    * @param p_split_start The split start characters for the continuing string in the CLOB.
-152    * @param p_delimiter The delimiter between rest of string in CLOB and original CLOB content, if both have content and string must be splitted.
-153    *
-154    * @return FALSE if p_string and p_clob are empty/NULL or an exception had occurred, otherwise TRUE.
-155    */
-156    FUNCTION distribute( p_string		IN OUT	       VARCHAR2
-157  			  , p_clob		IN OUT NOCOPY  CLOB
-158  			  , p_max_string_length IN	       INTEGER	 DEFAULT 4000
-159  			  , p_split_end 	IN	       VARCHAR2  DEFAULT '...'
-160  			  , p_split_start	IN	       VARCHAR2  DEFAULT '...'
-161  			  , p_delimiter 	IN	       VARCHAR2  DEFAULT ' - '
-162  			  )
-163  	 RETURN BOOLEAN
-164    ;
-165  
-166    /* FUNCTION SOSL_SYS.CHECK_COL
-167    * This function can check NUMBER and VARCHAR2/CHAR columns for length and type. Passing a number for a char column type will result
-168    * in FALSE. Providing a P_VALUE with a length longer than the length calculated, will result in FALSE. It will not consider
-169    * implicite Oracle conversions. Expects type like defined.
-170    *
-171    * Number length is calculated by TO_CHAR string representation removing all delimiters and counting only numbers 0-9.
-172    * Passing a VARCHAR2 value is valid for CHAR and VARCHAR2 column types.
-173    *
-174    * @param p_table The name of the table. Case insensitive. Will be transformed to UPPER.
-175    * @param p_column The name of the column. Case insensitive. Will be transformed to UPPER.
-176    * @param p_value The value for the table column to check against column definition.
-177    *
-178    * @return TRUE if value and column match in type and length, otherwise FALSE.
-179    */
-180    FUNCTION check_col( p_table  IN VARCHAR2
-181  			 , p_column IN VARCHAR2
-182  			 , p_value  IN VARCHAR2
-183  			 )
-184  	 RETURN BOOLEAN
-185    ;
-186    FUNCTION check_col( p_table  IN VARCHAR2
-187  			 , p_column IN VARCHAR2
-188  			 , p_value  IN NUMBER
-189  			 )
-190  	 RETURN BOOLEAN
-191    ;
-192  
-193    /* FUNCTION SOSL_SYS.TXT_BOOLEAN
-194    * Provides text values to display instead of BOOLEAN or NUMBER values interpreted as BOOLEAN. Numbers are interpreted
-195    * similar to Oracle SQL, where 0 is FALSE and 1 is TRUE. 1 is considered as TRUE, any other value as FALSE. NULL values
-196    * are interpreted as sosl_sys.NA_TYPE. Maximum 10 characters for TRUE/FALSE equation.
-197    *
-198    * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
-199    * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
-200    * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
-201    *
-202    * @return The text equation for the given p_bool value.
-203    */
-204    FUNCTION txt_boolean( p_bool   IN BOOLEAN
-205  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
-206  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
-207  			   )
-208  	 RETURN VARCHAR2
-209  	 DETERMINISTIC
-210  	 PARALLEL_ENABLE
-211    ;
-212    FUNCTION txt_boolean( p_bool   IN NUMBER
-213  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
-214  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
-215  			   )
-216  	 RETURN VARCHAR2
-217  	 DETERMINISTIC
-218  	 PARALLEL_ENABLE
-219    ;
-220  
-221    /* FUNCTION SOSL_SYS.YES_NO
-222    * A simple wrapper for txt_boolean with YES/NO instead of TRUE/FALSE.
-223    *
-224    * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
-225    * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
-226    * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
-227    *
-228    * @return The text equation for the given p_bool value.
-229    */
-230    FUNCTION yes_no( p_bool	 IN BOOLEAN
-231  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
-232  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
-233  		      )
-234  	 RETURN VARCHAR2
-235  	 DETERMINISTIC
-236  	 PARALLEL_ENABLE
-237    ;
-238    FUNCTION yes_no( p_bool	 IN NUMBER
-239  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
-240  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
-241  		      )
-242  	 RETURN VARCHAR2
-243  	 DETERMINISTIC
-244  	 PARALLEL_ENABLE
-245    ;
-246  
-247    /* FUNCTION SOSL_SYS.UTC_MAIL_DATE
-248    * Returns the current date timestamp as a formatted string for date values in mail.
-249    *
-250    * @return A date string conform to RFC5322 for using mail.
-251    *
-252    * @see https://datatracker.ietf.org/doc/html/rfc5322
-253    */
-254    FUNCTION utc_mail_date
-255  	 RETURN VARCHAR2
-256    ;
-257  
-258    /* FUNCTION SOSL_SYS.FORMAT_MAIL
-259    * This function formats a mail message conforming to RFC5322. The content of p_message is not checked against RFC. This is
-260    * the repsonsibility of the user. This is for small messages that do not exceed 32k in total.
-261    *
-262    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
-263    * @param p_recipients The semicolon separated list of mail recipient addresses.
-264    * @param p_subject A preferablly short subject for the mail.
-265    * @param p_message The correctly formatted mail message.
+114    * Byte and char semantic is not considered only the effective chars that can be stored in CHAR or VARCHAR2 as defined by DATA_LENGTH.
+115    *
+116    * @param p_table The name of the table. Case insensitive. Will be transformed to UPPER.
+117    * @param p_column The name of the column. Case insensitive. Will be transformed to UPPER.
+118    *
+119    * @return The calculated length of the column. Fix PLSQL limit 32767 for CLOB types. DATA_LENGTH for data and timestamp types.
+120    */
+121    FUNCTION get_col_length( p_table  IN VARCHAR2
+122  			      , p_column IN VARCHAR2
+123  			      )
+124  	 RETURN INTEGER
+125    ;
+126  
+127    /* FUNCTION SOSL_SYS.GET_COL_TYPE
+128    * Returns the type of a column from USER_TAB_COLUMNS as defined in DATA_TYPE or NA_TYPE if table or column doesn't exist.
+129    * Objects not in the current schema will not be considered and return NA_TYPE.
+130    *
+131    * @param p_table The name of the table. Case insensitive. Will be transformed to UPPER.
+132    * @param p_column The name of the column. Case insensitive. Will be transformed to UPPER.
+133    *
+134    * @return The type of the column as defined in DATA_TYPE or sosl_sys.NA_TYPE on errors or not found columns and tables.
+135    */
+136    FUNCTION get_col_type( p_table  IN VARCHAR2
+137  			    , p_column IN VARCHAR2
+138  			    )
+139  	 RETURN VARCHAR2
+140    ;
+141  
+142    /* FUNCTION SOSL_SYS.DISTRIBUTE
+143    * This functions distributes char data between a VARCHAR2 and a CLOB variable by the following rules:
+144    * p_string empty or NULL: Fill p_string to p_max_string_length - p_split_end length.
+145    * p_string length > p_max_string_length: Cut p_string to p_max_string_length, including p_split_end appended.
+146    *	  p_clob NOT EMPTY: add split_start, rest of p_string before p_clob content.
+147    *	  p_clob EMPTY: add split_start and rest of p_string.
+148    * p_string length > 0 and < p_max_string_length: no change of p_string and p_clob.
+149    * p_string and p_clob empty or NULL: leave unchanged, return FALSE otherwise always TRUE.
+150    * In case of exceptions will try to write SQLERRM to p_string as CLOBs tend to be more error prone.
+151    *
+152    * @param p_string The string to distribute or check. In PLSQL strings can get 32767 chars long, whereas table columns are limited currently to 4000.
+153    * @param p_clob The CLOB to distribute or check. Uses NOCOPY to guarantee that CLOB full length is used as given.
+154    * @param p_max_string_length The maximum length p_string should have. If this size is exeeded the string gets distribute between p_string and p_clob.
+155    * @param p_split_end The split end characters to indicate that the string is continued in p_clob.
+156    * @param p_split_start The split start characters for the continuing string in the CLOB.
+157    * @param p_delimiter The delimiter between rest of string in CLOB and original CLOB content, if both have content and string must be splitted.
+158    *
+159    * @return FALSE if p_string and p_clob are empty/NULL or an exception had occurred, otherwise TRUE.
+160    */
+161    FUNCTION distribute( p_string		IN OUT	       VARCHAR2
+162  			  , p_clob		IN OUT NOCOPY  CLOB
+163  			  , p_max_string_length IN	       INTEGER	 DEFAULT 4000
+164  			  , p_split_end 	IN	       VARCHAR2  DEFAULT '...'
+165  			  , p_split_start	IN	       VARCHAR2  DEFAULT '...'
+166  			  , p_delimiter 	IN	       VARCHAR2  DEFAULT ' - '
+167  			  )
+168  	 RETURN BOOLEAN
+169    ;
+170  
+171    /* FUNCTION SOSL_SYS.CHECK_COL
+172    * This function can check NUMBER and VARCHAR2/CHAR columns for length and type. Passing a number for a char column type will result
+173    * in FALSE. Providing a P_VALUE with a length longer than the length calculated, will result in FALSE. It will not consider
+174    * implicite Oracle conversions. Expects type like defined.
+175    *
+176    * Number length is calculated by TO_CHAR string representation removing all delimiters and counting only numbers 0-9.
+177    * Passing a VARCHAR2 value is valid for CHAR and VARCHAR2 column types.
+178    *
+179    * @param p_table The name of the table. Case insensitive. Will be transformed to UPPER.
+180    * @param p_column The name of the column. Case insensitive. Will be transformed to UPPER.
+181    * @param p_value The value for the table column to check against column definition.
+182    *
+183    * @return TRUE if value and column match in type and length, otherwise FALSE.
+184    */
+185    FUNCTION check_col( p_table  IN VARCHAR2
+186  			 , p_column IN VARCHAR2
+187  			 , p_value  IN VARCHAR2
+188  			 )
+189  	 RETURN BOOLEAN
+190    ;
+191    FUNCTION check_col( p_table  IN VARCHAR2
+192  			 , p_column IN VARCHAR2
+193  			 , p_value  IN NUMBER
+194  			 )
+195  	 RETURN BOOLEAN
+196    ;
+197  
+198    /* FUNCTION SOSL_SYS.TXT_BOOLEAN
+199    * Provides text values to display instead of BOOLEAN or NUMBER values interpreted as BOOLEAN. Numbers are interpreted
+200    * similar to Oracle SQL, where 0 is FALSE and 1 is TRUE. 1 is considered as TRUE, any other value as FALSE. NULL values
+201    * are interpreted as sosl_sys.NA_TYPE. Maximum 10 characters for TRUE/FALSE equation.
+202    *
+203    * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
+204    * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+205    * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+206    *
+207    * @return The text equation for the given p_bool value.
+208    */
+209    FUNCTION txt_boolean( p_bool   IN BOOLEAN
+210  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+211  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+212  			   )
+213  	 RETURN VARCHAR2
+214  	 DETERMINISTIC
+215  	 PARALLEL_ENABLE
+216    ;
+217    FUNCTION txt_boolean( p_bool   IN NUMBER
+218  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+219  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+220  			   )
+221  	 RETURN VARCHAR2
+222  	 DETERMINISTIC
+223  	 PARALLEL_ENABLE
+224    ;
+225  
+226    /* FUNCTION SOSL_SYS.YES_NO
+227    * A simple wrapper for txt_boolean with YES/NO instead of TRUE/FALSE.
+228    *
+229    * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
+230    * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+231    * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+232    *
+233    * @return The text equation for the given p_bool value.
+234    */
+235    FUNCTION yes_no( p_bool	 IN BOOLEAN
+236  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
+237  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
+238  		      )
+239  	 RETURN VARCHAR2
+240  	 DETERMINISTIC
+241  	 PARALLEL_ENABLE
+242    ;
+243    FUNCTION yes_no( p_bool	 IN NUMBER
+244  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
+245  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
+246  		      )
+247  	 RETURN VARCHAR2
+248  	 DETERMINISTIC
+249  	 PARALLEL_ENABLE
+250    ;
+251  
+252    /* FUNCTION SOSL_SYS.UTC_MAIL_DATE
+253    * Returns the current date timestamp as a formatted string for date values in mail.
+254    *
+255    * @return A date string conform to RFC5322 for using mail.
+256    *
+257    * @see https://datatracker.ietf.org/doc/html/rfc5322
+258    */
+259    FUNCTION utc_mail_date
+260  	 RETURN VARCHAR2
+261    ;
+262  
+263    /* FUNCTION SOSL_SYS.FORMAT_MAIL
+264    * This function formats a mail message conforming to RFC5322. The content of p_message is not checked against RFC. This is
+265    * the repsonsibility of the user. This is for small messages that do not exceed 32k in total.
 266    *
-267    * @return A formatted string with complete mail message that can be used with RFC compliant mail servers.
-268    */
-269    FUNCTION format_mail( p_sender	   IN VARCHAR2
-270  			   , p_recipients  IN VARCHAR2
-271  			   , p_subject	   IN VARCHAR2
-272  			   , p_message	   IN VARCHAR2
-273  			   )
-274  	 RETURN VARCHAR2
-275    ;
-276  
-277  END;
-278  /
+267    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
+268    * @param p_recipients The semicolon separated list of mail recipient addresses.
+269    * @param p_subject A preferablly short subject for the mail.
+270    * @param p_message The correctly formatted mail message.
+271    *
+272    * @return A formatted string with complete mail message that can be used with RFC compliant mail servers.
+273    */
+274    FUNCTION format_mail( p_sender	   IN VARCHAR2
+275  			   , p_recipients  IN VARCHAR2
+276  			   , p_subject	   IN VARCHAR2
+277  			   , p_message	   IN VARCHAR2
+278  			   )
+279  	 RETURN VARCHAR2
+280    ;
+281  
+282  END;
+283  /
 
 Package created.
 
@@ -384,7 +415,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_sys
  54  	    AND owner			   = UPPER(p_owner)
  55  	    AND NVL(package_name, 'N/A')   = NVL(UPPER(l_package), 'N/A')    -- may not contain a package name
  56  	    AND object_name		   = UPPER(l_function)
- 57  	    AND package_name		  != 'SOSL_API' 		     -- exclude API package should never be referenced
+ 57  	    AND package_name		  != 'SOSL'			     -- exclude base package should never be referenced
  58  	 ;
  59  	 IF l_has_function != 0
  60  	 THEN
@@ -1353,64 +1384,6 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_log
 
 Package body created.
 
-SQL> -- queues
-SQL> @@../sosl_ddl/queues/sosl_script_queue.sql
-SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
-SQL> -- creates a basic internal queue using AQ, has to be started separately
-SQL> 
-SQL> -- first create the payload type for queue only header, no member function
-SQL> CREATE OR REPLACE TYPE sosl_payload
-  2    AS OBJECT
-  3  	 /* This type is used by the internal message queue of SOSL. It does not provide any member functions
-  4  	 * only fields to fill. Object initialization basic example:
-  5  	 * DECLARE
-  6  	 *   -- to access the type from other schemas, do not forget to qualify it with the SOSL schema used
-  7  	 *   l_sosl_payload SOSL.SOSL_PAYLOAD;
-  8  	 * BEGIN
-  9  	 *   l_sosl_payload := sosl_payload(1, 'My script ID', '../../mydir/scriptfile.sql');
- 10  	 * END;
- 11  	 */
- 12  	 ( executor_id	  NUMBER(38, 0)  -- the executor_id from SOSL_EXECUTOR responsible for the script
- 13  	 , ext_script_id  VARCHAR2(4000) -- the external script id managed by the executor
- 14  	 , script_file	  VARCHAR2(4000) -- the script file name with full or relative path on the server where SOSL is running locally
- 15  	 )
- 16  ;
- 17  /
-
-Type created.
-
-SQL> -- create and start the queue using explicite AQ defaults, so if defaults change behavior is still the same
-SQL> BEGIN
-  2    DBMS_AQADM.CREATE_QUEUE_TABLE( queue_table => 'SOSL_SCRIPT_QUEUE'
-  3  				    , queue_payload_type => 'SOSL_PAYLOAD'
-  4  				    , storage_clause => NULL
-  5  				    , sort_list => NULL
-  6  				    , multiple_consumers => NULL
-  7  				    , message_grouping => DBMS_AQADM.NONE
-  8  				    , comment => 'Queue table that holds the external script id and executor_id to be processed. Needed for parallel requests from different executors.'
-  9  				    , auto_commit => NULL
- 10  				    , primary_instance => 0
- 11  				    , secondary_instance => 0
- 12  				    , compatible => NULL
- 13  				    , secure => FALSE
- 14  				    , replication_mode => DBMS_AQADM.NONE
- 15  				    );
- 16    DBMS_AQADM.CREATE_QUEUE( queue_name => 'SOSL_SCRIPT_QUEUE'
- 17  			      , queue_table => 'SOSL_SCRIPT_QUEUE'
- 18  			      , queue_type => DBMS_AQADM.NORMAL_QUEUE
- 19  			      , max_retries => 5
- 20  			      , retry_delay => 0
- 21  			      , retention_time => 0
- 22  			      , dependency_tracking => FALSE
- 23  			      , comment => 'Queue that holds the external script id and executor_id to be processed. Needed for parallel requests from different executors.'
- 24  			      , auto_commit => TRUE
- 25  			      );
- 26    DBMS_AQADM.START_QUEUE('SOSL_SCRIPT_QUEUE', TRUE, TRUE);
- 27  END;
- 28  /
-
-PL/SQL procedure successfully completed.
-
 SQL> -- SOSL objects with possible references to sosl_log and sosl_sys
 SQL> @@../sosl_ddl/tables/sosl_config.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
@@ -2144,16 +2117,17 @@ SQL> CREATE TABLE sosl_script
   2    ( script_id	     NUMBER(38, 0)  GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
   3    , script_name	     VARCHAR2(2000)					      NOT NULL
   4    , script_order	     NUMBER(38, 0)  DEFAULT 1				      NOT NULL
-  5    , created	     DATE	    DEFAULT SYSDATE			      NOT NULL
-  6    , updated	     DATE	    DEFAULT SYSDATE			      NOT NULL
-  7    , created_by	     VARCHAR2(256)  DEFAULT USER			      NOT NULL
-  8    , created_by_os	     VARCHAR2(256)  DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
-  9    , updated_by	     VARCHAR2(256)  DEFAULT USER			      NOT NULL
- 10    , updated_by_os	     VARCHAR2(256)  DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 11    , executor_id	     NUMBER(38, 0)
- 12    , script_description  VARCHAR2(4000)
- 13    )
- 14  ;
+  5    , run_state	     NUMBER(1, 0)   DEFAULT 0				      NOT NULL
+  6    , created	     DATE	    DEFAULT SYSDATE			      NOT NULL
+  7    , updated	     DATE	    DEFAULT SYSDATE			      NOT NULL
+  8    , created_by	     VARCHAR2(256)  DEFAULT USER			      NOT NULL
+  9    , created_by_os	     VARCHAR2(256)  DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 10    , updated_by	     VARCHAR2(256)  DEFAULT USER			      NOT NULL
+ 11    , updated_by_os	     VARCHAR2(256)  DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 12    , executor_id	     NUMBER(38, 0)
+ 13    , script_description  VARCHAR2(4000)
+ 14    )
+ 15  ;
 
 Table created.
 
@@ -2174,7 +2148,7 @@ SQL> COMMENT ON COLUMN sosl_script.script_name IS 'The name of the script file i
 
 Comment created.
 
-SQL> COMMENT ON COLUMN sosl_script.script_order IS 'The order in which the script file should be executed. Same number means in parallel. Higher order numbers wait for scripts with lower order numbers to complete.';
+SQL> COMMENT ON COLUMN sosl_script.script_order IS 'The order in which the script file should be executed. Same number means in parallel. Higher order numbers wait for scripts with lower order numbers to complete. Must be greater than 0.';
 
 Comment created.
 
@@ -2259,17 +2233,17 @@ SQL> CREATE OR REPLACE TRIGGER sosl_script_upd_trg
 Trigger created.
 
 SQL> -- packages depending on SOSL objects
-SQL> @@../sosl_ddl/packages/sosl_api.pks
+SQL> @@../sosl_ddl/packages/sosl.pks
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
-SQL> -- main API package of the Simple Oracle Script Loader
-SQL> CREATE OR REPLACE PACKAGE sosl_api
+SQL> -- main package of the Simple Oracle Script Loader
+SQL> CREATE OR REPLACE PACKAGE sosl
   2  AS
   3    /**
-  4    * This package contains the main functions and procedures used in the API of the Simple Oracle Script Loader.
+  4    * This package contains the main functions and procedures used by the Simple Oracle Script Loader to handle executors and scripts.
   5    * It is not allowed to use this package for function assignments in SOSL_EXECUTOR.
   6    */
   7  
-  8    /* FUNCTION SOSL_API.HAS_SCRIPTS
+  8    /* FUNCTION SOSL.HAS_SCRIPTS
   9    * This function will be used by the wrapper function HAS_SCRIPTS.
  10    * Collects and sums the output of all defined executor has_scripts functions of active and reviewed executors that
  11    * return a number greater 0 as well as messages waiting in the queue to be processed. Errors will get logged.
@@ -2280,7 +2254,7 @@ SQL> CREATE OR REPLACE PACKAGE sosl_api
  16  	 RETURN NUMBER
  17    ;
  18  
- 19    /* FUNCTION SOSL_API.HAS_SCRIPTS
+ 19    /* FUNCTION SOSL.HAS_SCRIPTS
  20    * Gets any waiting scripts for a defined active and reviewed executor has_scripts function or for a given queue table name.
  21    * Will return 0 if the executor/queue does not exist or is not active and reviewed. Will return -1 on exceptions caused by this
  22    * function or the defined function. Errors will get logged.
@@ -2296,7 +2270,7 @@ SQL> CREATE OR REPLACE PACKAGE sosl_api
  32  	 RETURN NUMBER
  33    ;
  34  
- 35    /* FUNCTION SOSL_API.HAS_SCRIPTS_FOR_FN
+ 35    /* FUNCTION SOSL.HAS_SCRIPTS_FOR_FN
  36    * Checks only by function, to avoid duplicate counts, if different executors share the same function and are both active.
  37    *
  38    * @param p_fn_has_scripts The defined function call for HAS_SCRIPTS.
@@ -2307,9 +2281,9 @@ SQL> CREATE OR REPLACE PACKAGE sosl_api
  43  	 RETURN NUMBER
  44    ;
  45  
- 46    /* FUNCTION SOSL_API.GET_NEXT_SCRIPT
+ 46    /* FUNCTION SOSL.GET_NEXT_SCRIPT
  47    * This function will be used by the wrapper function GET_NEXT_SCRIPT.
- 48    * It collects all scripts to execute, queues them in SOSL_SCRIPT_QUEUE and then fetches the first script in the
+ 48    * It collects from all executors the next script to execute, queues them in SOSL_SCRIPT_QUEUE and then fetches the first script in the
  49    * message queue as next script to execute. If no scripts are available or on errors, the function will return NULL.
  50    * Errors will be logged.
  51    *
@@ -2320,7 +2294,7 @@ SQL> CREATE OR REPLACE PACKAGE sosl_api
  56    ;
  57  
  58  
- 59    /** Function SOSL_API.SET_CONFIG
+ 59    /** Function SOSL.SET_CONFIG
  60    * Sets an existing configuration value for a given configuration name.
  61    *
  62    * @return Exit code, either 0 = successful or -1 on error.
@@ -2331,7 +2305,7 @@ SQL> CREATE OR REPLACE PACKAGE sosl_api
  67  	 RETURN NUMBER
  68    ;
  69  
- 70    /** Function SOSL_API.GET_CONFIG
+ 70    /** Function SOSL.GET_CONFIG
  71    * Gets an existing configuration value for a given and existing case sensitive configuration name.
  72    *
  73    * @return The configured value as VARCHAR2 or -1 string on error.
@@ -2341,7 +2315,7 @@ SQL> CREATE OR REPLACE PACKAGE sosl_api
  77    ;
  78  
  79  
- 80    /** Function SOSL_API.BASE_PATH
+ 80    /** Function SOSL.BASE_PATH
  81    * Returns the base path to use for the given run id. Used to switch the run base path for scripts
  82    * running from a different directory.
  83    *
@@ -2351,7 +2325,7 @@ SQL> CREATE OR REPLACE PACKAGE sosl_api
  87  	 RETURN VARCHAR2
  88    ;
  89  
- 90    /** Function SOSL_API.CFG_PATH
+ 90    /** Function SOSL.CFG_PATH
  91    * Returns the relative configuration path to use for the given run id. A sosl_login.cfg file is expected
  92    * at the given location.
  93    *
@@ -2361,7 +2335,7 @@ SQL> CREATE OR REPLACE PACKAGE sosl_api
  97  	 RETURN VARCHAR2
  98    ;
  99  
-100    /** Function SOSL_API.TMP_PATH
+100    /** Function SOSL.TMP_PATH
 101    * Returns the relative temporary path to use for the given run id.
 102    *
 103    * @return The configured relative temporary path or the configured default set by the sosl server.
@@ -2370,7 +2344,7 @@ SQL> CREATE OR REPLACE PACKAGE sosl_api
 106  	 RETURN VARCHAR2
 107    ;
 108  
-109    /** Function SOSL_API.LOG_PATH
+109    /** Function SOSL.LOG_PATH
 110    * Returns the relative log path to use for the given run id.
 111    *
 112    * @return The configured relative log path or the configured default set by the sosl server.
@@ -2384,9 +2358,9 @@ SQL> CREATE OR REPLACE PACKAGE sosl_api
 
 Package created.
 
-SQL> @@../sosl_ddl/packages/sosl_api.pkb
+SQL> @@../sosl_ddl/packages/sosl.pkb
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
-SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
+SQL> CREATE OR REPLACE PACKAGE BODY sosl
   2  AS
   3    -- for description see header file
   4    FUNCTION has_scripts
@@ -2398,7 +2372,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
  10  	 l_tmp_cnt     NUMBER;
  11  	 l_queue_table VARCHAR2(128)			 := 'SOSL_SCRIPT_QUEUE';
  12  	 l_category    sosl_server_log.log_category%TYPE := 'HAS_SCRIPTS';
- 13  	 l_caller      sosl_server_log.caller%TYPE	 := 'sosl_api.has_scripts queue and executor';
+ 13  	 l_caller      sosl_server_log.caller%TYPE	 := 'sosl.has_scripts queue and executor';
  14  	 CURSOR cur_executors
  15  	 IS
  16  	   SELECT UPPER(fn_has_scripts) AS fn_has_scripts
@@ -2410,7 +2384,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
  22    BEGIN
  23  	 l_return      := -1;
  24  	 l_success_cnt := 0;
- 25  	 sosl_log.full_log( p_message => 'sosl_api.has_scripts called'
+ 25  	 sosl_log.full_log( p_message => 'sosl.has_scripts called'
  26  			  , p_log_type => sosl_sys.INFO_TYPE
  27  			  , p_log_category => l_category
  28  			  , p_caller => l_caller
@@ -2423,7 +2397,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
  35  	   -- loop through unique defined functions
  36  	   FOR rec IN cur_executors
  37  	   LOOP
- 38  	     l_tmp_cnt := sosl_api.has_scripts_for_fn(rec.fn_has_scripts);
+ 38  	     l_tmp_cnt := sosl.has_scripts_for_fn(rec.fn_has_scripts);
  39  	     IF l_tmp_cnt > 0
  40  	     THEN
  41  	       l_success_cnt := l_success_cnt +1;
@@ -2431,7 +2405,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
  43  	     END IF;
  44  	   END LOOP;
  45  	   -- now check queue for waiting message, overrule failed functions calls if messages waiting
- 46  	   l_tmp_cnt := sosl_api.has_scripts(l_queue_table);
+ 46  	   l_tmp_cnt := sosl.has_scripts(l_queue_table);
  47  	   IF l_tmp_cnt > 0
  48  	   THEN
  49  	     l_success_cnt := l_success_cnt +1;
@@ -2440,7 +2414,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
  52  	   -- if not at least one successful executed
  53  	   IF l_success_cnt <= 0
  54  	   THEN
- 55  	     sosl_log.full_log( p_message => 'sosl_api.has_scripts did not find any valid executor has_scripts functions and messages in the queue. Return 0 scripts waiting.'
+ 55  	     sosl_log.full_log( p_message => 'sosl.has_scripts did not find any valid executor has_scripts functions and messages in the queue. Return 0 scripts waiting.'
  56  			      , p_log_type => sosl_sys.ERROR_TYPE
  57  			      , p_log_category => l_category
  58  			      , p_caller => l_caller
@@ -2450,7 +2424,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
  62  	   END IF;
  63  	 ELSE
  64  	   -- log no valid executors
- 65  	   sosl_log.full_log( p_message => 'sosl_api.has_scripts called without valid executors defined. Return 0 scripts waiting.'
+ 65  	   sosl_log.full_log( p_message => 'sosl.has_scripts called without valid executors defined. Return 0 scripts waiting.'
  66  			    , p_log_type => sosl_sys.WARNING_TYPE
  67  			    , p_log_category => l_category
  68  			    , p_caller => l_caller
@@ -2462,7 +2436,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
  74    EXCEPTION
  75  	 WHEN OTHERS THEN
  76  	   -- log the error instead of RAISE
- 77  	   sosl_log.full_log( p_message => 'Unhandled exception in sosl_api.has_scripts function: ' || SQLERRM
+ 77  	   sosl_log.full_log( p_message => 'Unhandled exception in sosl.has_scripts function: ' || SQLERRM
  78  			    , p_log_type => sosl_sys.FATAL_TYPE
  79  			    , p_log_category => l_category
  80  			    , p_caller => l_caller
@@ -2478,10 +2452,10 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
  90  	 l_return	 NUMBER;
  91  	 l_fn_call	 sosl_executor.fn_has_scripts%TYPE;
  92  	 l_category	 sosl_server_log.log_category%TYPE   := 'HAS_SCRIPTS';
- 93  	 l_caller	 sosl_server_log.caller%TYPE	     := 'sosl_api.has_scripts executor';
+ 93  	 l_caller	 sosl_server_log.caller%TYPE	     := 'sosl.has_scripts executor';
  94    BEGIN
  95  	 l_return := -1;
- 96  	 sosl_log.full_log( p_message => 'sosl_api.has_scripts executer check p_identifier: ' || p_identifier
+ 96  	 sosl_log.full_log( p_message => 'sosl.has_scripts executer check p_identifier: ' || p_identifier
  97  			  , p_log_type => sosl_sys.INFO_TYPE
  98  			  , p_log_category => l_category
  99  			  , p_caller => l_caller
@@ -2504,13 +2478,13 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
 116  	   l_return := 0;
 117  	 ELSE
 118  	   SELECT fn_has_scripts INTO l_fn_call FROM sosl_executor WHERE executor_id = p_identifier;
-119  	   l_return := sosl_api.has_scripts_for_fn(l_fn_call);
+119  	   l_return := sosl.has_scripts_for_fn(l_fn_call);
 120  	 END IF;
 121  	 RETURN l_return;
 122    EXCEPTION
 123  	 WHEN OTHERS THEN
 124  	   -- log the error instead of RAISE
-125  	   sosl_log.full_log( p_message => 'Unhandled exception in sosl_api.has_scripts for executor function: ' || SQLERRM
+125  	   sosl_log.full_log( p_message => 'Unhandled exception in sosl.has_scripts for executor function: ' || SQLERRM
 126  			    , p_log_type => sosl_sys.FATAL_TYPE
 127  			    , p_log_category => l_category
 128  			    , p_caller => l_caller
@@ -2525,10 +2499,10 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
 137  	 l_has_queue   NUMBER;
 138  	 l_return      NUMBER;
 139  	 l_category    sosl_server_log.log_category%TYPE := 'HAS_SCRIPTS';
-140  	 l_caller      sosl_server_log.caller%TYPE	 := 'sosl_api.has_scripts queue';
+140  	 l_caller      sosl_server_log.caller%TYPE	 := 'sosl.has_scripts queue';
 141    BEGIN
 142  	 l_return := -1;
-143  	 sosl_log.full_log( p_message => 'sosl_api.has_scripts queue check p_identifier: ' || p_identifier
+143  	 sosl_log.full_log( p_message => 'sosl.has_scripts queue check p_identifier: ' || p_identifier
 144  			  , p_log_type => sosl_sys.INFO_TYPE
 145  			  , p_log_category => l_category
 146  			  , p_caller => l_caller
@@ -2554,7 +2528,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
 166  	     EXECUTE IMMEDIATE 'SELECT COUNT(*) FROM ' || p_identifier INTO l_return;
 167  	   EXCEPTION
 168  	     WHEN OTHERS THEN
-169  	       sosl_log.full_log( p_message => 'Unhandled exception in sosl_api.has_scripts for queue function checking queue table: ' || SQLERRM
+169  	       sosl_log.full_log( p_message => 'Unhandled exception in sosl.has_scripts for queue function checking queue table: ' || SQLERRM
 170  				, p_log_type => sosl_sys.FATAL_TYPE
 171  				, p_log_category => l_category
 172  				, p_caller => l_caller
@@ -2567,7 +2541,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
 179    EXCEPTION
 180  	 WHEN OTHERS THEN
 181  	   -- log the error instead of RAISE
-182  	   sosl_log.full_log( p_message => 'Unhandled exception in sosl_api.has_scripts for queue function: ' || SQLERRM
+182  	   sosl_log.full_log( p_message => 'Unhandled exception in sosl.has_scripts for queue function: ' || SQLERRM
 183  			    , p_log_type => sosl_sys.FATAL_TYPE
 184  			    , p_log_category => l_category
 185  			    , p_caller => l_caller
@@ -2584,7 +2558,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
 196  	 l_fn_valid	 BOOLEAN;
 197  	 l_fn_call	 sosl_executor.fn_has_scripts%TYPE;
 198  	 l_category	 sosl_server_log.log_category%TYPE   := 'HAS_SCRIPTS';
-199  	 l_caller	 sosl_server_log.caller%TYPE	     := 'sosl_api.has_scripts_for_fn';
+199  	 l_caller	 sosl_server_log.caller%TYPE	     := 'sosl.has_scripts_for_fn';
 200  	 CURSOR cur_fn_owner(cp_fn_name IN VARCHAR2)
 201  	 IS
 202  	   SELECT function_owner
@@ -2596,7 +2570,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
 208  	 ;
 209    BEGIN
 210  	 l_return  := -1;
-211  	 sosl_log.full_log( p_message => 'sosl_api.has_scripts_for_fn defined function check p_fn_has_scripts: ' || p_fn_has_scripts
+211  	 sosl_log.full_log( p_message => 'sosl.has_scripts_for_fn defined function check p_fn_has_scripts: ' || p_fn_has_scripts
 212  			  , p_log_type => sosl_sys.INFO_TYPE
 213  			  , p_log_category => l_category
 214  			  , p_caller => l_caller
@@ -2635,7 +2609,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
 247  	       EXECUTE IMMEDIATE p_fn_has_scripts INTO l_return;
 248  	     EXCEPTION
 249  	       WHEN OTHERS THEN
-250  		 sosl_log.full_log( p_message => 'Unhandled exception in sosl_api.has_scripts_for_fn for calling defined function: ' || p_fn_has_scripts || ' Error: ' || SQLERRM
+250  		 sosl_log.full_log( p_message => 'Unhandled exception in sosl.has_scripts_for_fn for calling defined function: ' || p_fn_has_scripts || ' Error: ' || SQLERRM
 251  				  , p_log_type => sosl_sys.FATAL_TYPE
 252  				  , p_log_category => l_category
 253  				  , p_caller => l_caller
@@ -2657,7 +2631,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
 269    EXCEPTION
 270  	 WHEN OTHERS THEN
 271  	   -- log the error instead of RAISE
-272  	   sosl_log.full_log( p_message => 'Unhandled exception in sosl_api.has_scripts_for_fn function: ' || SQLERRM
+272  	   sosl_log.full_log( p_message => 'Unhandled exception in sosl.has_scripts_for_fn function: ' || SQLERRM
 273  			    , p_log_type => sosl_sys.FATAL_TYPE
 274  			    , p_log_category => l_category
 275  			    , p_caller => l_caller
@@ -2722,17 +2696,17 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
 
 Package body created.
 
-SQL> @@../sosl_ddl/packages/sosl.pks
+SQL> @@../sosl_ddl/packages/sosl_if.pks
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
-SQL> -- main package of the Simple Oracle Script Loader
-SQL> CREATE OR REPLACE PACKAGE sosl
+SQL> -- interface package of the Simple Oracle Script Loader
+SQL> CREATE OR REPLACE PACKAGE sosl_if
   2  AS
   3    /**
   4    * This package contains the internal interface to SOSL used by the Simple Oracle Script Loader.
   5    * Can be seen as tutorial and implementation hint for own interfaces.
   6    */
   7  
-  8    /** Function SOSL.HAS_SCRIPTS
+  8    /** Function SOSL_IF.HAS_SCRIPTS
   9    * Determines if script ids are available to be executed. To be defined in SOSL_EXECUTOR.
  10    *
  11    * @return The number of script ids waiting for execution.
@@ -2741,7 +2715,7 @@ SQL> CREATE OR REPLACE PACKAGE sosl
  14  	 RETURN NUMBER
  15    ;
  16  
- 17    /** Function SOSL.GET_NEXT_SCRIPT
+ 17    /** Function SOSL_IF.GET_NEXT_SCRIPT
  18    * Returns the next script id to execute. To be defined in SOSL_EXECUTOR.
  19    *
  20    * @return The id of the next script to execute.
@@ -2750,7 +2724,7 @@ SQL> CREATE OR REPLACE PACKAGE sosl
  23  	 RETURN SOSL_PAYLOAD
  24    ;
  25  
- 26    /** Function SOSL.SET_SCRIPT_STATUS
+ 26    /** Function SOSL_IF.SET_SCRIPT_STATUS
  27    * Sets the status of a script. To be defined in SOSL_EXECUTOR.
  28    *
  29    * @param p_reference The reference to the script to update as SOSL_PAYLOAD containing executor_id, ext_script_id and script_file.
@@ -2766,42 +2740,93 @@ SQL> CREATE OR REPLACE PACKAGE sosl
  39  	 RETURN NUMBER
  40    ;
  41  
- 42  END;
- 43  /
+ 42    /* FUNCTION SOSL_IF.SEND_MAIL
+ 43    * This function is mainly used for testing. In the default setting, it will only send the mail message to
+ 44    * SOSL_SERVER_LOG.
+ 45    *
+ 46    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
+ 47    * @param p_recipients The semicolon separated list of mail recipient addresses.
+ 48    * @param p_subject A preferablly short subject for the mail.
+ 49    * @param p_message The correctly formatted mail message.
+ 50    * @param p_test_mode The default is test mode, set to FALSE if mail should be used.
+ 51    *
+ 52    * @return Will return 0 on success or -1 on errors.
+ 53    */
+ 54    FUNCTION send_mail( p_sender	 IN VARCHAR2
+ 55  			 , p_recipients  IN VARCHAR2
+ 56  			 , p_subject	 IN VARCHAR2
+ 57  			 , p_message	 IN VARCHAR2
+ 58  			 , p_test_mode	 IN BOOLEAN  DEFAULT TRUE
+ 59  			 )
+ 60  	 RETURN NUMBER
+ 61    ;
+ 62  
+ 63  END;
+ 64  /
 
 Package created.
 
-SQL> @@../sosl_ddl/packages/sosl.pkb
+SQL> @@../sosl_ddl/packages/sosl_if.pkb
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
-SQL> CREATE OR REPLACE PACKAGE BODY sosl
+SQL> CREATE OR REPLACE PACKAGE BODY sosl_if
   2  AS
   3    -- see package header for documentation
   4    FUNCTION has_scripts
   5  	 RETURN NUMBER
   6    IS
-  7    BEGIN
-  8  	 RETURN -1;
-  9    END has_scripts;
- 10  
- 11    FUNCTION get_next_script
- 12  	 RETURN SOSL_PAYLOAD
- 13    IS
- 14    BEGIN
- 15  	 RETURN NULL;
- 16    END get_next_script;
- 17  
- 18    FUNCTION set_script_status( p_reference	 IN SOSL_PAYLOAD
- 19  				 , p_status	 IN NUMBER
- 20  				 , p_status_msg  IN VARCHAR2 DEFAULT NULL
- 21  				 )
- 22  	 RETURN NUMBER
- 23    IS
- 24    BEGIN
- 25  	 RETURN -1;
- 26    END set_script_status;
+  7  	 l_return    NUMBER;
+  8  	 l_category  sosl_server_log.log_category%TYPE	 := 'HAS_SCRIPTS';
+  9  	 l_caller    sosl_server_log.caller%TYPE	 := 'sosl.has_scripts';
+ 10    BEGIN
+ 11  	 SELECT COUNT(*)
+ 12  	   INTO l_return
+ 13  	   FROM sosl_script
+ 14  	 ;
+ 15  	 RETURN -1;
+ 16    EXCEPTION
+ 17  	 WHEN OTHERS THEN
+ 18  	   -- log the error instead of RAISE
+ 19  	   sosl_log.full_log( p_message => 'Unhandled exception in sosl.has_scripts function: ' || SQLERRM
+ 20  			    , p_log_type => sosl_sys.FATAL_TYPE
+ 21  			    , p_log_category => l_category
+ 22  			    , p_caller => l_caller
+ 23  			    )
+ 24  	   ;
+ 25  	   RETURN -1;
+ 26    END has_scripts;
  27  
- 28  END;
- 29  /
+ 28    FUNCTION get_next_script
+ 29  	 RETURN SOSL_PAYLOAD
+ 30    IS
+ 31    BEGIN
+ 32  	 RETURN NULL;
+ 33    END get_next_script;
+ 34  
+ 35    FUNCTION set_script_status( p_reference	 IN SOSL_PAYLOAD
+ 36  				 , p_status	 IN NUMBER
+ 37  				 , p_status_msg  IN VARCHAR2 DEFAULT NULL
+ 38  				 )
+ 39  	 RETURN NUMBER
+ 40    IS
+ 41    BEGIN
+ 42  	 RETURN -1;
+ 43    END set_script_status;
+ 44  
+ 45    FUNCTION send_mail( p_sender	 IN VARCHAR2
+ 46  			 , p_recipients  IN VARCHAR2
+ 47  			 , p_subject	 IN VARCHAR2
+ 48  			 , p_message	 IN VARCHAR2
+ 49  			 , p_test_mode	 IN BOOLEAN  DEFAULT TRUE
+ 50  			 )
+ 51  	 RETURN NUMBER
+ 52    IS
+ 53  	 l_return  NUMBER;
+ 54    BEGIN
+ 55  	 RETURN sosl_log.dummy_mail(p_sender, p_recipients, p_subject, p_message);
+ 56    END send_mail;
+ 57  
+ 58  END;
+ 59  /
 
 Package body created.
 
@@ -2821,7 +2846,7 @@ SQL> CREATE OR REPLACE FUNCTION has_scripts
  11    l_category  sosl_server_log.log_category%TYPE := 'HAS_SCRIPTS';
  12    l_caller    sosl_server_log.caller%TYPE	     := 'has_scripts wrapper';
  13  BEGIN
- 14    l_return := sosl_api.has_scripts;
+ 14    l_return := sosl.has_scripts;
  15    RETURN l_return;
  16  EXCEPTION
  17    WHEN OTHERS THEN
@@ -2838,6 +2863,9 @@ SQL> CREATE OR REPLACE FUNCTION has_scripts
 
 Function created.
 
+SQL> -- grants, everyone can see if scripts are available
+SQL> -- GRANT EXECUTE ON has_scripts TO sosl_guest;
+SQL> -- GRANT EXECUTE ON has_scripts TO sosl_guest;
 SQL> -- ==============INSTALL done==============
 SQL> @@../sosl_sql/util/log_silent.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt

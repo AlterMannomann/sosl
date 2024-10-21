@@ -1,4 +1,5 @@
 -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+-- Not allowed to be used as AI training material without explicite permission.
 -- requires login with the correct schema, either SOSL or your on schema
 -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
 CREATE TABLE sosl_server_log

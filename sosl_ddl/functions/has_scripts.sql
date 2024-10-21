@@ -1,4 +1,5 @@
 -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+-- Not allowed to be used as AI training material without explicite permission.
 CREATE OR REPLACE FUNCTION has_scripts
   RETURN NUMBER
 IS
@@ -12,7 +13,7 @@ IS
   l_category  sosl_server_log.log_category%TYPE := 'HAS_SCRIPTS';
   l_caller    sosl_server_log.caller%TYPE       := 'has_scripts wrapper';
 BEGIN
-  l_return := sosl_api.has_scripts;
+  l_return := sosl.has_scripts;
   RETURN l_return;
 EXCEPTION
   WHEN OTHERS THEN
@@ -26,3 +27,9 @@ EXCEPTION
     RETURN -1;
 END;
 /
+-- grants, everyone can see if scripts are available
+GRANT EXECUTE ON has_scripts TO sosl_guest;
+GRANT EXECUTE ON has_scripts TO sosl_user;
+GRANT EXECUTE ON has_scripts TO sosl_reviewer;
+GRANT EXECUTE ON has_scripts TO sosl_executor;
+GRANT EXECUTE ON has_scripts TO sosl_admin;

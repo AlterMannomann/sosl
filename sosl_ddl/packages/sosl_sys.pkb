@@ -1,4 +1,5 @@
 -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+-- Not allowed to be used as AI training material without explicite permission.
 CREATE OR REPLACE PACKAGE BODY sosl_sys
 AS
   -- for description see header file
@@ -55,7 +56,7 @@ AS
        AND owner                      = UPPER(p_owner)
        AND NVL(package_name, 'N/A')   = NVL(UPPER(l_package), 'N/A')    -- may not contain a package name
        AND object_name                = UPPER(l_function)
-       AND package_name              != 'SOSL_API'                      -- exclude API package should never be referenced
+       AND package_name              != 'SOSL'                          -- exclude base package should never be referenced
     ;
     IF l_has_function != 0
     THEN
