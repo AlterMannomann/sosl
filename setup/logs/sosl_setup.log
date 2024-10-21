@@ -111,6 +111,11 @@ SQL> COMMENT ON COLUMN soslerrorlog.statement IS 'The statement causing the erro
 
 Comment created.
 
+SQL> -- Grants, inherited by others, no guest access on table
+SQL> GRANT SELECT ON soslerrorlog TO sosl_user;
+
+Grant succeeded.
+
 SQL> -- package with no dependency on SOSL objects
 SQL> @@../sosl_ddl/packages/sosl_sys.pks
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
@@ -299,380 +304,200 @@ SQL> -- Not allowed to be used as AI training material without explicite permiss
 SQL> CREATE OR REPLACE PACKAGE BODY sosl_sys
   2  AS
   3    -- for description see header file
-  4    PROCEDURE split_function_name( p_function_name IN  VARCHAR2
-  5  				    , p_package       OUT VARCHAR2
-  6  				    , p_function      OUT VARCHAR2
-  7  				    )
+  4    FUNCTION log_type_valid(p_log_type IN VARCHAR2)
+  5  	 RETURN BOOLEAN
+  6  	 DETERMINISTIC
+  7  	 PARALLEL_ENABLE
   8    IS
-  9    BEGIN
- 10  	 IF INSTR(p_function_name, '.') > 0
- 11  	 THEN
- 12  	   p_package   := TRIM(SUBSTR(p_function_name, 1, INSTR(p_function_name, '.') -1));
- 13  	   p_function  := TRIM(SUBSTR(p_function_name, INSTR(p_function_name, '.') +1));
- 14  	 ELSE
- 15  	   p_package   := NULL;
- 16  	   p_function  := TRIM(p_function_name);
- 17  	 END IF;
- 18    END split_function_name;
- 19  
- 20    FUNCTION has_db_user(p_username IN VARCHAR2)
- 21  	 RETURN BOOLEAN
- 22    IS
- 23  	 l_has_user  NUMBER;
- 24  	 l_return    BOOLEAN;
- 25    BEGIN
- 26  	 l_return := FALSE;
- 27  	 SELECT COUNT(*) INTO l_has_user FROM all_users WHERE username = p_username;
- 28  	 IF l_has_user != 0
- 29  	 THEN
- 30  	   l_return := TRUE;
- 31  	 END IF;
- 32  	 RETURN l_return;
- 33    END has_db_user;
- 34  
- 35    FUNCTION has_function( p_owner	       IN VARCHAR2
- 36  			    , p_function_name  IN VARCHAR2
- 37  			    , p_datatype       IN VARCHAR2
- 38  			    )
- 39  	 RETURN BOOLEAN
- 40    IS
- 41  	 l_has_function  NUMBER;
- 42  	 l_package	 VARCHAR2(128);
- 43  	 l_function	 VARCHAR2(128);
- 44  	 l_return	 BOOLEAN;
- 45    BEGIN
- 46  	 l_return := FALSE;
- 47  	 sosl_sys.split_function_name(p_function_name, l_package, l_function);
- 48  	 SELECT COUNT(*)
- 49  	   INTO l_has_function
- 50  	   FROM all_arguments
- 51  	  WHERE position		   = 0				     -- only functions
- 52  	    AND argument_name		   IS NULL			     -- only functions
- 53  	    AND data_type		   = p_datatype
- 54  	    AND owner			   = UPPER(p_owner)
- 55  	    AND NVL(package_name, 'N/A')   = NVL(UPPER(l_package), 'N/A')    -- may not contain a package name
- 56  	    AND object_name		   = UPPER(l_function)
- 57  	    AND package_name		  != 'SOSL'			     -- exclude base package should never be referenced
- 58  	 ;
- 59  	 IF l_has_function != 0
- 60  	 THEN
- 61  	   l_return := TRUE;
- 62  	 END IF;
- 63  	 RETURN l_return;
- 64    END has_function;
- 65  
- 66    FUNCTION log_type_valid(p_log_type IN VARCHAR2)
- 67  	 RETURN BOOLEAN
- 68  	 DETERMINISTIC
- 69  	 PARALLEL_ENABLE
- 70    IS
- 71  	 l_return  BOOLEAN;
- 72    BEGIN
- 73  	 l_return := FALSE;
- 74  	 IF UPPER(p_log_type) IN ( sosl_sys.INFO_TYPE
- 75  				 , sosl_sys.WARNING_TYPE
- 76  				 , sosl_sys.ERROR_TYPE
- 77  				 , sosl_sys.FATAL_TYPE
- 78  				 , sosl_sys.SUCCESS_TYPE
- 79  				 )
- 80  	 THEN
- 81  	   l_return := TRUE;
+  9  	 l_return  BOOLEAN;
+ 10    BEGIN
+ 11  	 l_return := FALSE;
+ 12  	 IF UPPER(p_log_type) IN ( sosl_sys.INFO_TYPE
+ 13  				 , sosl_sys.WARNING_TYPE
+ 14  				 , sosl_sys.ERROR_TYPE
+ 15  				 , sosl_sys.FATAL_TYPE
+ 16  				 , sosl_sys.SUCCESS_TYPE
+ 17  				 )
+ 18  	 THEN
+ 19  	   l_return := TRUE;
+ 20  	 END IF;
+ 21  	 RETURN l_return;
+ 22    EXCEPTION
+ 23  	 WHEN OTHERS THEN
+ 24  	   RETURN FALSE;
+ 25    END log_type_valid;
+ 26  
+ 27    FUNCTION get_valid_log_type( p_log_type	     IN VARCHAR2
+ 28  				  , p_error_default  IN VARCHAR2 DEFAULT sosl_sys.ERROR_TYPE
+ 29  				  )
+ 30  	 RETURN VARCHAR2
+ 31  	 DETERMINISTIC
+ 32  	 PARALLEL_ENABLE
+ 33    IS
+ 34  	 l_return  VARCHAR2(30);
+ 35    BEGIN
+ 36  	 l_return := sosl_sys.FATAL_TYPE;
+ 37  	 IF log_type_valid(p_log_type)
+ 38  	 THEN
+ 39  	   l_return := UPPER(p_log_type);
+ 40  	 ELSE
+ 41  	   IF	   log_type_valid(p_error_default)
+ 42  	      AND  UPPER(p_error_default) NOT IN ( sosl_sys.INFO_TYPE
+ 43  						 , sosl_sys.SUCCESS_TYPE
+ 44  						 )
+ 45  	   THEN
+ 46  	     l_return := UPPER(p_error_default);
+ 47  	   END IF;
+ 48  	 END IF;
+ 49  	 RETURN l_return;
+ 50    EXCEPTION
+ 51  	 WHEN OTHERS THEN
+ 52  	   RETURN sosl_sys.FATAL_TYPE;
+ 53    END get_valid_log_type;
+ 54  
+ 55    FUNCTION distribute( p_string		IN OUT	       VARCHAR2
+ 56  			  , p_clob		IN OUT NOCOPY  CLOB
+ 57  			  , p_max_string_length IN	       INTEGER	 DEFAULT 4000
+ 58  			  , p_split_end 	IN	       VARCHAR2  DEFAULT '...'
+ 59  			  , p_split_start	IN	       VARCHAR2  DEFAULT '...'
+ 60  			  , p_delimiter 	IN	       VARCHAR2  DEFAULT ' - '
+ 61  			  )
+ 62  	 RETURN BOOLEAN
+ 63    IS
+ 64  	 l_string  VARCHAR2(32767);
+ 65    BEGIN
+ 66  	 IF	(p_string IS NULL OR NVL(LENGTH(TRIM(p_string)), 0) = 0)
+ 67  	    AND (p_clob   IS NULL OR NVL(LENGTH(TRIM(p_clob)), 0) = 0)
+ 68  	 THEN
+ 69  	   RETURN FALSE;
+ 70  	 END IF;
+ 71  	 IF	p_string IS NOT NULL AND NVL(LENGTH(TRIM(p_string)), 0) > 0
+ 72  	    AND p_clob	 IS NOT NULL AND NVL(LENGTH(TRIM(p_clob)), 0) > 0
+ 73  	 THEN
+ 74  	   IF LENGTH(p_string) > p_max_string_length
+ 75  	   THEN
+ 76  	     -- need to split
+ 77  	     l_string := p_split_start || SUBSTR(p_string, (p_max_string_length - LENGTH(p_split_end) + 1)) || p_delimiter;
+ 78  	     p_string := SUBSTR(p_string, 1, (p_max_string_length - LENGTH(p_split_end))) || p_split_end;
+ 79  	     p_clob   := l_string || p_clob;
+ 80  	   END IF;
+ 81  	   RETURN TRUE;
  82  	 END IF;
- 83  	 RETURN l_return;
- 84    EXCEPTION
- 85  	 WHEN OTHERS THEN
- 86  	   RETURN FALSE;
- 87    END log_type_valid;
- 88  
- 89    FUNCTION get_valid_log_type( p_log_type	     IN VARCHAR2
- 90  				  , p_error_default  IN VARCHAR2 DEFAULT sosl_sys.ERROR_TYPE
- 91  				  )
- 92  	 RETURN VARCHAR2
- 93  	 DETERMINISTIC
- 94  	 PARALLEL_ENABLE
- 95    IS
- 96  	 l_return  VARCHAR2(30);
- 97    BEGIN
- 98  	 l_return := sosl_sys.FATAL_TYPE;
- 99  	 IF log_type_valid(p_log_type)
-100  	 THEN
-101  	   l_return := UPPER(p_log_type);
-102  	 ELSE
-103  	   IF	   log_type_valid(p_error_default)
-104  	      AND  UPPER(p_error_default) NOT IN ( sosl_sys.INFO_TYPE
-105  						 , sosl_sys.SUCCESS_TYPE
-106  						 )
-107  	   THEN
-108  	     l_return := UPPER(p_error_default);
-109  	   END IF;
-110  	 END IF;
-111  	 RETURN l_return;
-112    EXCEPTION
-113  	 WHEN OTHERS THEN
-114  	   RETURN sosl_sys.FATAL_TYPE;
-115    END get_valid_log_type;
-116  
-117    FUNCTION get_col_length( p_table  IN VARCHAR2
-118  			      , p_column IN VARCHAR2
-119  			      )
-120  	 RETURN INTEGER
-121    IS
-122  	 l_return	   INTEGER;
-123  	 l_has_column	   INTEGER;
-124  	 l_data_type	   user_tab_columns.data_type%TYPE;
-125  	 l_data_length	   user_tab_columns.data_length%TYPE;
-126  	 l_data_precision  user_tab_columns.data_precision%TYPE;
-127  	 l_data_scale	   user_tab_columns.data_scale%TYPE;
-128    BEGIN
-129  	 l_return := -1;
-130  	 SELECT COUNT(*) INTO l_has_column FROM user_tab_columns WHERE table_name = UPPER(p_table) AND column_name = UPPER(p_column);
-131  	 IF l_has_column = 1
-132  	 THEN
-133  	   -- column match calculate length
-134  	   SELECT data_type
-135  		, data_length
-136  		, data_precision
-137  		, data_scale
-138  	     INTO l_data_type
-139  		, l_data_length
-140  		, l_data_precision
-141  		, l_data_scale
-142  	     FROM user_tab_columns
-143  	    WHERE table_name  = UPPER(p_table)
-144  	      AND column_name = UPPER(p_column)
-145  	   ;
-146  	   IF l_data_type = 'NUMBER'
-147  	   THEN
-148  	     IF l_data_scale != 0
-149  	     THEN
-150  	       -- consider delimiter
-151  	       l_return := l_data_precision + l_data_scale;
-152  	     ELSE
-153  	       l_return := l_data_precision;
-154  	     END IF;
-155  	   ELSIF l_data_type = 'CLOB'
-156  	   THEN
-157  	     l_return := 32767;
-158  	   ELSE
-159  	     l_return := l_data_length;
-160  	   END IF;
-161  	 END IF;
-162  	 RETURN l_return;
-163    EXCEPTION
-164  	 WHEN OTHERS THEN
-165  	   RETURN sosl_sys.ERR_NUM;
-166    END get_col_length;
+ 83  	 IF p_string IS NOT NULL AND NVL(LENGTH(TRIM(p_string)), 0) > 0
+ 84  	 THEN
+ 85  	   IF LENGTH(p_string) > p_max_string_length
+ 86  	   THEN
+ 87  	     -- need to split
+ 88  	     l_string := p_split_start || SUBSTR(p_string, (p_max_string_length - LENGTH(p_split_end) + 1));
+ 89  	     p_string := SUBSTR(p_string, 1, (p_max_string_length - LENGTH(p_split_end))) || p_split_end;
+ 90  	     p_clob   := TO_CLOB(l_string);
+ 91  	   ELSE
+ 92  	     p_clob := TO_CLOB(l_string);
+ 93  	   END IF;
+ 94  	   RETURN TRUE;
+ 95  	 END IF;
+ 96  	 IF p_clob IS NOT NULL AND NVL(LENGTH(TRIM(p_clob)), 0) > 0
+ 97  	 THEN
+ 98  	   IF LENGTH(p_clob) > p_max_string_length
+ 99  	   THEN
+100  	     p_string := TO_CHAR(SUBSTR(p_clob, 1, (p_max_string_length - LENGTH(p_split_end))) || p_split_end);
+101  	   ELSE
+102  	     p_string := TO_CHAR(p_clob);
+103  	   END IF;
+104  	   RETURN TRUE;
+105  	 END IF;
+106  	 -- should not reach this point
+107  	 p_string := 'ERROR sosl_sys.distribute: INCOMPLETE LOGIC';
+108  	 RETURN FALSE;
+109    EXCEPTION
+110  	 WHEN OTHERS THEN
+111  	   p_string := TRIM(SUBSTR(SQLERRM, 1, 4000));
+112  	   RETURN FALSE;
+113    END distribute;
+114  
+115    FUNCTION txt_boolean( p_bool   IN BOOLEAN
+116  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+117  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+118  			   )
+119  	 RETURN VARCHAR2
+120  	 DETERMINISTIC
+121  	 PARALLEL_ENABLE
+122    IS
+123    BEGIN
+124  	 IF p_bool
+125  	 THEN
+126  	   RETURN TRIM(SUBSTR(NVL(p_true, 'TRUE'), 1, 10));
+127  	 ELSE
+128  	   RETURN TRIM(SUBSTR(NVL(p_false, 'FALSE'), 1, 10));
+129  	 END IF;
+130    END txt_boolean; -- boolean input
+131  
+132    FUNCTION txt_boolean( p_bool   IN NUMBER
+133  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+134  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+135  			   )
+136  	 RETURN VARCHAR2
+137  	 DETERMINISTIC
+138  	 PARALLEL_ENABLE
+139    IS
+140    BEGIN
+141  	 RETURN sosl_sys.txt_boolean((p_bool = 1), p_true, p_false);
+142    END txt_boolean; -- number input
+143  
+144    FUNCTION yes_no( p_bool	 IN BOOLEAN
+145  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
+146  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
+147  		      )
+148  	 RETURN VARCHAR2
+149  	 DETERMINISTIC
+150  	 PARALLEL_ENABLE
+151    IS
+152    BEGIN
+153  	 RETURN sosl_sys.txt_boolean(p_bool, p_true, p_false);
+154    END yes_no;
+155  
+156    FUNCTION yes_no( p_bool	 IN NUMBER
+157  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
+158  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
+159  		      )
+160  	 RETURN VARCHAR2
+161  	 DETERMINISTIC
+162  	 PARALLEL_ENABLE
+163    IS
+164    BEGIN
+165  	 RETURN sosl_sys.txt_boolean((p_bool = 1), p_true, p_false);
+166    END yes_no;
 167  
-168    FUNCTION get_col_type( p_table  IN VARCHAR2
-169  			    , p_column IN VARCHAR2
-170  			    )
-171  	 RETURN VARCHAR2
-172    IS
-173  	 l_return      VARCHAR2(128);
-174  	 l_has_column  INTEGER;
-175  	 l_data_type   user_tab_columns.data_type%TYPE;
-176    BEGIN
-177  	 l_return := sosl_sys.NA_TYPE;
-178  	 SELECT COUNT(*) INTO l_has_column FROM user_tab_columns WHERE table_name = UPPER(p_table) AND column_name = UPPER(p_column);
-179  	 IF l_has_column = 1
-180  	 THEN
-181  	   -- column match get data type
-182  	   SELECT data_type
-183  	     INTO l_return
-184  	     FROM user_tab_columns
-185  	    WHERE table_name  = UPPER(p_table)
-186  	      AND column_name = UPPER(p_column)
-187  	   ;
-188  	 END IF;
-189  	 RETURN l_return;
-190    EXCEPTION
-191  	 WHEN OTHERS THEN
-192  	   RETURN sosl_sys.NA_TYPE;
-193    END get_col_type;
-194  
-195    FUNCTION distribute( p_string		IN OUT	       VARCHAR2
-196  			  , p_clob		IN OUT NOCOPY  CLOB
-197  			  , p_max_string_length IN	       INTEGER	 DEFAULT 4000
-198  			  , p_split_end 	IN	       VARCHAR2  DEFAULT '...'
-199  			  , p_split_start	IN	       VARCHAR2  DEFAULT '...'
-200  			  , p_delimiter 	IN	       VARCHAR2  DEFAULT ' - '
-201  			  )
-202  	 RETURN BOOLEAN
-203    IS
-204  	 l_string  VARCHAR2(32767);
-205    BEGIN
-206  	 IF	(p_string IS NULL OR NVL(LENGTH(TRIM(p_string)), 0) = 0)
-207  	    AND (p_clob   IS NULL OR NVL(LENGTH(TRIM(p_clob)), 0) = 0)
-208  	 THEN
-209  	   RETURN FALSE;
-210  	 END IF;
-211  	 IF	p_string IS NOT NULL AND NVL(LENGTH(TRIM(p_string)), 0) > 0
-212  	    AND p_clob	 IS NOT NULL AND NVL(LENGTH(TRIM(p_clob)), 0) > 0
-213  	 THEN
-214  	   IF LENGTH(p_string) > p_max_string_length
-215  	   THEN
-216  	     -- need to split
-217  	     l_string := p_split_start || SUBSTR(p_string, (p_max_string_length - LENGTH(p_split_end) + 1)) || p_delimiter;
-218  	     p_string := SUBSTR(p_string, 1, (p_max_string_length - LENGTH(p_split_end))) || p_split_end;
-219  	     p_clob   := l_string || p_clob;
-220  	   END IF;
-221  	   RETURN TRUE;
-222  	 END IF;
-223  	 IF p_string IS NOT NULL AND NVL(LENGTH(TRIM(p_string)), 0) > 0
-224  	 THEN
-225  	   IF LENGTH(p_string) > p_max_string_length
-226  	   THEN
-227  	     -- need to split
-228  	     l_string := p_split_start || SUBSTR(p_string, (p_max_string_length - LENGTH(p_split_end) + 1));
-229  	     p_string := SUBSTR(p_string, 1, (p_max_string_length - LENGTH(p_split_end))) || p_split_end;
-230  	     p_clob   := TO_CLOB(l_string);
-231  	   ELSE
-232  	     p_clob := TO_CLOB(l_string);
-233  	   END IF;
-234  	   RETURN TRUE;
-235  	 END IF;
-236  	 IF p_clob IS NOT NULL AND NVL(LENGTH(TRIM(p_clob)), 0) > 0
-237  	 THEN
-238  	   IF LENGTH(p_clob) > p_max_string_length
-239  	   THEN
-240  	     p_string := TO_CHAR(SUBSTR(p_clob, 1, (p_max_string_length - LENGTH(p_split_end))) || p_split_end);
-241  	   ELSE
-242  	     p_string := TO_CHAR(p_clob);
-243  	   END IF;
-244  	   RETURN TRUE;
-245  	 END IF;
-246  	 -- should not reach this point
-247  	 p_string := 'ERROR sosl_sys.distribute: INCOMPLETE LOGIC';
-248  	 RETURN FALSE;
-249    EXCEPTION
-250  	 WHEN OTHERS THEN
-251  	   p_string := TRIM(SUBSTR(SQLERRM, 1, 4000));
-252  	   RETURN FALSE;
-253    END distribute;
-254  
-255    FUNCTION check_col( p_table  IN VARCHAR2
-256  			 , p_column IN VARCHAR2
-257  			 , p_value  IN VARCHAR2
-258  			 )
-259  	 RETURN BOOLEAN
-260    IS
-261  	 l_return  BOOLEAN;
-262    BEGIN
-263  	 l_return := FALSE;
-264  	 IF sosl_sys.get_col_type(p_table, p_column) IN ('VARCHAR2', 'CHAR')
-265  	 THEN
-266  	   IF NVL(LENGTH(p_value), 0) <= sosl_sys.get_col_length(p_table, p_column)
-267  	   THEN
-268  	     l_return := TRUE;
-269  	   END IF;
-270  	 END IF;
-271  	 RETURN l_return;
-272    END check_col; -- VARCHAR2 variant
-273  
-274    FUNCTION check_col( p_table  IN VARCHAR2
-275  			 , p_column IN VARCHAR2
-276  			 , p_value  IN NUMBER
-277  			 )
-278  	 RETURN BOOLEAN
-279    IS
-280  	 l_return  BOOLEAN;
-281  	 l_number  VARCHAR2(128);
-282    BEGIN
-283  	 l_return := FALSE;
-284  	 IF sosl_sys.get_col_type(p_table, p_column) = 'NUMBER'
-285  	 THEN
-286  	   l_number := REGEXP_REPLACE(TO_CHAR(p_value), '[^0-9]', '');
-287  	   IF NVL(LENGTH(l_number), 0) <= sosl_sys.get_col_length(p_table, p_column)
-288  	   THEN
-289  	     l_return := TRUE;
-290  	   END IF;
-291  	 END IF;
-292  	 RETURN l_return;
-293    END check_col; -- NUMBER variant
-294  
-295    FUNCTION txt_boolean( p_bool   IN BOOLEAN
-296  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
-297  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
-298  			   )
-299  	 RETURN VARCHAR2
-300  	 DETERMINISTIC
-301  	 PARALLEL_ENABLE
-302    IS
-303    BEGIN
-304  	 IF p_bool
-305  	 THEN
-306  	   RETURN TRIM(SUBSTR(NVL(p_true, 'TRUE'), 1, 10));
-307  	 ELSE
-308  	   RETURN TRIM(SUBSTR(NVL(p_false, 'FALSE'), 1, 10));
-309  	 END IF;
-310    END txt_boolean; -- boolean input
-311  
-312    FUNCTION txt_boolean( p_bool   IN NUMBER
-313  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
-314  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
-315  			   )
-316  	 RETURN VARCHAR2
-317  	 DETERMINISTIC
-318  	 PARALLEL_ENABLE
-319    IS
-320    BEGIN
-321  	 RETURN sosl_sys.txt_boolean((p_bool = 1), p_true, p_false);
-322    END txt_boolean; -- number input
-323  
-324    FUNCTION yes_no( p_bool	 IN BOOLEAN
-325  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
-326  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
-327  		      )
-328  	 RETURN VARCHAR2
-329  	 DETERMINISTIC
-330  	 PARALLEL_ENABLE
-331    IS
-332    BEGIN
-333  	 RETURN sosl_sys.txt_boolean(p_bool, p_true, p_false);
-334    END yes_no;
-335  
-336    FUNCTION yes_no( p_bool	 IN NUMBER
-337  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
-338  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
-339  		      )
-340  	 RETURN VARCHAR2
-341  	 DETERMINISTIC
-342  	 PARALLEL_ENABLE
-343    IS
-344    BEGIN
-345  	 RETURN sosl_sys.txt_boolean((p_bool = 1), p_true, p_false);
-346    END yes_no;
-347  
-348    FUNCTION utc_mail_date
-349  	 RETURN VARCHAR2
-350    IS
-351  	 l_date VARCHAR2(500);
-352    BEGIN
-353  	 l_date := TO_CHAR(SYSTIMESTAMP AT TIME ZONE SESSIONTIMEZONE, 'Dy, DD Mon YYYY HH24:MI:SS TZHTZM');
-354  	 RETURN l_date;
-355    END utc_mail_date;
-356  
-357    FUNCTION format_mail( p_sender	   IN VARCHAR2
-358  			   , p_recipients  IN VARCHAR2
-359  			   , p_subject	   IN VARCHAR2
-360  			   , p_message	   IN VARCHAR2
-361  			   )
-362  	 RETURN VARCHAR2
-363    IS
-364  	 l_crlf 	 VARCHAR2(2)	   := CHR(13) || CHR(10);
-365  	 l_mail_message  VARCHAR2(32767);
-366    BEGIN
-367  	 l_mail_message := 'From: ' || p_sender || l_crlf ||
-368  			   'To: ' || p_recipients || l_crlf ||
-369  			   'Date: ' || sosl_sys.utc_mail_date || l_crlf ||
-370  			   'Subject: ' || p_subject || l_crlf ||
-371  			   p_message
-372  	 ;
-373  	 RETURN l_mail_message;
-374    END format_mail;
-375  
-376  END;
-377  /
+168    FUNCTION utc_mail_date
+169  	 RETURN VARCHAR2
+170    IS
+171  	 l_date VARCHAR2(500);
+172    BEGIN
+173  	 l_date := TO_CHAR(SYSTIMESTAMP AT TIME ZONE SESSIONTIMEZONE, 'Dy, DD Mon YYYY HH24:MI:SS TZHTZM');
+174  	 RETURN l_date;
+175    END utc_mail_date;
+176  
+177    FUNCTION format_mail( p_sender	   IN VARCHAR2
+178  			   , p_recipients  IN VARCHAR2
+179  			   , p_subject	   IN VARCHAR2
+180  			   , p_message	   IN VARCHAR2
+181  			   )
+182  	 RETURN VARCHAR2
+183    IS
+184  	 l_crlf 	 VARCHAR2(2)	   := CHR(13) || CHR(10);
+185  	 l_mail_message  VARCHAR2(32767);
+186    BEGIN
+187  	 l_mail_message := 'From: ' || p_sender || l_crlf ||
+188  			   'To: ' || p_recipients || l_crlf ||
+189  			   'Date: ' || sosl_sys.utc_mail_date || l_crlf ||
+190  			   'Subject: ' || p_subject || l_crlf ||
+191  			   p_message
+192  	 ;
+193  	 RETURN l_mail_message;
+194    END format_mail;
+195  
+196  END;
+197  /
 
 Package body created.
 
@@ -835,6 +660,11 @@ SQL> CREATE OR REPLACE TRIGGER sosl_server_log_del_trg
   7  /
 
 Trigger created.
+
+SQL> -- Grants, inherited by others, no guest access on table
+SQL> GRANT SELECT ON sosl_server_log TO sosl_user;
+
+Grant succeeded.
 
 SQL> -- logging package
 SQL> @@../sosl_ddl/packages/sosl_log.pks
