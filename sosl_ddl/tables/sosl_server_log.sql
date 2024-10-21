@@ -99,3 +99,5 @@ BEGIN
   RAISE_APPLICATION_ERROR(-20006, 'Delete records from a log table is not allowed. This is an admin job which needs sufficient rights.');
 END;
 /
+-- Grants, inherited by others, no guest access on table
+GRANT SELECT ON sosl_server_log TO sosl_user;

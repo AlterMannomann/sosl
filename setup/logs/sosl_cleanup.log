@@ -1,53 +1,83 @@
 SQL> -- packages and functions
 SQL> @@../sosl_ddl/functions/drop/drop_has_scripts.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> -- revoke grants
+SQL> REVOKE EXECUTE ON has_scripts FROM sosl_guest;
+
+Revoke succeeded.
+
+SQL> -- drop function
 SQL> DROP FUNCTION has_scripts;
 
 Function dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_if_pkb.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP PACKAGE BODY sosl_if;
 
 Package body dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_if_pks.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP PACKAGE sosl_if;
 
 Package dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_pkb.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP PACKAGE BODY sosl;
 
 Package body dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_pks.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP PACKAGE sosl;
+
+Package dropped.
+
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_util_pkb.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> DROP PACKAGE BODY sosl_util;
+
+Package body dropped.
+
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_util_pks.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> DROP PACKAGE sosl_util;
 
 Package dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_log_pkb.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP PACKAGE BODY sosl_log;
 
 Package body dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_log_pks.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP PACKAGE sosl_log;
 
 Package dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_sys_pkb.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP PACKAGE BODY sosl_sys;
 
 Package body dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_sys_pks.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP PACKAGE sosl_sys;
 
 Package dropped.
@@ -56,44 +86,75 @@ SQL> -- view objects
 SQL> -- table objects
 SQL> @@../sosl_ddl/tables/drop/drop_sosl_script.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP TABLE sosl_script PURGE;
 
 Table dropped.
 
 SQL> @@../sosl_ddl/tables/drop/drop_sosl_executor.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP TABLE sosl_executor PURGE;
 
 Table dropped.
 
 SQL> @@../sosl_ddl/tables/drop/drop_sosl_config.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP TABLE sosl_config PURGE;
 
 Table dropped.
 
 SQL> @@../sosl_ddl/tables/drop/drop_sosl_server_log.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP TABLE sosl_server_log PURGE;
 
 Table dropped.
 
 SQL> @@../sosl_ddl/tables/drop/drop_soslerrorlog.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP TABLE soslerrorlog PURGE;
 
 Table dropped.
 
-SQL> -- queues
+SQL> -- types
 SQL> @@../sosl_ddl/types/drop/drop_sosl_payload.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP TYPE sosl_payload;
 
 Type dropped.
 
+SQL> -- roles
+SQL> @@../sosl_ddl/roles/drop/drop_roles.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> DROP ROLE sosl_admin;
+
+Role dropped.
+
+SQL> DROP ROLE sosl_executor;
+
+Role dropped.
+
+SQL> DROP ROLE sosl_reviewer;
+
+Role dropped.
+
+SQL> DROP ROLE sosl_user;
+
+Role dropped.
+
+SQL> DROP ROLE sosl_guest;
+
+Role dropped.
+
 SQL> -- ==============UNINSTALL done==============
 SQL> @@../sosl_sql/util/log_silent.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> SET ECHO OFF
 SUCCESS - no errors found during cleanup          0
 SPERRORLOG is not deleted, as we do not know if schema is exclusive. You may drop it manually with: DROP TABLE sperrorlog PURGE;

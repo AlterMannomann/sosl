@@ -1,13 +1,14 @@
 -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 -- Not allowed to be used as AI training material without explicite permission.
--- Basic logging package, dependencies only to sosl_server_log.
+-- Basic logging package, dependencies only to sosl_server_log and sosl_sys.
 CREATE OR REPLACE PACKAGE sosl_log
 AS
   /**
   * This package contains basic functions and procedures used by the Simple Oracle Script Loader for managing logging.
   * Apart from sosl_server_log table, there are no dependencies, severe exceptions must be catched or handled by the caller.
   * The interface has as well functions and procedures. Functions inform about success or error, whereas procedure exceptions
-  * must be handled by the caller.
+  * must be handled by the caller. The intention is to log as much information as possible before running into an exception
+  * that can't be handled any longer.
   *
   * CURRENT ORACLE error: NOCOPY for IN parameters creates compile errors, whereas documentation allows IN NOCOPY var. Any
   * CLOB handling errors are possibly caused by the inability to provide a CLOB as reference.
@@ -15,14 +16,23 @@ AS
 
   /*====================================== start internal functions made visible for testing ======================================*/
   /* PROCEDURE SOSL_LOG.LOG_FALLBACK
-  * This procedure tries some fallback actions, if logging raised an exception. It will not throw an exception. It will try to log the error in
-  * SOSL_SERVER_LOG, SOSLERRORLOG, SPERRORLOG or, if everything fails output the error via DBMS_OUTPUT. As we can't determine if the message contains
-  * an illegal character forcing the exception, the caller should transfer SQLERRM and verify the transmitted content before passing it to this procedure
-  * or avoid transmitting parameters which should cause errors. If error could be logged to one of the tables, it can be found in this tables with
-  * identifier SOSL_LOG. It will not prevent the exception, only try to log it somewhere, where it could be found without needing to analyze the db server
-  * logs. Everything runs as autonomous transaction. DO NOT USE THIS PROCEDURE. It is internal for this package.
+  * This procedure tries some fallback actions, if logging raised an exception. It will not throw an extra exception. Intended to be
+  * used during exception handling before raising the error.
+  * It will try to log the error in one of this tables: SOSL_SERVER_LOG, SOSLERRORLOG, SPERRORLOG or, if everything fails output the error
+  * via DBMS_OUTPUT.
   *
-  * @param p_script The package function or procedure causing the error, e.g. SOSL_LOG.LOG_EVENT.
+  * As we can't determine if the message contains an illegal character forcing the exception, the caller should transfer SQLERRM and
+  * verify the transmitted content before passing it to this procedure or avoid transmitting parameters which should cause errors.
+  *
+  * If error could be logged it matches as follows:
+  * SOSL_SERVER_LOG(caller, sosl_identifier, message) VALUES (p_script, p_identifier, p_message)
+  * SOSLERRORLOG, SPERRORLOG(script, identifier, message) VALUES (p_script, p_identifier, p_message)
+  * It will not prevent the exception, only try to log it somewhere, where it could be found without needing to analyze the db server
+  * logs. Everything runs as autonomous transaction.
+  *
+  * DO NOT USE THIS PROCEDURE. It is internal for this package and only visible for testing.
+  *
+  * @param p_script The package function or procedure causing the error, e.g. sosl_log.log_event.
   * @param p_identifier The identifier for this error. Saved in SOSL_IDENTIFIER in SOSL_SERVER_LOG or IDENTIFIER in the error log tables.
   * @param p_message The message to save. Reduce it to SQLERRM if possible.
   */
@@ -66,6 +76,8 @@ AS
   * and p_caller, to be able to assign the log entry to a specific event and object. On parameter errors a separate log entry is
   * created. Intention is to write a log in any case and not throw any exception. This still may happen on main system malfunctions
   * but is limited to this events.
+  * To keep things as fast as possible, column length checks are hardcoded, no extra round trip to USER_TAB_COLUMNS. If table definition
+  * changes, this package has to be adjusted.
   *
   * @param p_message The message to log. Limited to 4000 chars. If longer it is split and rest is stored in full_message CLOB by trigger. If NULL p_full_message must be provided.
   * @param p_log_type The log type is basically defined by SOSL_SYS. Currently: INFO, WARNING, ERROR, FATAL, SUCCESS. Will be set to ERROR if not valid.
@@ -89,17 +101,6 @@ AS
                     , p_run_id           IN NUMBER      DEFAULT NULL
                     , p_full_message     IN CLOB        DEFAULT NULL
                     )
-  ;
-
-  PROCEDURE cmd_log( p_message          IN VARCHAR2
-                   , p_log_type         IN VARCHAR2     DEFAULT sosl_sys.INFO_TYPE
-                   , p_caller           IN VARCHAR2     DEFAULT NULL
-                   , p_guid             IN VARCHAR2     DEFAULT NULL
-                   , p_sosl_identifier  IN VARCHAR2     DEFAULT NULL
-                   , p_executor_id      IN NUMBER       DEFAULT NULL
-                   , p_ext_script_id    IN VARCHAR2     DEFAULT NULL
-                   , p_full_message     IN CLOB         DEFAULT NULL
-                   )
   ;
 
   /* FUNCTION SOSL_LOG.DUMMY_MAIL

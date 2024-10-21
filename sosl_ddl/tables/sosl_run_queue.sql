@@ -28,7 +28,7 @@ CREATE TABLE sosl_run_queue
 ;
 COMMENT ON TABLE sosl_run_queue IS 'This table hold old and new runs of batch plans and the execution run state of each script. Granularity is single script. This is not a message queue. Will use the alias srqu.';
 COMMENT ON COLUMN sosl_run_queue.run_id IS 'Generated unique id for a batch run script.';
-COMMENT ON COLUMN sosl_run_queue.run_state IS 'Holds the run state: 0 Waiting, 1 Enqueued, 2 Started, 3 Running, 4 Finished, -1 Error. To rerun a job, set run_state to 1. Will not be accepted if executor is not active and reviewed. Script dependencies are not checked. Always 0 on insert, managed by trigger';
+COMMENT ON COLUMN sosl_run_queue.run_state IS 'Holds the run state: 0 Waiting, 1 Enqueued, 2 Started, 3 Running, 4 Finished, -1 Error. To rerun a job, set run_state to 1. Will not be accepted if executor is not active and reviewed. Script dependencies are not checked. Can only be 0 or -1 on insert, managed by trigger';
 COMMENT ON COLUMN sosl_run_queue.executor_id IS 'The valid executor id as returned from API (NUMBER). No updates allowed, surpressed by trigger.';
 COMMENT ON COLUMN sosl_run_queue.ext_script_id IS 'The (external) identifier for the current script as returned from API (VARCHAR2). No updates allowed, surpressed by trigger.';
 COMMENT ON COLUMN sosl_run_queue.script_file IS 'The script file name including (relative) path from API (VARCHAR2). No updates allowed, surpressed by trigger.';
@@ -86,17 +86,27 @@ BEGIN
   IF l_executor_valid = 0
   THEN
     :NEW.run_state      := -1;
+  END IF;
+  IF :NEW.run_state != -1
+  THEN
+    :NEW.run_state      := 0;
+  END IF;
+  IF :NEW.run_state = 0
+  THEN
+    :NEW.waiting        := SYSTIMESTAMP;
+    :NEW.waiting_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+    :NEW.waiting_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+  ELSE
     :NEW.waiting        := NULL;
     :NEW.waiting_by     := NULL;
     :NEW.waiting_by_os  := NULL;
+  END IF;
+  IF :NEW.run_state = -1
+  THEN
     :NEW.finished       := SYSTIMESTAMP;
     :NEW.finished_by    := SYS_CONTEXT('USERENV', 'CURRENT_USER');
     :NEW.finished_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
   ELSE
-    :NEW.run_state      := 0;
-    :NEW.waiting        := SYSTIMESTAMP;
-    :NEW.waiting_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
-    :NEW.waiting_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
     :NEW.finished       := NULL;
     :NEW.finished_by    := NULL;
     :NEW.finished_by_os := NULL;
@@ -115,9 +125,6 @@ BEGIN
   :NEW.running        := NULL;
   :NEW.running_by     := NULL;
   :NEW.running_by_os  := NULL;
-  :NEW.finished       := NULL;
-  :NEW.finished_by    := NULL;
-  :NEW.finished_by_os := NULL;
 END;
 /
 CREATE OR REPLACE TRIGGER sosl_run_queue_upd_trg

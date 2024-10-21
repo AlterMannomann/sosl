@@ -97,7 +97,7 @@ BEGIN
   :NEW.fn_set_script_status := UPPER(:NEW.fn_set_script_status);
   :NEW.fn_send_db_mail      := UPPER(:NEW.fn_send_db_mail);
   -- check user
-  IF NOT sosl_sys.has_db_user(:NEW.db_user)
+  IF NOT sosl_util.has_db_user(:NEW.db_user)
   THEN
     sosl_log.full_log( p_message => 'The given database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
                      , p_log_type => sosl_sys.FATAL_TYPE
@@ -107,7 +107,7 @@ BEGIN
     ;
     RAISE_APPLICATION_ERROR(-20003, 'The given database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
   END IF;
-  IF NOT sosl_sys.has_db_user(:NEW.function_owner)
+  IF NOT sosl_util.has_db_user(:NEW.function_owner)
   THEN
     sosl_log.full_log( p_message => 'The given function owner database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
                      , p_log_type => sosl_sys.FATAL_TYPE
@@ -118,7 +118,7 @@ BEGIN
     RAISE_APPLICATION_ERROR(-20003, 'The given function owner database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
   END IF;
   -- check configured functions
-  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_has_scripts, 'NUMBER')
+  IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_has_scripts, 'NUMBER')
   THEN
     sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_has_scripts || ' for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
                      , p_log_type => sosl_sys.FATAL_TYPE
@@ -129,7 +129,7 @@ BEGIN
     ;
     RAISE_APPLICATION_ERROR(-20004, 'The given function ' || :NEW.fn_has_scripts || ' for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
   END IF;
-  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_next_script, 'OBJECT')
+  IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_get_next_script, 'OBJECT')
   THEN
     sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_next_script || ' for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to SOSL.'
                      , p_log_type => sosl_sys.FATAL_TYPE
@@ -139,7 +139,7 @@ BEGIN
     ;
     RAISE_APPLICATION_ERROR(-20005, 'The given function ' || :NEW.fn_get_next_script || ' for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to SOSL.');
   END IF;
-  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_set_script_status, 'NUMBER')
+  IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_set_script_status, 'NUMBER')
   THEN
     sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_set_script_status || ' for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
                      , p_log_type => sosl_sys.FATAL_TYPE
@@ -150,7 +150,7 @@ BEGIN
     RAISE_APPLICATION_ERROR(-20008, 'The given function ' || :NEW.fn_set_script_status || ' for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
   END IF;
   IF     :NEW.use_mail = 1
-     AND NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_send_db_mail, 'NUMBER')
+     AND NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_send_db_mail, 'NUMBER')
   THEN
     sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_send_db_mail || ' for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
                      , p_log_type => sosl_sys.FATAL_TYPE
@@ -244,7 +244,7 @@ BEGIN
   END IF;
   -- do all checks again including user
   -- check user
-  IF NOT sosl_sys.has_db_user(:NEW.db_user)
+  IF NOT sosl_util.has_db_user(:NEW.db_user)
   THEN
     sosl_log.full_log( p_message => 'The given database user is not longer visible for SOSL in ALL_USERS. Executor deactivated. Either the user does not exist or SOSL has no right to see this user.'
                      , p_log_type => sosl_sys.FATAL_TYPE
@@ -254,7 +254,7 @@ BEGIN
     ;
     :NEW.executor_active := 0;
   END IF;
-  IF NOT sosl_sys.has_db_user(:NEW.function_owner)
+  IF NOT sosl_util.has_db_user(:NEW.function_owner)
   THEN
     sosl_log.full_log( p_message => 'The given function owner database user is not longer visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
                      , p_log_type => sosl_sys.FATAL_TYPE
@@ -265,7 +265,7 @@ BEGIN
     :NEW.executor_active := 0;
   END IF;
   -- check configured functions
-  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_has_scripts, 'NUMBER')
+  IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_has_scripts, 'NUMBER')
   THEN
     sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_has_scripts || ' for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
                      , p_log_type => sosl_sys.FATAL_TYPE
@@ -275,7 +275,7 @@ BEGIN
     ;
     RAISE_APPLICATION_ERROR(-20004, 'The given function ' || :NEW.fn_has_scripts || ' for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
   END IF;
-  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_next_script, 'SOSL_PAYLOAD')
+  IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_get_next_script, 'SOSL_PAYLOAD')
   THEN
     sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_next_script || ' for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype SOSL_PAYLOAD or is not granted with EXECUTE rights to SOSL.'
                      , p_log_type => sosl_sys.FATAL_TYPE
@@ -285,7 +285,7 @@ BEGIN
     ;
     RAISE_APPLICATION_ERROR(-20005, 'The given function ' || :NEW.fn_get_next_script || ' for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype SOSL_PAYLOAD or is not granted with EXECUTE rights to SOSL.');
   END IF;
-  IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_set_script_status, 'NUMBER')
+  IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_set_script_status, 'NUMBER')
   THEN
     sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_set_script_status || ' for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
                      , p_log_type => sosl_sys.FATAL_TYPE
@@ -296,7 +296,7 @@ BEGIN
     RAISE_APPLICATION_ERROR(-20008, 'The given function ' || :NEW.fn_set_script_status || ' for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
   END IF;
   IF     :NEW.use_mail = 1
-     AND NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_send_db_mail, 'NUMBER')
+     AND NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_send_db_mail, 'NUMBER')
   THEN
     sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_send_db_mail || ' for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
                      , p_log_type => sosl_sys.FATAL_TYPE

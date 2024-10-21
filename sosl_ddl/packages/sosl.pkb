@@ -237,7 +237,7 @@ AS
       l_fn_valid := FALSE;
       FOR rec IN cur_fn_owner(p_fn_has_scripts)
       LOOP
-        IF sosl_sys.has_function(rec.function_owner, UPPER(p_fn_has_scripts), 'NUMBER')
+        IF sosl_util.has_function(rec.function_owner, UPPER(p_fn_has_scripts), 'NUMBER')
         THEN
           l_fn_valid := TRUE;
           EXIT;

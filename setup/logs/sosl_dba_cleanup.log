@@ -3,14 +3,53 @@ Drop user/schema SOSL including tablespace SOSL_TABLESPACE and datafile? Use Ctr
 
 SQL> DROP USER sosl CASCADE;
 SQL> DROP TABLESPACE sosl_tablespace DROP QUOTA INCLUDING CONTENTS AND DATAFILES;
-SQL> -- drop sosl roles
+SQL> -- do not exit if role drop fails
+SQL> WHENEVER SQLERROR CONTINUE
+SQL> WHENEVER OSERROR CONTINUE
+SQL> -- drop sosl roles if still exist
+SQL> @@../sosl_ddl/roles/drop/drop_roles.sql
 SQL> DROP ROLE sosl_admin;
+DROP ROLE sosl_admin
+          *
+ERROR at line 1:
+ORA-01919: Role 'SOSL_ADMIN' does not exist.
+Help: https://docs.oracle.com/error-help/db/ora-01919/
+
+
 SQL> DROP ROLE sosl_executor;
+DROP ROLE sosl_executor
+          *
+ERROR at line 1:
+ORA-01919: Role 'SOSL_EXECUTOR' does not exist.
+Help: https://docs.oracle.com/error-help/db/ora-01919/
+
+
 SQL> DROP ROLE sosl_reviewer;
+DROP ROLE sosl_reviewer
+          *
+ERROR at line 1:
+ORA-01919: Role 'SOSL_REVIEWER' does not exist.
+Help: https://docs.oracle.com/error-help/db/ora-01919/
+
+
 SQL> DROP ROLE sosl_user;
+DROP ROLE sosl_user
+          *
+ERROR at line 1:
+ORA-01919: Role 'SOSL_USER' does not exist.
+Help: https://docs.oracle.com/error-help/db/ora-01919/
+
+
 SQL> DROP ROLE sosl_guest;
+DROP ROLE sosl_guest
+          *
+ERROR at line 1:
+ORA-01919: Role 'SOSL_GUEST' does not exist.
+Help: https://docs.oracle.com/error-help/db/ora-01919/
+
+
 SQL> SET ECHO OFF
-Executed: 18-OCT-24 04.32.20.195135 PM +00:00
+Executed: 21-OCT-24 07.58.41.964024 PM +00:00
 User SOSL dropped
 SOSL roles dropped
 Tablespace SOSL_TABLESPACE and datafile dropped

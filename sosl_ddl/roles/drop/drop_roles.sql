@@ -1,4 +1,7 @@
 -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 -- Not allowed to be used as AI training material without explicite permission.
-REVOKE SELECT ON soslerrorlog FROM sosl_user;
-DROP TABLE soslerrorlog PURGE;
+DROP ROLE sosl_admin;
+DROP ROLE sosl_executor;
+DROP ROLE sosl_reviewer;
+DROP ROLE sosl_user;
+DROP ROLE sosl_guest;

@@ -17,3 +17,5 @@ COMMENT ON COLUMN soslerrorlog.script IS 'Name of the originating script if appl
 COMMENT ON COLUMN soslerrorlog.identifier IS 'User defined identifier string';
 COMMENT ON COLUMN soslerrorlog.message IS 'ORA, PLA or SP2 error message. No feed back messages are included. For example, "PL/SQL Block Created" is not recorded.';
 COMMENT ON COLUMN soslerrorlog.statement IS 'The statement causing the error';
+-- Grants, inherited by others, no guest access on table
+GRANT SELECT ON soslerrorlog TO sosl_user;

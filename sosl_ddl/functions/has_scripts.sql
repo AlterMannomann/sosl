@@ -27,9 +27,5 @@ EXCEPTION
     RETURN -1;
 END;
 /
--- grants, everyone can see if scripts are available
+-- grants, everyone can see if scripts are available, inherited by others
 GRANT EXECUTE ON has_scripts TO sosl_guest;
-GRANT EXECUTE ON has_scripts TO sosl_user;
-GRANT EXECUTE ON has_scripts TO sosl_reviewer;
-GRANT EXECUTE ON has_scripts TO sosl_executor;
-GRANT EXECUTE ON has_scripts TO sosl_admin;

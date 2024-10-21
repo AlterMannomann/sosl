@@ -18,6 +18,8 @@ SPOOL logs/sosl_cleanup.log
 @@../sosl_ddl/packages/drop/drop_sosl_if_pks.sql
 @@../sosl_ddl/packages/drop/drop_sosl_pkb.sql
 @@../sosl_ddl/packages/drop/drop_sosl_pks.sql
+@@../sosl_ddl/packages/drop/drop_sosl_util_pkb.sql
+@@../sosl_ddl/packages/drop/drop_sosl_util_pks.sql
 @@../sosl_ddl/packages/drop/drop_sosl_log_pkb.sql
 @@../sosl_ddl/packages/drop/drop_sosl_log_pks.sql
 @@../sosl_ddl/packages/drop/drop_sosl_sys_pkb.sql
@@ -29,8 +31,10 @@ SPOOL logs/sosl_cleanup.log
 @@../sosl_ddl/tables/drop/drop_sosl_config.sql
 @@../sosl_ddl/tables/drop/drop_sosl_server_log.sql
 @@../sosl_ddl/tables/drop/drop_soslerrorlog.sql
--- queues
+-- types
 @@../sosl_ddl/types/drop/drop_sosl_payload.sql
+-- roles
+@@../sosl_ddl/roles/drop/drop_roles.sql
 -- ==============UNINSTALL done==============
 @@../sosl_sql/util/log_silent.sql
 -- check errors and display them, if so

@@ -49,26 +49,14 @@ ALTER USER sosl
 -- quotas
 ALTER USER sosl QUOTA UNLIMITED ON sosl_tablespace;
 -- basic grants
-GRANT CREATE VIEW TO sosl;
-GRANT GATHER_SYSTEM_STATISTICS TO sosl;
 GRANT CONNECT TO sosl;
 GRANT RESOURCE TO sosl;
+GRANT GATHER_SYSTEM_STATISTICS TO sosl;
+GRANT CREATE VIEW TO sosl;
 GRANT CREATE JOB TO sosl;
+GRANT CREATE ROLE TO sosl;
 GRANT SELECT ON v_$session TO sosl;
-GRANT EXECUTE ON DBMS_AQ TO sosl;
-GRANT EXECUTE ON DBMS_AQADM TO sosl;
--- SOSL roles
--- create sosl roles
-CREATE ROLE sosl_admin;
-CREATE ROLE sosl_executor;
-CREATE ROLE sosl_reviewer;
-CREATE ROLE sosl_user;
-CREATE ROLE sosl_guest;
-GRANT sosl_admin TO sosl WITH ADMIN OPTION;
-GRANT sosl_executor TO sosl WITH ADMIN OPTION;
-GRANT sosl_reviewer TO sosl WITH ADMIN OPTION;
-GRANT sosl_user TO sosl WITH ADMIN OPTION;
-GRANT sosl_guest TO sosl WITH ADMIN OPTION;
+GRANT SELECT ON dba_role_privs TO sosl;
 SET ECHO OFF
 SELECT 'Creating sosl_login.cfg with current values and @soslinstance in template folder ...' AS info
   FROM dual;
@@ -94,8 +82,7 @@ SPOOL logs/sosl_dba_setup.log APPEND
 SELECT 'Executed: ' || TO_CHAR(SYSTIMESTAMP) || CHR(13) || CHR(10) ||
        'Created user SOSL with unlimited quota on' || CHR(13) || CHR(10) ||
        'tablespace SOSL_TABLESPACE, 100 MB, data file sosl.dbf' || CHR(13) || CHR(10) ||
-       'Granted CREATE VIEW, CONNECT, RESSOURCE, GATHER_SYSTEM_STATISTICS, V$SESSION, CREATE JOB, DBMS_AQ, DBMS_AQADM' || CHR(13) || CHR(10) ||
-       'Created SOSL roles SOSL_ADMIN, SOSL_EXECUTOR, SOSL_REVIEWER, SOSL_USER, SOSL_GUEST' || CHR(13) || CHR(10) ||
+       'Granted CREATE VIEW, CREATE JOB, CREATE ROLE, CONNECT, RESSOURCE, GATHER_SYSTEM_STATISTICS, SELECT for V$SESSION and DBA_ROLE_PRIVS' || CHR(13) || CHR(10) ||
        'by ' || SYS_CONTEXT('USERENV', 'OS_USER') || CHR(13) || CHR(10) ||
        'using ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || CHR(13) || CHR(10) ||
        'on database ' || SYS_CONTEXT('USERENV', 'DB_NAME') || CHR(13) || CHR(10) ||

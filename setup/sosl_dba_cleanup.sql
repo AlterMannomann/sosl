@@ -15,16 +15,15 @@ PAUSE &SOSL_MSG
 SET ECHO ON
 DROP USER sosl CASCADE;
 DROP TABLESPACE sosl_tablespace DROP QUOTA INCLUDING CONTENTS AND DATAFILES;
--- drop sosl roles
-DROP ROLE sosl_admin;
-DROP ROLE sosl_executor;
-DROP ROLE sosl_reviewer;
-DROP ROLE sosl_user;
-DROP ROLE sosl_guest;
+-- do not exit if role drop fails
+WHENEVER SQLERROR CONTINUE
+WHENEVER OSERROR CONTINUE
+-- drop sosl roles if still exist
+@@../sosl_ddl/roles/drop/drop_roles.sql
 SET ECHO OFF
 SELECT 'Executed: ' || TO_CHAR(SYSTIMESTAMP) || CHR(13) || CHR(10) ||
        'User SOSL dropped' || CHR(13) || CHR(10) ||
-       'SOSL roles dropped' || CHR(13) || CHR(10) ||
+       'Still existing SOSL roles dropped' || CHR(13) || CHR(10) ||
        'Tablespace SOSL_TABLESPACE and datafile dropped' || CHR(13) || CHR(10) ||
        'by ' || SYS_CONTEXT('USERENV', 'OS_USER') || CHR(13) || CHR(10) ||
        'using ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || CHR(13) || CHR(10) ||

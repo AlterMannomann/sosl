@@ -88,16 +88,11 @@ AS
     -- all inserts failed, use DBMS_OUTPUT
     IF NOT l_saved
     THEN
-      BEGIN
-        DBMS_OUTPUT.PUT_LINE('Fatal error in ' || p_script || ' error: ' || p_message);
-      EXCEPTION
-        WHEN OTHERS THEN
-          NULL;
-      END;
+      DBMS_OUTPUT.PUT_LINE('SOSL_LOG.LOG_FALLBACK could not save error. Fatal error in ' || p_script || ' error: ' || p_message);
     END IF;
   EXCEPTION
     WHEN OTHERS THEN
-      -- do exactly nothing to avoid an additional exception on database malfunction
+      -- fallback failed, let caller handle and raise the error, do nothing therefore.
       NULL;
   END log_fallback;
 
@@ -143,8 +138,8 @@ AS
     COMMIT;
   EXCEPTION
     WHEN OTHERS THEN
-      -- use fallback
-      log_fallback('SOSL_LOG.LOG_EVENT', 'SOSL_LOG', SQLERRM);
+      -- try fallback
+      log_fallback('sosl_log.log_event', 'SOSL_LOG', SQLERRM);
       -- try ROLLBACK
       ROLLBACK;
       -- and raise the error again now
@@ -164,159 +159,155 @@ AS
                     )
   IS
     -- set variables to current type
-    l_log_category    sosl_server_log.log_category%TYPE;
-    l_caller          sosl_server_log.caller%TYPE;
-    l_guid            sosl_server_log.guid%TYPE;
-    l_sosl_identifier sosl_server_log.sosl_identifier%TYPE;
-    l_executor_id     sosl_server_log.executor_id%TYPE;
-    l_ext_script_id   sosl_server_log.ext_script_id%TYPE;
-    l_run_id          sosl_server_log.run_id%TYPE;
+    l_self_log_category sosl_server_log.log_category%TYPE     := 'SOSL_LOG';
+    l_self_caller       sosl_server_log.caller%TYPE           := 'sosl_log.full_log';
+    l_log_category      sosl_server_log.log_category%TYPE;
+    l_caller            sosl_server_log.caller%TYPE;
+    l_guid              sosl_server_log.guid%TYPE;
+    l_sosl_identifier   sosl_server_log.sosl_identifier%TYPE;
+    l_executor_id       sosl_server_log.executor_id%TYPE;
+    l_ext_script_id     sosl_server_log.ext_script_id%TYPE;
+    l_run_id            sosl_server_log.run_id%TYPE;
+    l_col_length        INTEGER;
   BEGIN
-    -- we leave info type and message splitting to be handled by table trigger, only check other parameters for type and length.
-    IF NOT sosl_sys.check_col('SOSL_SERVER_LOG', 'LOG_CATEGORY', p_log_category)
+    -- basic column checks message splitting is left to table triggers
+    -- LOG_CATEGORY
+    IF NVL(LENGTH(TRIM(p_log_category)), 0) > 256
     THEN
       -- write extra log entry and cut original content to limit
-      log_event( 'p_log_category length exceeds column length in SOSL_SERVER_LOG. See full message for message causing the error.'
-               , sosl_sys.FATAL_TYPE
-               , 'LOG USAGE ERROR'
-               , NULL, NULL, NULL, NULL, NULL, NULL
-               , (p_message || ' - ' || p_full_message)
+      log_event( p_message => 'p_log_category length exceeds column length (256) in SOSL_SERVER_LOG. See full message for message causing the error.'
+               , p_log_type => sosl_sys.FATAL_TYPE
+               , p_log_category => l_self_log_category
+               , p_guid => NULL
+               , p_sosl_identifier => NULL
+               , p_executor_id => NULL
+               , p_ext_script_id => NULL
+               , p_caller => l_self_caller
+               , p_run_id => NULL
+                 -- details and original message
+               , p_full_message => ('LOG_CATEGORY: ' || TRIM(p_log_category) || ' length: ' || LENGTH(TRIM(p_log_category)) || ' msg: ' || p_message || ' - ' || p_full_message)
                )
       ;
-      l_log_category := SUBSTR(p_log_category, 1, sosl_sys.get_col_length('SOSL_SERVER_LOG', 'LOG_CATEGORY'));
+      l_log_category := SUBSTR(TRIM(p_log_category), 1, 256);
     ELSE
-      l_log_category := NVL(p_log_category, 'not set');
+      l_log_category := NVL(TRIM(p_log_category), sosl_sys.NA_TYPE);
     END IF;
-    IF NOT sosl_sys.check_col('SOSL_SERVER_LOG', 'CALLER', p_caller)
+    -- CALLER
+    IF NVL(LENGTH(TRIM(p_caller)), 0) > 256
     THEN
       -- write extra log entry and cut original content to limit
-      log_event( 'p_caller length exceeds column length in SOSL_SERVER_LOG. See full message for message causing the error.'
-               , sosl_sys.FATAL_TYPE
-               , 'LOG USAGE ERROR'
-               , NULL, NULL, NULL, NULL, NULL, NULL
-               , (p_message || ' - ' || p_full_message)
+      log_event( p_message => 'p_caller length exceeds column length (256) in SOSL_SERVER_LOG. See full message for message causing the error.'
+               , p_log_type => sosl_sys.FATAL_TYPE
+               , p_log_category => l_self_log_category
+               , p_guid => NULL
+               , p_sosl_identifier => NULL
+               , p_executor_id => NULL
+               , p_ext_script_id => NULL
+               , p_caller => l_self_caller
+               , p_run_id => NULL
+                 -- details and original message
+               , p_full_message => ('CALLER: ' || TRIM(p_caller) || ' length: ' || LENGTH(TRIM(p_caller)) || ' msg: ' || p_message || ' - ' || p_full_message)
                )
       ;
-      l_caller := SUBSTR(p_caller, 1, sosl_sys.get_col_length('SOSL_SERVER_LOG', 'CALLER'));
+      l_caller := SUBSTR(TRIM(p_caller), 1, 256);
     ELSE
-      l_caller := p_caller;
+      l_caller := TRIM(p_caller);
     END IF;
-    IF NOT sosl_sys.check_col('SOSL_SERVER_LOG', 'GUID', p_guid)
+    -- GUID
+    IF NVL(LENGTH(TRIM(p_guid)), 0) > 64
     THEN
       -- write extra log entry and cut original content to limit
-      log_event( 'p_guid length exceeds column length in SOSL_SERVER_LOG. See full message for message causing the error.'
-               , sosl_sys.FATAL_TYPE
-               , 'LOG USAGE ERROR'
-               , NULL, NULL, NULL, NULL, NULL, NULL
-               , (p_message || ' - ' || p_full_message)
+      log_event( p_message => 'p_guid length exceeds column length (64) in SOSL_SERVER_LOG. See full message for message causing the error.'
+               , p_log_type => sosl_sys.FATAL_TYPE
+               , p_log_category => l_self_log_category
+               , p_guid => NULL
+               , p_sosl_identifier => NULL
+               , p_executor_id => NULL
+               , p_ext_script_id => NULL
+               , p_caller => l_self_caller
+               , p_run_id => NULL
+                 -- details and original message
+               , p_full_message => ('GUID: ' || TRIM(p_guid) || ' length: ' || LENGTH(TRIM(p_guid)) || ' msg: ' || p_message || ' - ' || p_full_message)
                )
       ;
-      l_guid := SUBSTR(p_guid, 1, sosl_sys.get_col_length('SOSL_SERVER_LOG', 'GUID'));
+      l_guid := SUBSTR(TRIM(p_guid), 1, 64);
     ELSE
-      l_guid := p_guid;
+      l_guid := TRIM(p_guid);
     END IF;
-    IF NOT sosl_sys.check_col('SOSL_SERVER_LOG', 'SOSL_IDENTIFIER', p_sosl_identifier)
+    -- SOSL_IDENTIFIER
+    IF NVL(LENGTH(TRIM(p_sosl_identifier)), 0) > 256
     THEN
       -- write extra log entry and cut original content to limit
-      log_event( 'p_sosl_identifier length exceeds column length in SOSL_SERVER_LOG. See full message for message causing the error.'
-               , sosl_sys.FATAL_TYPE
-               , 'LOG USAGE ERROR'
-               , NULL, NULL, NULL, NULL, NULL, NULL
-               , (p_message || ' - ' || p_full_message)
+      log_event( p_message => 'p_sosl_identifier length exceeds column length (256) in SOSL_SERVER_LOG. See full message for message causing the error.'
+               , p_log_type => sosl_sys.FATAL_TYPE
+               , p_log_category => l_self_log_category
+               , p_guid => NULL
+               , p_sosl_identifier => NULL
+               , p_executor_id => NULL
+               , p_ext_script_id => NULL
+               , p_caller => l_self_caller
+               , p_run_id => NULL
+                 -- details and original message
+               , p_full_message => ('SOSL_IDENTIFIER: ' || TRIM(p_sosl_identifier) || ' length: ' || LENGTH(TRIM(p_sosl_identifier)) || ' msg: ' || p_message || ' - ' || p_full_message)
                )
       ;
-      l_sosl_identifier := SUBSTR(p_sosl_identifier, 1, sosl_sys.get_col_length('SOSL_SERVER_LOG', 'SOSL_IDENTIFIER'));
+      l_sosl_identifier := SUBSTR(TRIM(p_sosl_identifier), 1, 256);
     ELSE
-      l_sosl_identifier := p_sosl_identifier;
+      l_sosl_identifier := TRIM(p_sosl_identifier);
     END IF;
-    IF NOT sosl_sys.check_col('SOSL_SERVER_LOG', 'EXECUTOR_ID', p_executor_id)
+    -- EXT_SCRIPT_ID
+    IF NVL(LENGTH(TRIM(p_ext_script_id)), 0) > 4000
     THEN
       -- write extra log entry and cut original content to limit
-      log_event( 'p_executor_id length exceeds column length in SOSL_SERVER_LOG. See full message for message causing the error. EXECUTOR_ID: ' || p_executor_id
-               , sosl_sys.FATAL_TYPE
-               , 'LOG USAGE ERROR'
-               , NULL, NULL, NULL, NULL, NULL, NULL
-               , (p_message || ' - ' || p_full_message)
+      log_event( p_message => 'p_ext_script_id length exceeds column length (4000) in SOSL_SERVER_LOG. See full message for message causing the error.'
+               , p_log_type => sosl_sys.FATAL_TYPE
+               , p_log_category => l_self_log_category
+               , p_guid => NULL
+               , p_sosl_identifier => NULL
+               , p_executor_id => NULL
+               , p_ext_script_id => NULL
+               , p_caller => l_self_caller
+               , p_run_id => NULL
+                 -- details and original message
+               , p_full_message => ('EXT_SCRIPT_ID: ' || TRIM(p_ext_script_id) || ' length: ' || LENGTH(TRIM(p_ext_script_id)) || ' msg: ' || p_message || ' - ' || p_full_message)
                )
       ;
-      -- we can't shorten the number, leave it to oracle
-      l_executor_id := p_executor_id;
+      l_ext_script_id := SUBSTR(TRIM(p_ext_script_id), 1, 4000);
     ELSE
-      l_executor_id := p_executor_id;
+      l_ext_script_id := TRIM(p_ext_script_id);
     END IF;
-    IF NOT sosl_sys.check_col('SOSL_SERVER_LOG', 'EXT_SCRIPT_ID', p_ext_script_id)
-    THEN
-      -- write extra log entry and cut original content to limit
-      log_event( 'ext_script_id length exceeds column length in SOSL_SERVER_LOG. See full message for message causing the error.'
-               , sosl_sys.FATAL_TYPE
-               , 'LOG USAGE ERROR'
-               , NULL, NULL, NULL, NULL, NULL, NULL
-               , (p_message || ' - ' || p_full_message)
-               )
-      ;
-      l_ext_script_id := SUBSTR(p_ext_script_id, 1, sosl_sys.get_col_length('SOSL_SERVER_LOG', 'EXT_SCRIPT_ID'));
-    ELSE
-      l_ext_script_id := p_ext_script_id;
-    END IF;
-    IF NOT sosl_sys.check_col('SOSL_SERVER_LOG', 'RUN_ID', p_run_id)
-    THEN
-      -- write extra log entry and cut original content to limit
-      log_event( 'p_run_id length exceeds column length in SOSL_SERVER_LOG. See full message for message causing the error. RUN_ID: ' || p_run_id
-               , sosl_sys.FATAL_TYPE
-               , 'LOG USAGE ERROR'
-               , NULL, NULL, NULL, NULL, NULL, NULL
-               , (p_message || ' - ' || p_full_message)
-               )
-      ;
-      -- we can't shorten the number, leave it to oracle
-      l_run_id := p_run_id;
-    ELSE
-      l_run_id := p_run_id;
-    END IF;
+    -- no check on numbers
+    l_executor_id := p_executor_id;
+    l_run_id := p_run_id;
     -- try to write the given data to SOSL_SERVER_LOG
-    log_event(p_message, p_log_type, l_log_category, l_guid, l_sosl_identifier, l_executor_id, l_ext_script_id, l_caller, l_run_id, p_full_message);
-  EXCEPTION
-    WHEN OTHERS THEN
-      log_event( 'full log error: ' || TRIM(SUBSTR(SQLERRM, 1, 3900))
-               , sosl_sys.FATAL_TYPE
-               , 'FULL_LOG ERROR'
-               , NULL, NULL, NULL, NULL, NULL, NULL
-               , SQLERRM || ': ' || p_message
-               )
-      ;
-  END full_log;
-
-  PROCEDURE cmd_log( p_message          IN VARCHAR2
-                   , p_log_type         IN VARCHAR2     DEFAULT sosl_sys.INFO_TYPE
-                   , p_caller           IN VARCHAR2     DEFAULT NULL
-                   , p_guid             IN VARCHAR2     DEFAULT NULL
-                   , p_sosl_identifier  IN VARCHAR2     DEFAULT NULL
-                   , p_executor_id      IN NUMBER       DEFAULT NULL
-                   , p_ext_script_id    IN VARCHAR2     DEFAULT NULL
-                   , p_full_message     IN CLOB         DEFAULT NULL
-                   )
-  IS
-  BEGIN
-    full_log( p_message => p_message
-            , p_log_type => p_log_type
-            , p_caller => p_caller
-            , p_guid => p_guid
-            , p_sosl_identifier => p_sosl_identifier
-            , p_executor_id => p_executor_id
-            , p_ext_script_id => p_ext_script_id
-            , p_full_message => p_full_message
-            )
+    log_event( p_message => p_message
+             , p_log_type => p_log_type
+             , p_log_category => l_log_category
+             , p_guid => l_guid
+             , p_sosl_identifier => l_sosl_identifier
+             , p_executor_id => l_executor_id
+             , p_ext_script_id => l_ext_script_id
+             , p_caller => l_caller
+             , p_run_id => l_run_id
+             , p_full_message => p_full_message
+             )
     ;
   EXCEPTION
     WHEN OTHERS THEN
-      log_event( 'CMD log error: ' || TRIM(SUBSTR(SQLERRM, 1, 3900))
-               , sosl_sys.FATAL_TYPE
-               , 'CMD_LOG ERROR'
-               , NULL, NULL, NULL, NULL, NULL, NULL
-               , SQLERRM || ': ' || p_message
+      log_event( p_message => 'full log error: ' || TRIM(SUBSTR(SQLERRM, 1, 3900))
+               , p_log_type => sosl_sys.FATAL_TYPE
+               , p_log_category => l_self_log_category
+               , p_guid => NULL
+               , p_sosl_identifier => NULL
+               , p_executor_id => NULL
+               , p_ext_script_id => NULL
+               , p_caller => l_self_caller
+               , p_run_id => NULL
+                 -- full details and original message
+               , p_full_message => (SQLERRM || ': ' || p_message)
                )
       ;
-  END cmd_log;
+  END full_log;
 
   FUNCTION dummy_mail( p_sender      IN VARCHAR2
                      , p_recipients  IN VARCHAR2
@@ -337,7 +328,7 @@ AS
             , p_full_message => l_message
             )
     ;
-    RETURN 0;
+    RETURN sosl_sys.SUCCESS_NUM;
   EXCEPTION
     WHEN OTHERS THEN
       -- log the error instead of RAISE
@@ -347,7 +338,7 @@ AS
                        , p_caller => l_caller
                        )
       ;
-      RETURN -1;
+      RETURN sosl_sys.ERR_NUM;
   END dummy_mail;
 
 END;

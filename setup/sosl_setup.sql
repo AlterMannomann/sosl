@@ -12,6 +12,8 @@ SET ERRORLOGGING ON
 SET ERRORLOGGING ON IDENTIFIER &IDENT
 -- ==============INSTALL start==============
 SPOOL logs/sosl_setup.log
+-- roles
+@@../sosl_ddl/roles/create_roles.sql
 -- types
 @@../sosl_ddl/types/sosl_payload.sql
 -- SQLPlus error logging table
@@ -24,6 +26,9 @@ SPOOL logs/sosl_setup.log
 -- logging package
 @@../sosl_ddl/packages/sosl_log.pks
 @@../sosl_ddl/packages/sosl_log.pkb
+-- util package
+@@../sosl_ddl/packages/sosl_util.pks
+@@../sosl_ddl/packages/sosl_util.pkb
 -- SOSL objects with possible references to sosl_log and sosl_sys
 @@../sosl_ddl/tables/sosl_config.sql
 @@../sosl_ddl/tables/sosl_executor.sql

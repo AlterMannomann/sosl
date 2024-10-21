@@ -164,7 +164,7 @@ AS
     RETURN l_return;
   EXCEPTION
     WHEN OTHERS THEN
-      RETURN -1;
+      RETURN sosl_sys.ERR_NUM;
   END get_col_length;
 
   FUNCTION get_col_type( p_table  IN VARCHAR2

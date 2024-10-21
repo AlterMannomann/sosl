@@ -98,8 +98,6 @@ A setup API script is provided to create dynamically the necessary objects in SO
 #### Check IDs waiting for processing
 The wrapper function is the function HAS_IDS which, on default, will use sosl.has_ids package function.
 ## Security
-On database level several roles are available: SOSL_ADMIN, SOSL_EXECUTOR, SOSL_REVIEWER, SOSL_USER, SOSL_GUEST.
-
 First, it is difficult to obtain a minimum of security as Oracle, on the command line, requires username and password unless you are an authenticated system user like oracle on the db server, where you can login with slash (/) or a wallet is configured.
 
 If you want to use wallets the SOSL server is limited to the OS user under which it runs. Thus, whenever you connect with / you will get the wallet of the OS user. You may mitigate this by running different instances with different OS users and wallets. This will put more workload on the server used.
@@ -127,7 +125,22 @@ Nevertheless, running any script from any source system is a high risk and only 
 **DO NOT USE SOSL FOR PRODUCTION SYSTEMS**
 
 Find a better solution. If you know what scripts to execute, put them in the database. You should not quick fix production systems as they have an reliable and accepted state. Use a hotfix for those issues and avoid those issues before going to production due to proper testing.
+### Roles
+On database level several roles are available: SOSL_ADMIN, SOSL_EXECUTOR, SOSL_REVIEWER, SOSL_USER, SOSL_GUEST.
 
+    SOSL_ADMIN
+    |- DELETE rights
+    |_ SOSL_EXECUTOR
+      |- select, insert and update rights, execute rights
+      |_ SOSL_REVIEWER
+        |- select rights, limited update rights
+        |_ SOSL_USER
+          |- select rights
+          |_ SOSL_GUEST
+            |- limited select rights
+
+The application manages necessary role grants for configured function owners. Only reviewed executors will get roles granted, otherwise
+roles, if exist, get revoked.
 ## Disclaimer
 Use this software at your own risk. No liabilities or warranties are given, no support is guaranteed. Any result of executing this software is under the responsibility of the legal entity using this software. For details see license.
 

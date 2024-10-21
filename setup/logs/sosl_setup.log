@@ -1,6 +1,49 @@
+SQL> -- roles
+SQL> @@../sosl_ddl/roles/create_roles.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> -- create sosl roles
+SQL> CREATE ROLE sosl_admin;
+
+Role created.
+
+SQL> CREATE ROLE sosl_executor;
+
+Role created.
+
+SQL> CREATE ROLE sosl_reviewer;
+
+Role created.
+
+SQL> CREATE ROLE sosl_user;
+
+Role created.
+
+SQL> CREATE ROLE sosl_guest;
+
+Role created.
+
+SQL> -- hierarchical grants
+SQL> GRANT sosl_guest TO sosl_user;
+
+Grant succeeded.
+
+SQL> GRANT sosl_user TO sosl_reviewer;
+
+Grant succeeded.
+
+SQL> GRANT sosl_reviewer TO sosl_executor;
+
+Grant succeeded.
+
+SQL> GRANT sosl_executor TO sosl_admin;
+
+Grant succeeded.
+
 SQL> -- types
 SQL> @@../sosl_ddl/types/sosl_payload.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> -- basic api exchange type, only header, no member function
 SQL> CREATE OR REPLACE TYPE sosl_payload
   2    AS OBJECT
@@ -26,6 +69,7 @@ Type created.
 SQL> -- SQLPlus error logging table
 SQL> @@../sosl_ddl/tables/soslerrorlog.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> CREATE TABLE soslerrorlog
   2    ( username    VARCHAR2(256)
   3    , timestamp   TIMESTAMP
@@ -70,295 +114,188 @@ Comment created.
 SQL> -- package with no dependency on SOSL objects
 SQL> @@../sosl_ddl/packages/sosl_sys.pks
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> -- Basic sys util package not using data objects of the Simple Oracle Script Loader, no dependencies.
 SQL> CREATE OR REPLACE PACKAGE sosl_sys
   2  AS
   3    /**
   4    * This package contains basic functions and procedures used by the Simple Oracle Script Loader that have no dependencies on any SOSL object.
   5    * As there are no dependencies, exceptions must be catched or handled by the caller. No logging for this functions and procedures.
-  6    */
-  7  
-  8    /*====================================== start package constants used by SOSL ======================================*/
-  9    -- define log_type constants used in SOSL_SERVER_LOG
- 10    ERROR_TYPE     CONSTANT CHAR(5) := 'ERROR';
- 11    WARNING_TYPE   CONSTANT CHAR(7) := 'WARNING';
- 12    FATAL_TYPE     CONSTANT CHAR(5) := 'FATAL';
- 13    INFO_TYPE      CONSTANT CHAR(4) := 'INFO';
- 14    SUCCESS_TYPE   CONSTANT CHAR(7) := 'SUCCESS';
- 15    -- Generic n/a type. Should be different from table defaults like 'not set' as table triggers interpret their DDL default value as fallback
- 16    -- to set default values using package variables, which is not supported in table DDL by Oracle using DEFAULT. Packages may use variables
- 17    -- from other packages in DEFAULT declarations.
- 18    NA_TYPE	      CONSTANT CHAR(3) := 'n/a';
- 19    -- numerical equations to TRUE/YES and FALSE/NO
- 20    YES	      CONSTANT INTEGER := 1;
- 21    NO	      CONSTANT INTEGER := 0;
- 22    -- default error numeric expression
- 23    ERR	      CONSTANT INTEGER := -1;
- 24    /*====================================== end package constants used by SOSL ======================================*/
- 25  
- 26    /*====================================== start internal functions made visible for testing ======================================*/
- 27    /* PROCEDURE SOSL_SYS.SPLIT_FUNCTION_NAME
- 28    * Splits the given function name into its parts. Supposed delimiter is the point ".".
- 29    * @param p_function_name The function or package function name to check. Package functions must be qualified with the package name, e.g. my_package.my_function.
- 30    * @param p_package OUT parameter, contains the package name if any or NULL.
- 31    * @param p_function OUT parameter, contains the pure function name.
- 32    */
- 33    PROCEDURE split_function_name( p_function_name IN  VARCHAR2
- 34  				    , p_package       OUT VARCHAR2
- 35  				    , p_function      OUT VARCHAR2
- 36  				    )
- 37    ;
- 38    /*====================================== end internal functions made visible for testing ======================================*/
- 39  
- 40    /* FUNCTION SOSL_SYS.HAS_DB_USER
- 41    * Checks if a given user is visible for SOSL by checking ALL_USERS. Users must be visible to SOSL to be able to dynamically
- 42    * grant the necessary rights on the API for script execution.
- 43    *
- 44    * @param p_username The database user name to check.
+  6    * For complex functions and procedures consider to put them in SOSL_UTIL where you have access and possibilities to log errors.
+  7    */
+  8  
+  9    /*====================================== start package constants used by SOSL ======================================*/
+ 10    -- define log_type constants used in SOSL_SERVER_LOG
+ 11    ERROR_TYPE     CONSTANT CHAR(5) := 'ERROR';
+ 12    WARNING_TYPE   CONSTANT CHAR(7) := 'WARNING';
+ 13    FATAL_TYPE     CONSTANT CHAR(5) := 'FATAL';
+ 14    INFO_TYPE      CONSTANT CHAR(4) := 'INFO';
+ 15    SUCCESS_TYPE   CONSTANT CHAR(7) := 'SUCCESS';
+ 16    -- Generic n/a type. Should be different from table defaults like 'not set' as table triggers interpret their DDL default value as fallback
+ 17    -- to set default values using package variables, which is not supported in table DDL by Oracle using DEFAULT. Packages may use variables
+ 18    -- from other packages in DEFAULT declarations.
+ 19    NA_TYPE	      CONSTANT CHAR(3) := 'n/a';
+ 20    -- numerical equations to TRUE/YES and FALSE/NO
+ 21    YES	      CONSTANT INTEGER := 1;
+ 22    NO	      CONSTANT INTEGER := 0;
+ 23    -- default error numeric expression, that is returned by functions to indicate an error had occured
+ 24    ERR_NUM	      CONSTANT INTEGER := -1;
+ 25    -- default success numeric expression, that is returned by functions to indicate processing was successful
+ 26    SUCCESS_NUM    CONSTANT INTEGER := 0;
+ 27    /*====================================== end package constants used by SOSL ======================================*/
+ 28  
+ 29    /* FUNCTION SOSL_SYS.LOG_TYPE_VALID
+ 30    * Central function to check the log type. Currently supports INFO, WARNING, ERROR, FATAL, SUCCESS. If log types should get expanded
+ 31    * adjust this function first and probably the default value for SOSL_SERVER_LOG.
+ 32    *
+ 33    * @param p_log_type The log type to check. Case insensitive.
+ 34    *
+ 35    *@return TRUE if the given log type is supported. FALSE if not. Exceptions and errors will lead also to FALSE.
+ 36    */
+ 37    FUNCTION log_type_valid(p_log_type IN VARCHAR2)
+ 38  	 RETURN BOOLEAN
+ 39  	 DETERMINISTIC
+ 40  	 PARALLEL_ENABLE
+ 41    ;
+ 42  
+ 43    /* FUNCTION SOSL_SYS.GET_VALID_LOG_TYPE
+ 44    * Verifies an given log type, returns either the given log type as upper case or the defined error default.
  45    *
- 46    * @return TRUE if the user is visible in ALL_USERS to SOSL, otherwise FALSE.
- 47    */
- 48    FUNCTION has_db_user(p_username IN VARCHAR2)
- 49  	 RETURN BOOLEAN
- 50    ;
- 51  
- 52    /* FUNCTION SOSL_SYS.HAS_FUNCTION
- 53    * Checks if a given function or package function name is visible for SOSL by checking ALL_ATTRIBUTES. The package SOSL_API is
- 54    * excluded from the search to avoid references in SOSL_EXECUTOR.
- 55    *
- 56    * @param p_owner The owner of the function or package function name to check.
- 57    * @param p_function_name The function or package function name to check. Package functions must be qualified with the package name, e.g. my_package.my_function.
- 58    * @param p_datatype The return datatype of the function expected, e.g. a valid Oracle datatype like NUMBER or VARCHAR2.
- 59    *
- 60    * @return TRUE if the function is visible in ALL_ATTRIBUTES to SOSL and has the required return datatype, otherwise FALSE.
- 61    */
- 62    FUNCTION has_function( p_owner	       IN VARCHAR2
- 63  			    , p_function_name  IN VARCHAR2
- 64  			    , p_datatype       IN VARCHAR2
- 65  			    )
- 66  	 RETURN BOOLEAN
- 67    ;
- 68  
- 69    /* FUNCTION SOSL_SYS.LOG_TYPE_VALID
- 70    * Central function to check the log type. Currently supports INFO, WARNING, ERROR, FATAL, SUCCESS. If log types should get expanded
- 71    * adjust this function first and probably the default value for SOSL_SERVER_LOG.
- 72    *
- 73    * @param p_log_type The log type to check. Case insensitive.
- 74    *
- 75    *@return TRUE if the given log type is supported. FALSE if not. Exceptions and errors will lead also to FALSE.
- 76    */
- 77    FUNCTION log_type_valid(p_log_type IN VARCHAR2)
- 78  	 RETURN BOOLEAN
- 79  	 DETERMINISTIC
- 80  	 PARALLEL_ENABLE
- 81    ;
- 82  
- 83    /* FUNCTION SOSL_SYS.GET_VALID_LOG_TYPE
- 84    * Verifies an given log type, returns either the given log type as upper case or the defined error default.
- 85    *
- 86    * @param p_log_type The log type to verify and return. Case insensitive.
- 87    * @param p_error_default The alternative log type to return, if the log type is invalid. Must be a valid log type and not INFO or SUCCESS. If invalid, FATAL is returned.
- 88    *
- 89    * @return The valid log type as upper case on success. The valid error default if log type not supported. FATAL if the error default is invalid.
- 90    */
- 91    FUNCTION get_valid_log_type( p_log_type	     IN VARCHAR2
- 92  				  , p_error_default  IN VARCHAR2 DEFAULT sosl_sys.ERROR_TYPE
- 93  				  )
- 94  	 RETURN VARCHAR2
- 95  	 DETERMINISTIC
- 96  	 PARALLEL_ENABLE
- 97    ;
- 98  
- 99    /*FUNCTION SOSL_SYS.GET_COL_LENGTH
-100    * Returns the column length for a given table and column or -1 if table or column does not exist from USER_TAB_COLUMNS using
-101    * DATA_LENGTH. DATA_LENGTH is misleading if not a char type or CLOB, as CLOB types report 4000 which is definitely wrong.
-102    * The only types handled are NUMBER and CLOB. All other types return the DATA_LENGTH.
-103    *
-104    * Length for numbers is calculated by adding precision and scale.
-105    *
-106    * CLOB will return the PLSQL equation of a VARCHAR2/CLOB, which is 32767 and still wrong, but useful to see if a PLSQL can handle
-107    * the CLOB. Be careful with CLOB handling. If source is not a table column, PLSQL most likely limits it to 32767 cutting longer content.
-108    *
-109    * Objects not in the current schema will not be considered and return -1 AS USER_TAB_COLUMN is used.
-110    *
-111    * No handling for date and timestamp values, as their char representation has too much dependencies on NLS and formatting to get a
-112    * reliable length.
-113    *
-114    * Byte and char semantic is not considered only the effective chars that can be stored in CHAR or VARCHAR2 as defined by DATA_LENGTH.
-115    *
-116    * @param p_table The name of the table. Case insensitive. Will be transformed to UPPER.
-117    * @param p_column The name of the column. Case insensitive. Will be transformed to UPPER.
-118    *
-119    * @return The calculated length of the column. Fix PLSQL limit 32767 for CLOB types. DATA_LENGTH for data and timestamp types.
-120    */
-121    FUNCTION get_col_length( p_table  IN VARCHAR2
-122  			      , p_column IN VARCHAR2
-123  			      )
-124  	 RETURN INTEGER
-125    ;
-126  
-127    /* FUNCTION SOSL_SYS.GET_COL_TYPE
-128    * Returns the type of a column from USER_TAB_COLUMNS as defined in DATA_TYPE or NA_TYPE if table or column doesn't exist.
-129    * Objects not in the current schema will not be considered and return NA_TYPE.
-130    *
-131    * @param p_table The name of the table. Case insensitive. Will be transformed to UPPER.
-132    * @param p_column The name of the column. Case insensitive. Will be transformed to UPPER.
-133    *
-134    * @return The type of the column as defined in DATA_TYPE or sosl_sys.NA_TYPE on errors or not found columns and tables.
-135    */
-136    FUNCTION get_col_type( p_table  IN VARCHAR2
-137  			    , p_column IN VARCHAR2
-138  			    )
-139  	 RETURN VARCHAR2
-140    ;
-141  
-142    /* FUNCTION SOSL_SYS.DISTRIBUTE
-143    * This functions distributes char data between a VARCHAR2 and a CLOB variable by the following rules:
-144    * p_string empty or NULL: Fill p_string to p_max_string_length - p_split_end length.
-145    * p_string length > p_max_string_length: Cut p_string to p_max_string_length, including p_split_end appended.
-146    *	  p_clob NOT EMPTY: add split_start, rest of p_string before p_clob content.
-147    *	  p_clob EMPTY: add split_start and rest of p_string.
-148    * p_string length > 0 and < p_max_string_length: no change of p_string and p_clob.
-149    * p_string and p_clob empty or NULL: leave unchanged, return FALSE otherwise always TRUE.
-150    * In case of exceptions will try to write SQLERRM to p_string as CLOBs tend to be more error prone.
-151    *
-152    * @param p_string The string to distribute or check. In PLSQL strings can get 32767 chars long, whereas table columns are limited currently to 4000.
-153    * @param p_clob The CLOB to distribute or check. Uses NOCOPY to guarantee that CLOB full length is used as given.
-154    * @param p_max_string_length The maximum length p_string should have. If this size is exeeded the string gets distribute between p_string and p_clob.
-155    * @param p_split_end The split end characters to indicate that the string is continued in p_clob.
-156    * @param p_split_start The split start characters for the continuing string in the CLOB.
-157    * @param p_delimiter The delimiter between rest of string in CLOB and original CLOB content, if both have content and string must be splitted.
-158    *
-159    * @return FALSE if p_string and p_clob are empty/NULL or an exception had occurred, otherwise TRUE.
-160    */
-161    FUNCTION distribute( p_string		IN OUT	       VARCHAR2
-162  			  , p_clob		IN OUT NOCOPY  CLOB
-163  			  , p_max_string_length IN	       INTEGER	 DEFAULT 4000
-164  			  , p_split_end 	IN	       VARCHAR2  DEFAULT '...'
-165  			  , p_split_start	IN	       VARCHAR2  DEFAULT '...'
-166  			  , p_delimiter 	IN	       VARCHAR2  DEFAULT ' - '
-167  			  )
-168  	 RETURN BOOLEAN
-169    ;
-170  
-171    /* FUNCTION SOSL_SYS.CHECK_COL
-172    * This function can check NUMBER and VARCHAR2/CHAR columns for length and type. Passing a number for a char column type will result
-173    * in FALSE. Providing a P_VALUE with a length longer than the length calculated, will result in FALSE. It will not consider
-174    * implicite Oracle conversions. Expects type like defined.
-175    *
-176    * Number length is calculated by TO_CHAR string representation removing all delimiters and counting only numbers 0-9.
-177    * Passing a VARCHAR2 value is valid for CHAR and VARCHAR2 column types.
-178    *
-179    * @param p_table The name of the table. Case insensitive. Will be transformed to UPPER.
-180    * @param p_column The name of the column. Case insensitive. Will be transformed to UPPER.
-181    * @param p_value The value for the table column to check against column definition.
-182    *
-183    * @return TRUE if value and column match in type and length, otherwise FALSE.
-184    */
-185    FUNCTION check_col( p_table  IN VARCHAR2
-186  			 , p_column IN VARCHAR2
-187  			 , p_value  IN VARCHAR2
-188  			 )
-189  	 RETURN BOOLEAN
-190    ;
-191    FUNCTION check_col( p_table  IN VARCHAR2
-192  			 , p_column IN VARCHAR2
-193  			 , p_value  IN NUMBER
-194  			 )
-195  	 RETURN BOOLEAN
-196    ;
-197  
-198    /* FUNCTION SOSL_SYS.TXT_BOOLEAN
-199    * Provides text values to display instead of BOOLEAN or NUMBER values interpreted as BOOLEAN. Numbers are interpreted
-200    * similar to Oracle SQL, where 0 is FALSE and 1 is TRUE. 1 is considered as TRUE, any other value as FALSE. NULL values
-201    * are interpreted as sosl_sys.NA_TYPE. Maximum 10 characters for TRUE/FALSE equation.
-202    *
-203    * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
-204    * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
-205    * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
-206    *
-207    * @return The text equation for the given p_bool value.
-208    */
-209    FUNCTION txt_boolean( p_bool   IN BOOLEAN
-210  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
-211  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
-212  			   )
-213  	 RETURN VARCHAR2
-214  	 DETERMINISTIC
-215  	 PARALLEL_ENABLE
-216    ;
-217    FUNCTION txt_boolean( p_bool   IN NUMBER
-218  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
-219  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
-220  			   )
-221  	 RETURN VARCHAR2
-222  	 DETERMINISTIC
-223  	 PARALLEL_ENABLE
-224    ;
-225  
-226    /* FUNCTION SOSL_SYS.YES_NO
-227    * A simple wrapper for txt_boolean with YES/NO instead of TRUE/FALSE.
-228    *
-229    * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
-230    * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
-231    * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
-232    *
-233    * @return The text equation for the given p_bool value.
-234    */
-235    FUNCTION yes_no( p_bool	 IN BOOLEAN
-236  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
-237  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
-238  		      )
-239  	 RETURN VARCHAR2
-240  	 DETERMINISTIC
-241  	 PARALLEL_ENABLE
-242    ;
-243    FUNCTION yes_no( p_bool	 IN NUMBER
-244  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
-245  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
-246  		      )
-247  	 RETURN VARCHAR2
-248  	 DETERMINISTIC
-249  	 PARALLEL_ENABLE
-250    ;
-251  
-252    /* FUNCTION SOSL_SYS.UTC_MAIL_DATE
-253    * Returns the current date timestamp as a formatted string for date values in mail.
-254    *
-255    * @return A date string conform to RFC5322 for using mail.
-256    *
-257    * @see https://datatracker.ietf.org/doc/html/rfc5322
-258    */
-259    FUNCTION utc_mail_date
-260  	 RETURN VARCHAR2
-261    ;
-262  
-263    /* FUNCTION SOSL_SYS.FORMAT_MAIL
-264    * This function formats a mail message conforming to RFC5322. The content of p_message is not checked against RFC. This is
-265    * the repsonsibility of the user. This is for small messages that do not exceed 32k in total.
-266    *
-267    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
-268    * @param p_recipients The semicolon separated list of mail recipient addresses.
-269    * @param p_subject A preferablly short subject for the mail.
-270    * @param p_message The correctly formatted mail message.
-271    *
-272    * @return A formatted string with complete mail message that can be used with RFC compliant mail servers.
-273    */
-274    FUNCTION format_mail( p_sender	   IN VARCHAR2
-275  			   , p_recipients  IN VARCHAR2
-276  			   , p_subject	   IN VARCHAR2
-277  			   , p_message	   IN VARCHAR2
-278  			   )
-279  	 RETURN VARCHAR2
-280    ;
-281  
-282  END;
-283  /
+ 46    * @param p_log_type The log type to verify and return. Case insensitive.
+ 47    * @param p_error_default The alternative log type to return, if the log type is invalid. Must be a valid log type and not INFO or SUCCESS. If invalid, FATAL is returned.
+ 48    *
+ 49    * @return The valid log type as upper case on success. The valid error default if log type not supported. FATAL if the error default is invalid.
+ 50    */
+ 51    FUNCTION get_valid_log_type( p_log_type	     IN VARCHAR2
+ 52  				  , p_error_default  IN VARCHAR2 DEFAULT sosl_sys.ERROR_TYPE
+ 53  				  )
+ 54  	 RETURN VARCHAR2
+ 55  	 DETERMINISTIC
+ 56  	 PARALLEL_ENABLE
+ 57    ;
+ 58  
+ 59    /* FUNCTION SOSL_SYS.DISTRIBUTE
+ 60    * This functions distributes char data between a VARCHAR2 and a CLOB variable by the following rules:
+ 61    * p_string empty or NULL: Fill p_string to p_max_string_length - p_split_end length.
+ 62    * p_string length > p_max_string_length: Cut p_string to p_max_string_length, including p_split_end appended.
+ 63    *	  p_clob NOT EMPTY: add split_start, rest of p_string before p_clob content.
+ 64    *	  p_clob EMPTY: add split_start and rest of p_string.
+ 65    * p_string length > 0 and < p_max_string_length: no change of p_string and p_clob.
+ 66    * p_string and p_clob empty or NULL: leave unchanged, return FALSE otherwise always TRUE.
+ 67    * In case of exceptions will try to write SQLERRM to p_string as CLOBs tend to be more error prone.
+ 68    * Mainly used by SOSL_SERVER_LOG.
+ 69    *
+ 70    * @param p_string The string to distribute or check. In PLSQL strings can get 32767 chars long, whereas table columns are limited currently to 4000.
+ 71    * @param p_clob The CLOB to distribute or check. Uses NOCOPY to guarantee that CLOB full length is used as given.
+ 72    * @param p_max_string_length The maximum length p_string should have. If this size is exeeded the string gets distribute between p_string and p_clob.
+ 73    * @param p_split_end The split end characters to indicate that the string is continued in p_clob.
+ 74    * @param p_split_start The split start characters for the continuing string in the CLOB.
+ 75    * @param p_delimiter The delimiter between rest of string in CLOB and original CLOB content, if both have content and string must be splitted.
+ 76    *
+ 77    * @return FALSE if p_string and p_clob are empty/NULL or an exception had occurred, otherwise TRUE.
+ 78    */
+ 79    FUNCTION distribute( p_string		IN OUT	       VARCHAR2
+ 80  			  , p_clob		IN OUT NOCOPY  CLOB
+ 81  			  , p_max_string_length IN	       INTEGER	 DEFAULT 4000
+ 82  			  , p_split_end 	IN	       VARCHAR2  DEFAULT '...'
+ 83  			  , p_split_start	IN	       VARCHAR2  DEFAULT '...'
+ 84  			  , p_delimiter 	IN	       VARCHAR2  DEFAULT ' - '
+ 85  			  )
+ 86  	 RETURN BOOLEAN
+ 87    ;
+ 88  
+ 89    /* FUNCTION SOSL_SYS.TXT_BOOLEAN
+ 90    * Provides text values to display instead of BOOLEAN or NUMBER values interpreted as BOOLEAN. Numbers are interpreted
+ 91    * similar to Oracle SQL, where 0 is FALSE and 1 is TRUE. 1 is considered as TRUE, any other value as FALSE. NULL values
+ 92    * are interpreted as sosl_sys.NA_TYPE. Maximum 10 characters for TRUE/FALSE equation.
+ 93    *
+ 94    * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
+ 95    * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+ 96    * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+ 97    *
+ 98    * @return The text equation for the given p_bool value.
+ 99    */
+100    FUNCTION txt_boolean( p_bool   IN BOOLEAN
+101  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+102  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+103  			   )
+104  	 RETURN VARCHAR2
+105  	 DETERMINISTIC
+106  	 PARALLEL_ENABLE
+107    ;
+108    FUNCTION txt_boolean( p_bool   IN NUMBER
+109  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+110  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+111  			   )
+112  	 RETURN VARCHAR2
+113  	 DETERMINISTIC
+114  	 PARALLEL_ENABLE
+115    ;
+116  
+117    /* FUNCTION SOSL_SYS.YES_NO
+118    * A simple wrapper for txt_boolean with YES/NO instead of TRUE/FALSE.
+119    *
+120    * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
+121    * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+122    * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+123    *
+124    * @return The text equation for the given p_bool value.
+125    */
+126    FUNCTION yes_no( p_bool	 IN BOOLEAN
+127  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
+128  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
+129  		      )
+130  	 RETURN VARCHAR2
+131  	 DETERMINISTIC
+132  	 PARALLEL_ENABLE
+133    ;
+134    FUNCTION yes_no( p_bool	 IN NUMBER
+135  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
+136  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
+137  		      )
+138  	 RETURN VARCHAR2
+139  	 DETERMINISTIC
+140  	 PARALLEL_ENABLE
+141    ;
+142  
+143    /* FUNCTION SOSL_SYS.UTC_MAIL_DATE
+144    * Returns the current date timestamp as a formatted string for date values in mail.
+145    *
+146    * @return A date string conform to RFC5322 for using mail.
+147    *
+148    * @see https://datatracker.ietf.org/doc/html/rfc5322
+149    */
+150    FUNCTION utc_mail_date
+151  	 RETURN VARCHAR2
+152    ;
+153  
+154    /* FUNCTION SOSL_SYS.FORMAT_MAIL
+155    * This function formats a mail message conforming to RFC5322. The content of p_message is not checked against RFC. This is
+156    * the repsonsibility of the user. This is for small messages that do not exceed 32k in total.
+157    *
+158    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
+159    * @param p_recipients The semicolon separated list of mail recipient addresses.
+160    * @param p_subject A preferablly short subject for the mail.
+161    * @param p_message The correctly formatted mail message.
+162    *
+163    * @return A formatted string with complete mail message that can be used with RFC compliant mail servers.
+164    */
+165    FUNCTION format_mail( p_sender	   IN VARCHAR2
+166  			   , p_recipients  IN VARCHAR2
+167  			   , p_subject	   IN VARCHAR2
+168  			   , p_message	   IN VARCHAR2
+169  			   )
+170  	 RETURN VARCHAR2
+171    ;
+172  
+173  END;
+174  /
 
 Package created.
 
 SQL> @@../sosl_ddl/packages/sosl_sys.pkb
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> CREATE OR REPLACE PACKAGE BODY sosl_sys
   2  AS
   3    -- for description see header file
@@ -523,7 +460,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_sys
 162  	 RETURN l_return;
 163    EXCEPTION
 164  	 WHEN OTHERS THEN
-165  	   RETURN -1;
+165  	   RETURN sosl_sys.ERR_NUM;
 166    END get_col_length;
 167  
 168    FUNCTION get_col_type( p_table  IN VARCHAR2
@@ -742,6 +679,7 @@ Package body created.
 SQL> -- logging table
 SQL> @@../sosl_ddl/tables/sosl_server_log.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> -- requires login with the correct schema, either SOSL or your on schema
 SQL> -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
 SQL> CREATE TABLE sosl_server_log
@@ -901,134 +839,137 @@ Trigger created.
 SQL> -- logging package
 SQL> @@../sosl_ddl/packages/sosl_log.pks
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
-SQL> -- Basic logging package, dependencies only to sosl_server_log.
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> -- Basic logging package, dependencies only to sosl_server_log and sosl_sys.
 SQL> CREATE OR REPLACE PACKAGE sosl_log
   2  AS
   3    /**
   4    * This package contains basic functions and procedures used by the Simple Oracle Script Loader for managing logging.
   5    * Apart from sosl_server_log table, there are no dependencies, severe exceptions must be catched or handled by the caller.
   6    * The interface has as well functions and procedures. Functions inform about success or error, whereas procedure exceptions
-  7    * must be handled by the caller.
-  8    *
-  9    * CURRENT ORACLE error: NOCOPY for IN parameters creates compile errors, whereas documentation allows IN NOCOPY var. Any
- 10    * CLOB handling errors are possibly caused by the inability to provide a CLOB as reference.
- 11    */
- 12  
- 13    /*====================================== start internal functions made visible for testing ======================================*/
- 14    /* PROCEDURE SOSL_LOG.LOG_FALLBACK
- 15    * This procedure tries some fallback actions, if logging raised an exception. It will not throw an exception. It will try to log the error in
- 16    * SOSL_SERVER_LOG, SOSLERRORLOG, SPERRORLOG or, if everything fails output the error via DBMS_OUTPUT. As we can't determine if the message contains
- 17    * an illegal character forcing the exception, the caller should transfer SQLERRM and verify the transmitted content before passing it to this procedure
- 18    * or avoid transmitting parameters which should cause errors. If error could be logged to one of the tables, it can be found in this tables with
- 19    * identifier SOSL_LOG. It will not prevent the exception, only try to log it somewhere, where it could be found without needing to analyze the db server
- 20    * logs. Everything runs as autonomous transaction. DO NOT USE THIS PROCEDURE. It is internal for this package.
- 21    *
- 22    * @param p_script The package function or procedure causing the error, e.g. SOSL_LOG.LOG_EVENT.
- 23    * @param p_identifier The identifier for this error. Saved in SOSL_IDENTIFIER in SOSL_SERVER_LOG or IDENTIFIER in the error log tables.
- 24    * @param p_message The message to save. Reduce it to SQLERRM if possible.
- 25    */
- 26    PROCEDURE log_fallback( p_script      IN VARCHAR2
- 27  			     , p_identifier  IN VARCHAR2
- 28  			     , p_message     IN VARCHAR2
- 29  			     )
- 30    ;
- 31    /* PROCEDURE SOSL_LOG.LOG_EVENT
- 32    * Writes a log entry as autonomous transaction. This is the internal base procedure, exposed for testing.
- 33    * If on errors writing log entries is not possible the procedure hands the exception to the caller. This is the pure insert without
- 34    * any checks. It takes the values as given and table may trigger exceptions. DO NOT USE THIS PROCEDURE. It is internal for this package.
- 35    *
- 36    * @param p_message The message to log. Limited to 4000 chars. If longer it is split and rest is stored in full_message CLOB by trigger. If NULL p_full_message must be provided.
- 37    * @param p_log_type The log type is basically defined by SOSL_SYS. Currently: INFO, WARNING, ERROR, FATAL, SUCCESS. Must be valid.
- 38    * @param p_log_category An optional logging category.
- 39    * @param p_guid The GUID the process is running with. Can be used as LIKE reference on SOSLERRORLOG. Most likely used by CMD server.
- 40    * @param p_sosl_identifier The exact identifier for SOSLERRORLOG if available. Most likely used by CMD server.
- 41    * @param p_executor_id The associated executor id if available. Used as well by CMD server and SOSL packages and functions.
- 42    * @param p_ext_script_id The (external) script id if available. Used as well by CMD server and SOSL packages and functions.
- 43    * @param p_caller Caller identification if available, to distinguish database processes from SOSL CMD server processes or external usage.
- 44    * @param p_run_id The associated run id if available. Most likely used by SOSL packages and functions.
- 45    * @param p_full_message The full message as CLOB if the message size exceeds the PLSQL limit of 32767 bytes. Must be given if p_message is NULL.
- 46    */
- 47    PROCEDURE log_event( p_message	       IN VARCHAR2
- 48  			  , p_log_type	       IN VARCHAR2
- 49  			  , p_log_category     IN VARCHAR2
- 50  			  , p_guid	       IN VARCHAR2
- 51  			  , p_sosl_identifier  IN VARCHAR2
- 52  			  , p_executor_id      IN NUMBER
- 53  			  , p_ext_script_id    IN VARCHAR2
- 54  			  , p_caller	       IN VARCHAR2
- 55  			  , p_run_id	       IN NUMBER
- 56  			  , p_full_message     IN CLOB
- 57  			  )
- 58    ;
- 59  /*====================================== end internal functions made visible for testing ======================================*/
- 60  
- 61    /* PROCEDURE SOSL_LOG.FULL_LOG
- 62    * Procedure with all parameters for logging. Will check parameters before logging. You should at least set also p_log_category
- 63    * and p_caller, to be able to assign the log entry to a specific event and object. On parameter errors a separate log entry is
- 64    * created. Intention is to write a log in any case and not throw any exception. This still may happen on main system malfunctions
- 65    * but is limited to this events.
- 66    *
- 67    * @param p_message The message to log. Limited to 4000 chars. If longer it is split and rest is stored in full_message CLOB by trigger. If NULL p_full_message must be provided.
- 68    * @param p_log_type The log type is basically defined by SOSL_SYS. Currently: INFO, WARNING, ERROR, FATAL, SUCCESS. Will be set to ERROR if not valid.
- 69    * @param p_log_category An optional logging category.
- 70    * @param p_caller Caller identification if available, to distinguish database processes from SOSL CMD server processes or external usage.
- 71    * @param p_guid The GUID the process is running with. Can be used as LIKE reference on SOSLERRORLOG. Most likely used by CMD server.
- 72    * @param p_sosl_identifier The exact identifier for SOSLERRORLOG if available. Most likely used by CMD server.
- 73    * @param p_executor_id The associated executor id if available. Used as well by CMD server and SOSL packages and functions.
- 74    * @param p_ext_script_id The (external) script id if available. Used as well by CMD server and SOSL packages and functions.
- 75    * @param p_run_id The associated run id if available. Most likely used by SOSL packages and functions.
- 76    * @param p_full_message The full message as CLOB if the message size exceeds the PLSQL limit of 32767 bytes. Must be given if p_message is NULL.
- 77    */
- 78    PROCEDURE full_log( p_message	      IN VARCHAR2
- 79  			 , p_log_type	      IN VARCHAR2    DEFAULT sosl_sys.INFO_TYPE
- 80  			 , p_log_category     IN VARCHAR2    DEFAULT 'not set'
- 81  			 , p_caller	      IN VARCHAR2    DEFAULT NULL
- 82  			 , p_guid	      IN VARCHAR2    DEFAULT NULL
- 83  			 , p_sosl_identifier  IN VARCHAR2    DEFAULT NULL
- 84  			 , p_executor_id      IN NUMBER      DEFAULT NULL
- 85  			 , p_ext_script_id    IN VARCHAR2    DEFAULT NULL
- 86  			 , p_run_id	      IN NUMBER      DEFAULT NULL
- 87  			 , p_full_message     IN CLOB	     DEFAULT NULL
- 88  			 )
- 89    ;
- 90  
- 91    PROCEDURE cmd_log( p_message	     IN VARCHAR2
- 92  			, p_log_type	     IN VARCHAR2     DEFAULT sosl_sys.INFO_TYPE
- 93  			, p_caller	     IN VARCHAR2     DEFAULT NULL
- 94  			, p_guid	     IN VARCHAR2     DEFAULT NULL
- 95  			, p_sosl_identifier  IN VARCHAR2     DEFAULT NULL
- 96  			, p_executor_id      IN NUMBER	     DEFAULT NULL
- 97  			, p_ext_script_id    IN VARCHAR2     DEFAULT NULL
- 98  			, p_full_message     IN CLOB	     DEFAULT NULL
- 99  			)
-100    ;
-101  
-102    /* FUNCTION SOSL_LOG.DUMMY_MAIL
-103    * This is a testing function that will NOT send any mail. It will log the mail message created in SOSL_SERVER_LOG using
-104    * the field full_message, so output can be controlled.
-105    *
-106    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
-107    * @param p_recipients The semicolon separated list of mail recipient addresses.
-108    * @param p_subject A preferablly short subject for the mail.
-109    * @param p_message The correctly formatted mail message.
-110    *
-111    * @return Will return 0 on success or -1 on errors.
-112    */
-113    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
-114  			  , p_recipients  IN VARCHAR2
-115  			  , p_subject	  IN VARCHAR2
-116  			  , p_message	  IN VARCHAR2
-117  			  )
-118  	 RETURN NUMBER
-119    ;
-120  
-121  END;
-122  /
+  7    * must be handled by the caller. The intention is to log as much information as possible before running into an exception
+  8    * that can't be handled any longer.
+  9    *
+ 10    * CURRENT ORACLE error: NOCOPY for IN parameters creates compile errors, whereas documentation allows IN NOCOPY var. Any
+ 11    * CLOB handling errors are possibly caused by the inability to provide a CLOB as reference.
+ 12    */
+ 13  
+ 14    /*====================================== start internal functions made visible for testing ======================================*/
+ 15    /* PROCEDURE SOSL_LOG.LOG_FALLBACK
+ 16    * This procedure tries some fallback actions, if logging raised an exception. It will not throw an extra exception. Intended to be
+ 17    * used during exception handling before raising the error.
+ 18    * It will try to log the error in one of this tables: SOSL_SERVER_LOG, SOSLERRORLOG, SPERRORLOG or, if everything fails output the error
+ 19    * via DBMS_OUTPUT.
+ 20    *
+ 21    * As we can't determine if the message contains an illegal character forcing the exception, the caller should transfer SQLERRM and
+ 22    * verify the transmitted content before passing it to this procedure or avoid transmitting parameters which should cause errors.
+ 23    *
+ 24    * If error could be logged it matches as follows:
+ 25    * SOSL_SERVER_LOG(caller, sosl_identifier, message) VALUES (p_script, p_identifier, p_message)
+ 26    * SOSLERRORLOG, SPERRORLOG(script, identifier, message) VALUES (p_script, p_identifier, p_message)
+ 27    * It will not prevent the exception, only try to log it somewhere, where it could be found without needing to analyze the db server
+ 28    * logs. Everything runs as autonomous transaction.
+ 29    *
+ 30    * DO NOT USE THIS PROCEDURE. It is internal for this package and only visible for testing.
+ 31    *
+ 32    * @param p_script The package function or procedure causing the error, e.g. sosl_log.log_event.
+ 33    * @param p_identifier The identifier for this error. Saved in SOSL_IDENTIFIER in SOSL_SERVER_LOG or IDENTIFIER in the error log tables.
+ 34    * @param p_message The message to save. Reduce it to SQLERRM if possible.
+ 35    */
+ 36    PROCEDURE log_fallback( p_script      IN VARCHAR2
+ 37  			     , p_identifier  IN VARCHAR2
+ 38  			     , p_message     IN VARCHAR2
+ 39  			     )
+ 40    ;
+ 41    /* PROCEDURE SOSL_LOG.LOG_EVENT
+ 42    * Writes a log entry as autonomous transaction. This is the internal base procedure, exposed for testing.
+ 43    * If on errors writing log entries is not possible the procedure hands the exception to the caller. This is the pure insert without
+ 44    * any checks. It takes the values as given and table may trigger exceptions. DO NOT USE THIS PROCEDURE. It is internal for this package.
+ 45    *
+ 46    * @param p_message The message to log. Limited to 4000 chars. If longer it is split and rest is stored in full_message CLOB by trigger. If NULL p_full_message must be provided.
+ 47    * @param p_log_type The log type is basically defined by SOSL_SYS. Currently: INFO, WARNING, ERROR, FATAL, SUCCESS. Must be valid.
+ 48    * @param p_log_category An optional logging category.
+ 49    * @param p_guid The GUID the process is running with. Can be used as LIKE reference on SOSLERRORLOG. Most likely used by CMD server.
+ 50    * @param p_sosl_identifier The exact identifier for SOSLERRORLOG if available. Most likely used by CMD server.
+ 51    * @param p_executor_id The associated executor id if available. Used as well by CMD server and SOSL packages and functions.
+ 52    * @param p_ext_script_id The (external) script id if available. Used as well by CMD server and SOSL packages and functions.
+ 53    * @param p_caller Caller identification if available, to distinguish database processes from SOSL CMD server processes or external usage.
+ 54    * @param p_run_id The associated run id if available. Most likely used by SOSL packages and functions.
+ 55    * @param p_full_message The full message as CLOB if the message size exceeds the PLSQL limit of 32767 bytes. Must be given if p_message is NULL.
+ 56    */
+ 57    PROCEDURE log_event( p_message	       IN VARCHAR2
+ 58  			  , p_log_type	       IN VARCHAR2
+ 59  			  , p_log_category     IN VARCHAR2
+ 60  			  , p_guid	       IN VARCHAR2
+ 61  			  , p_sosl_identifier  IN VARCHAR2
+ 62  			  , p_executor_id      IN NUMBER
+ 63  			  , p_ext_script_id    IN VARCHAR2
+ 64  			  , p_caller	       IN VARCHAR2
+ 65  			  , p_run_id	       IN NUMBER
+ 66  			  , p_full_message     IN CLOB
+ 67  			  )
+ 68    ;
+ 69  /*====================================== end internal functions made visible for testing ======================================*/
+ 70  
+ 71    /* PROCEDURE SOSL_LOG.FULL_LOG
+ 72    * Procedure with all parameters for logging. Will check parameters before logging. You should at least set also p_log_category
+ 73    * and p_caller, to be able to assign the log entry to a specific event and object. On parameter errors a separate log entry is
+ 74    * created. Intention is to write a log in any case and not throw any exception. This still may happen on main system malfunctions
+ 75    * but is limited to this events.
+ 76    * To keep things as fast as possible, column length checks are hardcoded, no extra round trip to USER_TAB_COLUMNS. If table definition
+ 77    * changes, this package has to be adjusted.
+ 78    *
+ 79    * @param p_message The message to log. Limited to 4000 chars. If longer it is split and rest is stored in full_message CLOB by trigger. If NULL p_full_message must be provided.
+ 80    * @param p_log_type The log type is basically defined by SOSL_SYS. Currently: INFO, WARNING, ERROR, FATAL, SUCCESS. Will be set to ERROR if not valid.
+ 81    * @param p_log_category An optional logging category.
+ 82    * @param p_caller Caller identification if available, to distinguish database processes from SOSL CMD server processes or external usage.
+ 83    * @param p_guid The GUID the process is running with. Can be used as LIKE reference on SOSLERRORLOG. Most likely used by CMD server.
+ 84    * @param p_sosl_identifier The exact identifier for SOSLERRORLOG if available. Most likely used by CMD server.
+ 85    * @param p_executor_id The associated executor id if available. Used as well by CMD server and SOSL packages and functions.
+ 86    * @param p_ext_script_id The (external) script id if available. Used as well by CMD server and SOSL packages and functions.
+ 87    * @param p_run_id The associated run id if available. Most likely used by SOSL packages and functions.
+ 88    * @param p_full_message The full message as CLOB if the message size exceeds the PLSQL limit of 32767 bytes. Must be given if p_message is NULL.
+ 89    */
+ 90    PROCEDURE full_log( p_message	      IN VARCHAR2
+ 91  			 , p_log_type	      IN VARCHAR2    DEFAULT sosl_sys.INFO_TYPE
+ 92  			 , p_log_category     IN VARCHAR2    DEFAULT 'not set'
+ 93  			 , p_caller	      IN VARCHAR2    DEFAULT NULL
+ 94  			 , p_guid	      IN VARCHAR2    DEFAULT NULL
+ 95  			 , p_sosl_identifier  IN VARCHAR2    DEFAULT NULL
+ 96  			 , p_executor_id      IN NUMBER      DEFAULT NULL
+ 97  			 , p_ext_script_id    IN VARCHAR2    DEFAULT NULL
+ 98  			 , p_run_id	      IN NUMBER      DEFAULT NULL
+ 99  			 , p_full_message     IN CLOB	     DEFAULT NULL
+100  			 )
+101    ;
+102  
+103    /* FUNCTION SOSL_LOG.DUMMY_MAIL
+104    * This is a testing function that will NOT send any mail. It will log the mail message created in SOSL_SERVER_LOG using
+105    * the field full_message, so output can be controlled.
+106    *
+107    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
+108    * @param p_recipients The semicolon separated list of mail recipient addresses.
+109    * @param p_subject A preferablly short subject for the mail.
+110    * @param p_message The correctly formatted mail message.
+111    *
+112    * @return Will return 0 on success or -1 on errors.
+113    */
+114    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
+115  			  , p_recipients  IN VARCHAR2
+116  			  , p_subject	  IN VARCHAR2
+117  			  , p_message	  IN VARCHAR2
+118  			  )
+119  	 RETURN NUMBER
+120    ;
+121  
+122  END;
+123  /
 
 Package created.
 
 SQL> @@../sosl_ddl/packages/sosl_log.pkb
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> CREATE OR REPLACE PACKAGE BODY sosl_log
   2  AS
   3    -- for description see header file
@@ -1117,276 +1058,587 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_log
  86  	 -- all inserts failed, use DBMS_OUTPUT
  87  	 IF NOT l_saved
  88  	 THEN
- 89  	   BEGIN
- 90  	     DBMS_OUTPUT.PUT_LINE('Fatal error in ' || p_script || ' error: ' || p_message);
- 91  	   EXCEPTION
- 92  	     WHEN OTHERS THEN
- 93  	       NULL;
- 94  	   END;
- 95  	 END IF;
- 96    EXCEPTION
- 97  	 WHEN OTHERS THEN
- 98  	   -- do exactly nothing to avoid an additional exception on database malfunction
- 99  	   NULL;
-100    END log_fallback;
-101  
-102    PROCEDURE log_event( p_message	       IN VARCHAR2
-103  			  , p_log_type	       IN VARCHAR2
-104  			  , p_log_category     IN VARCHAR2
-105  			  , p_guid	       IN VARCHAR2
-106  			  , p_sosl_identifier  IN VARCHAR2
-107  			  , p_executor_id      IN NUMBER
-108  			  , p_ext_script_id    IN VARCHAR2
-109  			  , p_caller	       IN VARCHAR2
-110  			  , p_run_id	       IN NUMBER
-111  			  , p_full_message     IN CLOB
-112  			  )
-113    IS
-114  	 PRAGMA AUTONOMOUS_TRANSACTION;
-115    BEGIN
-116  	 INSERT INTO sosl_server_log
-117  	   ( message
-118  	   , log_type
-119  	   , log_category
-120  	   , guid
-121  	   , sosl_identifier
-122  	   , executor_id
-123  	   , ext_script_id
-124  	   , caller
-125  	   , run_id
-126  	   , full_message
-127  	   )
-128  	   VALUES
-129  	     ( p_message
-130  	     , p_log_type
-131  	     , p_log_category
-132  	     , p_guid
-133  	     , p_sosl_identifier
-134  	     , p_executor_id
-135  	     , p_ext_script_id
-136  	     , p_caller
-137  	     , p_run_id
-138  	     , p_full_message
-139  	     )
-140  	 ;
-141  	 COMMIT;
-142    EXCEPTION
-143  	 WHEN OTHERS THEN
-144  	   -- use fallback
-145  	   log_fallback('SOSL_LOG.LOG_EVENT', 'SOSL_LOG', SQLERRM);
-146  	   -- try ROLLBACK
-147  	   ROLLBACK;
-148  	   -- and raise the error again now
-149  	   RAISE;
-150    END log_event;
-151  
-152    PROCEDURE full_log( p_message	      IN VARCHAR2
-153  			 , p_log_type	      IN VARCHAR2    DEFAULT sosl_sys.INFO_TYPE
-154  			 , p_log_category     IN VARCHAR2    DEFAULT 'not set'
-155  			 , p_caller	      IN VARCHAR2    DEFAULT NULL
-156  			 , p_guid	      IN VARCHAR2    DEFAULT NULL
-157  			 , p_sosl_identifier  IN VARCHAR2    DEFAULT NULL
-158  			 , p_executor_id      IN NUMBER      DEFAULT NULL
-159  			 , p_ext_script_id    IN VARCHAR2    DEFAULT NULL
-160  			 , p_run_id	      IN NUMBER      DEFAULT NULL
-161  			 , p_full_message     IN CLOB	     DEFAULT NULL
-162  			 )
-163    IS
-164  	 -- set variables to current type
-165  	 l_log_category    sosl_server_log.log_category%TYPE;
-166  	 l_caller	   sosl_server_log.caller%TYPE;
-167  	 l_guid 	   sosl_server_log.guid%TYPE;
-168  	 l_sosl_identifier sosl_server_log.sosl_identifier%TYPE;
-169  	 l_executor_id	   sosl_server_log.executor_id%TYPE;
-170  	 l_ext_script_id   sosl_server_log.ext_script_id%TYPE;
-171  	 l_run_id	   sosl_server_log.run_id%TYPE;
-172    BEGIN
-173  	 -- we leave info type and message splitting to be handled by table trigger, only check other parameters for type and length.
-174  	 IF NOT sosl_sys.check_col('SOSL_SERVER_LOG', 'LOG_CATEGORY', p_log_category)
-175  	 THEN
-176  	   -- write extra log entry and cut original content to limit
-177  	   log_event( 'p_log_category length exceeds column length in SOSL_SERVER_LOG. See full message for message causing the error.'
-178  		    , sosl_sys.FATAL_TYPE
-179  		    , 'LOG USAGE ERROR'
-180  		    , NULL, NULL, NULL, NULL, NULL, NULL
-181  		    , (p_message || ' - ' || p_full_message)
-182  		    )
-183  	   ;
-184  	   l_log_category := SUBSTR(p_log_category, 1, sosl_sys.get_col_length('SOSL_SERVER_LOG', 'LOG_CATEGORY'));
-185  	 ELSE
-186  	   l_log_category := NVL(p_log_category, 'not set');
-187  	 END IF;
-188  	 IF NOT sosl_sys.check_col('SOSL_SERVER_LOG', 'CALLER', p_caller)
-189  	 THEN
-190  	   -- write extra log entry and cut original content to limit
-191  	   log_event( 'p_caller length exceeds column length in SOSL_SERVER_LOG. See full message for message causing the error.'
-192  		    , sosl_sys.FATAL_TYPE
-193  		    , 'LOG USAGE ERROR'
-194  		    , NULL, NULL, NULL, NULL, NULL, NULL
-195  		    , (p_message || ' - ' || p_full_message)
-196  		    )
-197  	   ;
-198  	   l_caller := SUBSTR(p_caller, 1, sosl_sys.get_col_length('SOSL_SERVER_LOG', 'CALLER'));
-199  	 ELSE
-200  	   l_caller := p_caller;
-201  	 END IF;
-202  	 IF NOT sosl_sys.check_col('SOSL_SERVER_LOG', 'GUID', p_guid)
-203  	 THEN
-204  	   -- write extra log entry and cut original content to limit
-205  	   log_event( 'p_guid length exceeds column length in SOSL_SERVER_LOG. See full message for message causing the error.'
-206  		    , sosl_sys.FATAL_TYPE
-207  		    , 'LOG USAGE ERROR'
-208  		    , NULL, NULL, NULL, NULL, NULL, NULL
-209  		    , (p_message || ' - ' || p_full_message)
-210  		    )
-211  	   ;
-212  	   l_guid := SUBSTR(p_guid, 1, sosl_sys.get_col_length('SOSL_SERVER_LOG', 'GUID'));
-213  	 ELSE
-214  	   l_guid := p_guid;
-215  	 END IF;
-216  	 IF NOT sosl_sys.check_col('SOSL_SERVER_LOG', 'SOSL_IDENTIFIER', p_sosl_identifier)
-217  	 THEN
-218  	   -- write extra log entry and cut original content to limit
-219  	   log_event( 'p_sosl_identifier length exceeds column length in SOSL_SERVER_LOG. See full message for message causing the error.'
-220  		    , sosl_sys.FATAL_TYPE
-221  		    , 'LOG USAGE ERROR'
-222  		    , NULL, NULL, NULL, NULL, NULL, NULL
-223  		    , (p_message || ' - ' || p_full_message)
-224  		    )
-225  	   ;
-226  	   l_sosl_identifier := SUBSTR(p_sosl_identifier, 1, sosl_sys.get_col_length('SOSL_SERVER_LOG', 'SOSL_IDENTIFIER'));
-227  	 ELSE
-228  	   l_sosl_identifier := p_sosl_identifier;
-229  	 END IF;
-230  	 IF NOT sosl_sys.check_col('SOSL_SERVER_LOG', 'EXECUTOR_ID', p_executor_id)
-231  	 THEN
-232  	   -- write extra log entry and cut original content to limit
-233  	   log_event( 'p_executor_id length exceeds column length in SOSL_SERVER_LOG. See full message for message causing the error. EXECUTOR_ID: ' || p_executor_id
-234  		    , sosl_sys.FATAL_TYPE
-235  		    , 'LOG USAGE ERROR'
-236  		    , NULL, NULL, NULL, NULL, NULL, NULL
-237  		    , (p_message || ' - ' || p_full_message)
-238  		    )
-239  	   ;
-240  	   -- we can't shorten the number, leave it to oracle
-241  	   l_executor_id := p_executor_id;
-242  	 ELSE
-243  	   l_executor_id := p_executor_id;
-244  	 END IF;
-245  	 IF NOT sosl_sys.check_col('SOSL_SERVER_LOG', 'EXT_SCRIPT_ID', p_ext_script_id)
-246  	 THEN
-247  	   -- write extra log entry and cut original content to limit
-248  	   log_event( 'ext_script_id length exceeds column length in SOSL_SERVER_LOG. See full message for message causing the error.'
-249  		    , sosl_sys.FATAL_TYPE
-250  		    , 'LOG USAGE ERROR'
-251  		    , NULL, NULL, NULL, NULL, NULL, NULL
-252  		    , (p_message || ' - ' || p_full_message)
-253  		    )
-254  	   ;
-255  	   l_ext_script_id := SUBSTR(p_ext_script_id, 1, sosl_sys.get_col_length('SOSL_SERVER_LOG', 'EXT_SCRIPT_ID'));
-256  	 ELSE
-257  	   l_ext_script_id := p_ext_script_id;
-258  	 END IF;
-259  	 IF NOT sosl_sys.check_col('SOSL_SERVER_LOG', 'RUN_ID', p_run_id)
-260  	 THEN
-261  	   -- write extra log entry and cut original content to limit
-262  	   log_event( 'p_run_id length exceeds column length in SOSL_SERVER_LOG. See full message for message causing the error. RUN_ID: ' || p_run_id
-263  		    , sosl_sys.FATAL_TYPE
-264  		    , 'LOG USAGE ERROR'
-265  		    , NULL, NULL, NULL, NULL, NULL, NULL
-266  		    , (p_message || ' - ' || p_full_message)
-267  		    )
-268  	   ;
-269  	   -- we can't shorten the number, leave it to oracle
-270  	   l_run_id := p_run_id;
-271  	 ELSE
-272  	   l_run_id := p_run_id;
-273  	 END IF;
-274  	 -- try to write the given data to SOSL_SERVER_LOG
-275  	 log_event(p_message, p_log_type, l_log_category, l_guid, l_sosl_identifier, l_executor_id, l_ext_script_id, l_caller, l_run_id, p_full_message);
-276    EXCEPTION
-277  	 WHEN OTHERS THEN
-278  	   log_event( 'full log error: ' || TRIM(SUBSTR(SQLERRM, 1, 3900))
-279  		    , sosl_sys.FATAL_TYPE
-280  		    , 'FULL_LOG ERROR'
-281  		    , NULL, NULL, NULL, NULL, NULL, NULL
-282  		    , SQLERRM || ': ' || p_message
-283  		    )
-284  	   ;
-285    END full_log;
-286  
-287    PROCEDURE cmd_log( p_message	     IN VARCHAR2
-288  			, p_log_type	     IN VARCHAR2     DEFAULT sosl_sys.INFO_TYPE
-289  			, p_caller	     IN VARCHAR2     DEFAULT NULL
-290  			, p_guid	     IN VARCHAR2     DEFAULT NULL
-291  			, p_sosl_identifier  IN VARCHAR2     DEFAULT NULL
-292  			, p_executor_id      IN NUMBER	     DEFAULT NULL
-293  			, p_ext_script_id    IN VARCHAR2     DEFAULT NULL
-294  			, p_full_message     IN CLOB	     DEFAULT NULL
-295  			)
-296    IS
-297    BEGIN
-298  	 full_log( p_message => p_message
-299  		 , p_log_type => p_log_type
-300  		 , p_caller => p_caller
-301  		 , p_guid => p_guid
-302  		 , p_sosl_identifier => p_sosl_identifier
-303  		 , p_executor_id => p_executor_id
-304  		 , p_ext_script_id => p_ext_script_id
-305  		 , p_full_message => p_full_message
-306  		 )
-307  	 ;
-308    EXCEPTION
-309  	 WHEN OTHERS THEN
-310  	   log_event( 'CMD log error: ' || TRIM(SUBSTR(SQLERRM, 1, 3900))
-311  		    , sosl_sys.FATAL_TYPE
-312  		    , 'CMD_LOG ERROR'
-313  		    , NULL, NULL, NULL, NULL, NULL, NULL
-314  		    , SQLERRM || ': ' || p_message
-315  		    )
-316  	   ;
-317    END cmd_log;
-318  
-319    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
-320  			  , p_recipients  IN VARCHAR2
-321  			  , p_subject	  IN VARCHAR2
-322  			  , p_message	  IN VARCHAR2
-323  			  )
-324  	 RETURN NUMBER
-325    IS
-326  	 l_message	 VARCHAR2(32767);
-327  	 l_category	 sosl_server_log.log_category%TYPE   := 'MAIL DUMMY';
-328  	 l_caller	 sosl_server_log.caller%TYPE	     := 'sosl_log.dummy_mail';
-329    BEGIN
-330  	 l_message := sosl_sys.format_mail(p_sender, p_recipients, p_subject, p_message);
-331  	 full_log( p_message => 'Fake mail with subject "' || p_subject || '" created in full_message. Check the results.'
-332  		 , p_log_type => sosl_sys.INFO_TYPE
-333  		 , p_log_category => l_category
-334  		 , p_caller => l_caller
-335  		 , p_full_message => l_message
-336  		 )
-337  	 ;
-338  	 RETURN 0;
-339    EXCEPTION
-340  	 WHEN OTHERS THEN
-341  	   -- log the error instead of RAISE
-342  	   sosl_log.full_log( p_message => 'Unhandled exception in sosl_log.dummy_mail function: ' || SQLERRM
-343  			    , p_log_type => sosl_sys.FATAL_TYPE
-344  			    , p_log_category => l_category
-345  			    , p_caller => l_caller
-346  			    )
-347  	   ;
-348  	   RETURN -1;
-349    END dummy_mail;
-350  
-351  END;
-352  /
+ 89  	   DBMS_OUTPUT.PUT_LINE('SOSL_LOG.LOG_FALLBACK could not save error. Fatal error in ' || p_script || ' error: ' || p_message);
+ 90  	 END IF;
+ 91    EXCEPTION
+ 92  	 WHEN OTHERS THEN
+ 93  	   -- fallback failed, let caller handle and raise the error, do nothing therefore.
+ 94  	   NULL;
+ 95    END log_fallback;
+ 96  
+ 97    PROCEDURE log_event( p_message	       IN VARCHAR2
+ 98  			  , p_log_type	       IN VARCHAR2
+ 99  			  , p_log_category     IN VARCHAR2
+100  			  , p_guid	       IN VARCHAR2
+101  			  , p_sosl_identifier  IN VARCHAR2
+102  			  , p_executor_id      IN NUMBER
+103  			  , p_ext_script_id    IN VARCHAR2
+104  			  , p_caller	       IN VARCHAR2
+105  			  , p_run_id	       IN NUMBER
+106  			  , p_full_message     IN CLOB
+107  			  )
+108    IS
+109  	 PRAGMA AUTONOMOUS_TRANSACTION;
+110    BEGIN
+111  	 INSERT INTO sosl_server_log
+112  	   ( message
+113  	   , log_type
+114  	   , log_category
+115  	   , guid
+116  	   , sosl_identifier
+117  	   , executor_id
+118  	   , ext_script_id
+119  	   , caller
+120  	   , run_id
+121  	   , full_message
+122  	   )
+123  	   VALUES
+124  	     ( p_message
+125  	     , p_log_type
+126  	     , p_log_category
+127  	     , p_guid
+128  	     , p_sosl_identifier
+129  	     , p_executor_id
+130  	     , p_ext_script_id
+131  	     , p_caller
+132  	     , p_run_id
+133  	     , p_full_message
+134  	     )
+135  	 ;
+136  	 COMMIT;
+137    EXCEPTION
+138  	 WHEN OTHERS THEN
+139  	   -- try fallback
+140  	   log_fallback('sosl_log.log_event', 'SOSL_LOG', SQLERRM);
+141  	   -- try ROLLBACK
+142  	   ROLLBACK;
+143  	   -- and raise the error again now
+144  	   RAISE;
+145    END log_event;
+146  
+147    PROCEDURE full_log( p_message	      IN VARCHAR2
+148  			 , p_log_type	      IN VARCHAR2    DEFAULT sosl_sys.INFO_TYPE
+149  			 , p_log_category     IN VARCHAR2    DEFAULT 'not set'
+150  			 , p_caller	      IN VARCHAR2    DEFAULT NULL
+151  			 , p_guid	      IN VARCHAR2    DEFAULT NULL
+152  			 , p_sosl_identifier  IN VARCHAR2    DEFAULT NULL
+153  			 , p_executor_id      IN NUMBER      DEFAULT NULL
+154  			 , p_ext_script_id    IN VARCHAR2    DEFAULT NULL
+155  			 , p_run_id	      IN NUMBER      DEFAULT NULL
+156  			 , p_full_message     IN CLOB	     DEFAULT NULL
+157  			 )
+158    IS
+159  	 -- set variables to current type
+160  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
+161  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.full_log';
+162  	 l_log_category      sosl_server_log.log_category%TYPE;
+163  	 l_caller	     sosl_server_log.caller%TYPE;
+164  	 l_guid 	     sosl_server_log.guid%TYPE;
+165  	 l_sosl_identifier   sosl_server_log.sosl_identifier%TYPE;
+166  	 l_executor_id	     sosl_server_log.executor_id%TYPE;
+167  	 l_ext_script_id     sosl_server_log.ext_script_id%TYPE;
+168  	 l_run_id	     sosl_server_log.run_id%TYPE;
+169  	 l_col_length	     INTEGER;
+170    BEGIN
+171  	 -- basic column checks message splitting is left to table triggers
+172  	 -- LOG_CATEGORY
+173  	 IF NVL(LENGTH(TRIM(p_log_category)), 0) > 256
+174  	 THEN
+175  	   -- write extra log entry and cut original content to limit
+176  	   log_event( p_message => 'p_log_category length exceeds column length (256) in SOSL_SERVER_LOG. See full message for message causing the error.'
+177  		    , p_log_type => sosl_sys.FATAL_TYPE
+178  		    , p_log_category => l_self_log_category
+179  		    , p_guid => NULL
+180  		    , p_sosl_identifier => NULL
+181  		    , p_executor_id => NULL
+182  		    , p_ext_script_id => NULL
+183  		    , p_caller => l_self_caller
+184  		    , p_run_id => NULL
+185  		      -- details and original message
+186  		    , p_full_message => ('LOG_CATEGORY: ' || TRIM(p_log_category) || ' length: ' || LENGTH(TRIM(p_log_category)) || ' msg: ' || p_message || ' - ' || p_full_message)
+187  		    )
+188  	   ;
+189  	   l_log_category := SUBSTR(TRIM(p_log_category), 1, 256);
+190  	 ELSE
+191  	   l_log_category := NVL(TRIM(p_log_category), sosl_sys.NA_TYPE);
+192  	 END IF;
+193  	 -- CALLER
+194  	 IF NVL(LENGTH(TRIM(p_caller)), 0) > 256
+195  	 THEN
+196  	   -- write extra log entry and cut original content to limit
+197  	   log_event( p_message => 'p_caller length exceeds column length (256) in SOSL_SERVER_LOG. See full message for message causing the error.'
+198  		    , p_log_type => sosl_sys.FATAL_TYPE
+199  		    , p_log_category => l_self_log_category
+200  		    , p_guid => NULL
+201  		    , p_sosl_identifier => NULL
+202  		    , p_executor_id => NULL
+203  		    , p_ext_script_id => NULL
+204  		    , p_caller => l_self_caller
+205  		    , p_run_id => NULL
+206  		      -- details and original message
+207  		    , p_full_message => ('CALLER: ' || TRIM(p_caller) || ' length: ' || LENGTH(TRIM(p_caller)) || ' msg: ' || p_message || ' - ' || p_full_message)
+208  		    )
+209  	   ;
+210  	   l_caller := SUBSTR(TRIM(p_caller), 1, 256);
+211  	 ELSE
+212  	   l_caller := TRIM(p_caller);
+213  	 END IF;
+214  	 -- GUID
+215  	 IF NVL(LENGTH(TRIM(p_guid)), 0) > 64
+216  	 THEN
+217  	   -- write extra log entry and cut original content to limit
+218  	   log_event( p_message => 'p_guid length exceeds column length (64) in SOSL_SERVER_LOG. See full message for message causing the error.'
+219  		    , p_log_type => sosl_sys.FATAL_TYPE
+220  		    , p_log_category => l_self_log_category
+221  		    , p_guid => NULL
+222  		    , p_sosl_identifier => NULL
+223  		    , p_executor_id => NULL
+224  		    , p_ext_script_id => NULL
+225  		    , p_caller => l_self_caller
+226  		    , p_run_id => NULL
+227  		      -- details and original message
+228  		    , p_full_message => ('GUID: ' || TRIM(p_guid) || ' length: ' || LENGTH(TRIM(p_guid)) || ' msg: ' || p_message || ' - ' || p_full_message)
+229  		    )
+230  	   ;
+231  	   l_guid := SUBSTR(TRIM(p_guid), 1, 64);
+232  	 ELSE
+233  	   l_guid := TRIM(p_guid);
+234  	 END IF;
+235  	 -- SOSL_IDENTIFIER
+236  	 IF NVL(LENGTH(TRIM(p_sosl_identifier)), 0) > 256
+237  	 THEN
+238  	   -- write extra log entry and cut original content to limit
+239  	   log_event( p_message => 'p_sosl_identifier length exceeds column length (256) in SOSL_SERVER_LOG. See full message for message causing the error.'
+240  		    , p_log_type => sosl_sys.FATAL_TYPE
+241  		    , p_log_category => l_self_log_category
+242  		    , p_guid => NULL
+243  		    , p_sosl_identifier => NULL
+244  		    , p_executor_id => NULL
+245  		    , p_ext_script_id => NULL
+246  		    , p_caller => l_self_caller
+247  		    , p_run_id => NULL
+248  		      -- details and original message
+249  		    , p_full_message => ('SOSL_IDENTIFIER: ' || TRIM(p_sosl_identifier) || ' length: ' || LENGTH(TRIM(p_sosl_identifier)) || ' msg: ' || p_message || ' - ' || p_full_message)
+250  		    )
+251  	   ;
+252  	   l_sosl_identifier := SUBSTR(TRIM(p_sosl_identifier), 1, 256);
+253  	 ELSE
+254  	   l_sosl_identifier := TRIM(p_sosl_identifier);
+255  	 END IF;
+256  	 -- EXT_SCRIPT_ID
+257  	 IF NVL(LENGTH(TRIM(p_ext_script_id)), 0) > 4000
+258  	 THEN
+259  	   -- write extra log entry and cut original content to limit
+260  	   log_event( p_message => 'p_ext_script_id length exceeds column length (4000) in SOSL_SERVER_LOG. See full message for message causing the error.'
+261  		    , p_log_type => sosl_sys.FATAL_TYPE
+262  		    , p_log_category => l_self_log_category
+263  		    , p_guid => NULL
+264  		    , p_sosl_identifier => NULL
+265  		    , p_executor_id => NULL
+266  		    , p_ext_script_id => NULL
+267  		    , p_caller => l_self_caller
+268  		    , p_run_id => NULL
+269  		      -- details and original message
+270  		    , p_full_message => ('EXT_SCRIPT_ID: ' || TRIM(p_ext_script_id) || ' length: ' || LENGTH(TRIM(p_ext_script_id)) || ' msg: ' || p_message || ' - ' || p_full_message)
+271  		    )
+272  	   ;
+273  	   l_ext_script_id := SUBSTR(TRIM(p_ext_script_id), 1, 4000);
+274  	 ELSE
+275  	   l_ext_script_id := TRIM(p_ext_script_id);
+276  	 END IF;
+277  	 -- no check on numbers
+278  	 l_executor_id := p_executor_id;
+279  	 l_run_id := p_run_id;
+280  	 -- try to write the given data to SOSL_SERVER_LOG
+281  	 log_event( p_message => p_message
+282  		  , p_log_type => p_log_type
+283  		  , p_log_category => l_log_category
+284  		  , p_guid => l_guid
+285  		  , p_sosl_identifier => l_sosl_identifier
+286  		  , p_executor_id => l_executor_id
+287  		  , p_ext_script_id => l_ext_script_id
+288  		  , p_caller => l_caller
+289  		  , p_run_id => l_run_id
+290  		  , p_full_message => p_full_message
+291  		  )
+292  	 ;
+293    EXCEPTION
+294  	 WHEN OTHERS THEN
+295  	   log_event( p_message => 'full log error: ' || TRIM(SUBSTR(SQLERRM, 1, 3900))
+296  		    , p_log_type => sosl_sys.FATAL_TYPE
+297  		    , p_log_category => l_self_log_category
+298  		    , p_guid => NULL
+299  		    , p_sosl_identifier => NULL
+300  		    , p_executor_id => NULL
+301  		    , p_ext_script_id => NULL
+302  		    , p_caller => l_self_caller
+303  		    , p_run_id => NULL
+304  		      -- full details and original message
+305  		    , p_full_message => (SQLERRM || ': ' || p_message)
+306  		    )
+307  	   ;
+308    END full_log;
+309  
+310    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
+311  			  , p_recipients  IN VARCHAR2
+312  			  , p_subject	  IN VARCHAR2
+313  			  , p_message	  IN VARCHAR2
+314  			  )
+315  	 RETURN NUMBER
+316    IS
+317  	 l_message	 VARCHAR2(32767);
+318  	 l_category	 sosl_server_log.log_category%TYPE   := 'MAIL DUMMY';
+319  	 l_caller	 sosl_server_log.caller%TYPE	     := 'sosl_log.dummy_mail';
+320    BEGIN
+321  	 l_message := sosl_sys.format_mail(p_sender, p_recipients, p_subject, p_message);
+322  	 full_log( p_message => 'Fake mail with subject "' || p_subject || '" created in full_message. Check the results.'
+323  		 , p_log_type => sosl_sys.INFO_TYPE
+324  		 , p_log_category => l_category
+325  		 , p_caller => l_caller
+326  		 , p_full_message => l_message
+327  		 )
+328  	 ;
+329  	 RETURN sosl_sys.SUCCESS_NUM;
+330    EXCEPTION
+331  	 WHEN OTHERS THEN
+332  	   -- log the error instead of RAISE
+333  	   sosl_log.full_log( p_message => 'Unhandled exception in sosl_log.dummy_mail function: ' || SQLERRM
+334  			    , p_log_type => sosl_sys.FATAL_TYPE
+335  			    , p_log_category => l_category
+336  			    , p_caller => l_caller
+337  			    )
+338  	   ;
+339  	   RETURN sosl_sys.ERR_NUM;
+340    END dummy_mail;
+341  
+342  END;
+343  /
+
+Package body created.
+
+SQL> -- util package
+SQL> @@../sosl_ddl/packages/sosl_util.pks
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> -- Basic util package not using data objects of the Simple Oracle Script Loader, apart from sosl_sys and logging.
+SQL> CREATE OR REPLACE PACKAGE sosl_util
+  2  AS
+  3    /**
+  4    * This package contains basic functions and procedures used by the Simple Oracle Script Loader that have minimal dependencies on
+  5    * SOSL object. Provides logging.
+  6    */
+  7  
+  8    /* PROCEDURE SOSL_UTIL.SPLIT_FUNCTION_NAME
+  9    * Splits the given function name into its parts. Supposed delimiter is the point ".".
+ 10    * @param p_function_name The function or package function name to check. Package functions must be qualified with the package name, e.g. my_package.my_function.
+ 11    * @param p_package OUT parameter, contains the package name if any or NULL.
+ 12    * @param p_function OUT parameter, contains the pure function name.
+ 13    */
+ 14    PROCEDURE split_function_name( p_function_name IN  VARCHAR2
+ 15  				    , p_package       OUT VARCHAR2
+ 16  				    , p_function      OUT VARCHAR2
+ 17  				    )
+ 18    ;
+ 19  
+ 20    /* FUNCTION SOSL_UTIL.HAS_DB_USER
+ 21    * Checks if a given user is visible for SOSL by checking ALL_USERS. Users must be visible to SOSL to be able to dynamically
+ 22    * grant the necessary rights on the API for script execution.
+ 23    *
+ 24    * @param p_username The database user name to check.
+ 25    *
+ 26    * @return TRUE if the user is visible in ALL_USERS to SOSL, otherwise FALSE.
+ 27    */
+ 28    FUNCTION has_db_user(p_username IN VARCHAR2)
+ 29  	 RETURN BOOLEAN
+ 30    ;
+ 31  
+ 32    /* FUNCTION SOSL_SYS.HAS_FUNCTION
+ 33    * Checks if a given function or package function name is visible for SOSL by checking ALL_ATTRIBUTES. The package SOSL_API is
+ 34    * excluded from the search to avoid references in SOSL_EXECUTOR.
+ 35    *
+ 36    * @param p_owner The owner of the function or package function name to check.
+ 37    * @param p_function_name The function or package function name to check. Package functions must be qualified with the package name, e.g. my_package.my_function.
+ 38    * @param p_datatype The return datatype of the function expected, e.g. a valid Oracle datatype like NUMBER or VARCHAR2.
+ 39    *
+ 40    * @return TRUE if the function is visible in ALL_ATTRIBUTES to SOSL and has the required return datatype, otherwise FALSE.
+ 41    */
+ 42    FUNCTION has_function( p_owner	       IN VARCHAR2
+ 43  			    , p_function_name  IN VARCHAR2
+ 44  			    , p_datatype       IN VARCHAR2
+ 45  			    )
+ 46  	 RETURN BOOLEAN
+ 47    ;
+ 48  
+ 49    /*FUNCTION SOSL_SYS.GET_COL_LENGTH
+ 50    * Returns the column length for a given table and column or -1 if table or column does not exist from USER_TAB_COLUMNS using
+ 51    * DATA_LENGTH. DATA_LENGTH is misleading if not a char type or CLOB, as CLOB types report 4000 which is definitely wrong.
+ 52    * The only types handled are NUMBER and CLOB. All other types return the DATA_LENGTH.
+ 53    *
+ 54    * Length for numbers is calculated by adding precision and scale.
+ 55    *
+ 56    * CLOB will return the PLSQL equation of a VARCHAR2/CLOB, which is 32767 and still wrong, but useful to see if a PLSQL can handle
+ 57    * the CLOB. Be careful with CLOB handling. If source is not a table column, PLSQL most likely limits it to 32767 cutting longer content.
+ 58    *
+ 59    * Objects not in the current schema will not be considered and return -1 AS USER_TAB_COLUMN is used.
+ 60    *
+ 61    * No handling for date and timestamp values, as their char representation has too much dependencies on NLS and formatting to get a
+ 62    * reliable length.
+ 63    *
+ 64    * Byte and char semantic is not considered only the effective chars that can be stored in CHAR or VARCHAR2 as defined by DATA_LENGTH.
+ 65    *
+ 66    * @param p_table The name of the table. Case insensitive. Will be transformed to UPPER.
+ 67    * @param p_column The name of the column. Case insensitive. Will be transformed to UPPER.
+ 68    *
+ 69    * @return The calculated length of the column. Fix PLSQL limit 32767 for CLOB types. DATA_LENGTH for data and timestamp types.
+ 70    */
+ 71    FUNCTION get_col_length( p_table  IN VARCHAR2
+ 72  			      , p_column IN VARCHAR2
+ 73  			      )
+ 74  	 RETURN INTEGER
+ 75    ;
+ 76  
+ 77    /* FUNCTION SOSL_SYS.GET_COL_TYPE
+ 78    * Returns the type of a column from USER_TAB_COLUMNS as defined in DATA_TYPE or NA_TYPE if table or column doesn't exist.
+ 79    * Objects not in the current schema will not be considered and return NA_TYPE.
+ 80    *
+ 81    * @param p_table The name of the table. Case insensitive. Will be transformed to UPPER.
+ 82    * @param p_column The name of the column. Case insensitive. Will be transformed to UPPER.
+ 83    *
+ 84    * @return The type of the column as defined in DATA_TYPE or sosl_sys.NA_TYPE on errors or not found columns and tables.
+ 85    */
+ 86    FUNCTION get_col_type( p_table  IN VARCHAR2
+ 87  			    , p_column IN VARCHAR2
+ 88  			    )
+ 89  	 RETURN VARCHAR2
+ 90    ;
+ 91  
+ 92    /* FUNCTION SOSL_SYS.CHECK_COL
+ 93    * This function can check NUMBER and VARCHAR2/CHAR columns for length and type. Passing a number for a char column type will result
+ 94    * in FALSE. Providing a P_VALUE with a length longer than the length calculated, will result in FALSE. It will not consider
+ 95    * implicite Oracle conversions. Expects type like defined.
+ 96    *
+ 97    * Number length is calculated by TO_CHAR string representation removing all delimiters and counting only numbers 0-9.
+ 98    * Passing a VARCHAR2 value is valid for CHAR and VARCHAR2 column types.
+ 99    *
+100    * @param p_table The name of the table. Case insensitive. Will be transformed to UPPER.
+101    * @param p_column The name of the column. Case insensitive. Will be transformed to UPPER.
+102    * @param p_value The value for the table column to check against column definition.
+103    *
+104    * @return TRUE if value and column match in type and length, otherwise FALSE.
+105    */
+106    FUNCTION check_col( p_table  IN VARCHAR2
+107  			 , p_column IN VARCHAR2
+108  			 , p_value  IN VARCHAR2
+109  			 )
+110  	 RETURN BOOLEAN
+111    ;
+112    FUNCTION check_col( p_table  IN VARCHAR2
+113  			 , p_column IN VARCHAR2
+114  			 , p_value  IN NUMBER
+115  			 )
+116  	 RETURN BOOLEAN
+117    ;
+118  
+119  END;
+120  /
+
+Package created.
+
+SQL> @@../sosl_ddl/packages/sosl_util.pkb
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> CREATE OR REPLACE PACKAGE BODY sosl_util
+  2  AS
+  3    -- for description see header file
+  4    PROCEDURE split_function_name( p_function_name IN  VARCHAR2
+  5  				    , p_package       OUT VARCHAR2
+  6  				    , p_function      OUT VARCHAR2
+  7  				    )
+  8    IS
+  9    BEGIN
+ 10  	 IF INSTR(p_function_name, '.') > 0
+ 11  	 THEN
+ 12  	   p_package   := TRIM(SUBSTR(p_function_name, 1, INSTR(p_function_name, '.') -1));
+ 13  	   p_function  := TRIM(SUBSTR(p_function_name, INSTR(p_function_name, '.') +1));
+ 14  	 ELSE
+ 15  	   p_package   := NULL;
+ 16  	   p_function  := TRIM(p_function_name);
+ 17  	 END IF;
+ 18    END split_function_name;
+ 19  
+ 20    FUNCTION has_db_user(p_username IN VARCHAR2)
+ 21  	 RETURN BOOLEAN
+ 22    IS
+ 23  	 l_has_user  NUMBER;
+ 24  	 l_return    BOOLEAN;
+ 25    BEGIN
+ 26  	 l_return := FALSE;
+ 27  	 SELECT COUNT(*) INTO l_has_user FROM all_users WHERE username = p_username;
+ 28  	 IF l_has_user != 0
+ 29  	 THEN
+ 30  	   l_return := TRUE;
+ 31  	 END IF;
+ 32  	 RETURN l_return;
+ 33    END has_db_user;
+ 34  
+ 35    FUNCTION has_function( p_owner	       IN VARCHAR2
+ 36  			    , p_function_name  IN VARCHAR2
+ 37  			    , p_datatype       IN VARCHAR2
+ 38  			    )
+ 39  	 RETURN BOOLEAN
+ 40    IS
+ 41  	 l_has_function  NUMBER;
+ 42  	 l_package	 VARCHAR2(128);
+ 43  	 l_function	 VARCHAR2(128);
+ 44  	 l_return	 BOOLEAN;
+ 45    BEGIN
+ 46  	 l_return := FALSE;
+ 47  	 split_function_name(p_function_name, l_package, l_function);
+ 48  	 SELECT COUNT(*)
+ 49  	   INTO l_has_function
+ 50  	   FROM all_arguments
+ 51  	  WHERE position		   = 0				     -- only functions
+ 52  	    AND argument_name		   IS NULL			     -- only functions
+ 53  	    AND data_type		   = p_datatype
+ 54  	    AND owner			   = UPPER(p_owner)
+ 55  	    AND NVL(package_name, 'N/A')   = NVL(UPPER(l_package), 'N/A')    -- may not contain a package name
+ 56  	    AND object_name		   = UPPER(l_function)
+ 57  	    AND package_name		  != 'SOSL'			     -- exclude base package should never be referenced
+ 58  	 ;
+ 59  	 IF l_has_function != 0
+ 60  	 THEN
+ 61  	   l_return := TRUE;
+ 62  	 END IF;
+ 63  	 RETURN l_return;
+ 64    END has_function;
+ 65  
+ 66    FUNCTION get_col_length( p_table  IN VARCHAR2
+ 67  			      , p_column IN VARCHAR2
+ 68  			      )
+ 69  	 RETURN INTEGER
+ 70    IS
+ 71  	 l_return	   INTEGER;
+ 72  	 l_has_column	   INTEGER;
+ 73  	 l_data_type	   user_tab_columns.data_type%TYPE;
+ 74  	 l_data_length	   user_tab_columns.data_length%TYPE;
+ 75  	 l_data_precision  user_tab_columns.data_precision%TYPE;
+ 76  	 l_data_scale	   user_tab_columns.data_scale%TYPE;
+ 77    BEGIN
+ 78  	 l_return := -1;
+ 79  	 SELECT COUNT(*) INTO l_has_column FROM user_tab_columns WHERE table_name = UPPER(p_table) AND column_name = UPPER(p_column);
+ 80  	 IF l_has_column = 1
+ 81  	 THEN
+ 82  	   -- column match calculate length
+ 83  	   SELECT data_type
+ 84  		, data_length
+ 85  		, data_precision
+ 86  		, data_scale
+ 87  	     INTO l_data_type
+ 88  		, l_data_length
+ 89  		, l_data_precision
+ 90  		, l_data_scale
+ 91  	     FROM user_tab_columns
+ 92  	    WHERE table_name  = UPPER(p_table)
+ 93  	      AND column_name = UPPER(p_column)
+ 94  	   ;
+ 95  	   IF l_data_type = 'NUMBER'
+ 96  	   THEN
+ 97  	     IF l_data_scale != 0
+ 98  	     THEN
+ 99  	       -- consider delimiter
+100  	       l_return := l_data_precision + l_data_scale;
+101  	     ELSE
+102  	       l_return := l_data_precision;
+103  	     END IF;
+104  	   ELSIF l_data_type = 'CLOB'
+105  	   THEN
+106  	     l_return := 32767;
+107  	   ELSE
+108  	     l_return := l_data_length;
+109  	   END IF;
+110  	 END IF;
+111  	 RETURN l_return;
+112    EXCEPTION
+113  	 WHEN OTHERS THEN
+114  	   RETURN sosl_sys.ERR_NUM;
+115    END get_col_length;
+116  
+117    FUNCTION get_col_type( p_table  IN VARCHAR2
+118  			    , p_column IN VARCHAR2
+119  			    )
+120  	 RETURN VARCHAR2
+121    IS
+122  	 l_return      VARCHAR2(128);
+123  	 l_has_column  INTEGER;
+124  	 l_data_type   user_tab_columns.data_type%TYPE;
+125    BEGIN
+126  	 l_return := sosl_sys.NA_TYPE;
+127  	 SELECT COUNT(*) INTO l_has_column FROM user_tab_columns WHERE table_name = UPPER(p_table) AND column_name = UPPER(p_column);
+128  	 IF l_has_column = 1
+129  	 THEN
+130  	   -- column match get data type
+131  	   SELECT data_type
+132  	     INTO l_return
+133  	     FROM user_tab_columns
+134  	    WHERE table_name  = UPPER(p_table)
+135  	      AND column_name = UPPER(p_column)
+136  	   ;
+137  	 END IF;
+138  	 RETURN l_return;
+139    EXCEPTION
+140  	 WHEN OTHERS THEN
+141  	   RETURN sosl_sys.NA_TYPE;
+142    END get_col_type;
+143  
+144    FUNCTION check_col( p_table  IN VARCHAR2
+145  			 , p_column IN VARCHAR2
+146  			 , p_value  IN VARCHAR2
+147  			 )
+148  	 RETURN BOOLEAN
+149    IS
+150  	 l_return  BOOLEAN;
+151    BEGIN
+152  	 l_return := FALSE;
+153  	 IF sosl_util.get_col_type(p_table, p_column) IN ('VARCHAR2', 'CHAR')
+154  	 THEN
+155  	   IF NVL(LENGTH(p_value), 0) <= sosl_util.get_col_length(p_table, p_column)
+156  	   THEN
+157  	     l_return := TRUE;
+158  	   END IF;
+159  	 END IF;
+160  	 RETURN l_return;
+161    END check_col; -- VARCHAR2 variant
+162  
+163    FUNCTION check_col( p_table  IN VARCHAR2
+164  			 , p_column IN VARCHAR2
+165  			 , p_value  IN NUMBER
+166  			 )
+167  	 RETURN BOOLEAN
+168    IS
+169  	 l_return  BOOLEAN;
+170  	 l_number  VARCHAR2(128);
+171    BEGIN
+172  	 l_return := FALSE;
+173  	 IF sosl_util.get_col_type(p_table, p_column) = 'NUMBER'
+174  	 THEN
+175  	   l_number := REGEXP_REPLACE(TO_CHAR(p_value), '[^0-9]', '');
+176  	   IF NVL(LENGTH(l_number), 0) <= sosl_util.get_col_length(p_table, p_column)
+177  	   THEN
+178  	     l_return := TRUE;
+179  	   END IF;
+180  	 END IF;
+181  	 RETURN l_return;
+182    END check_col; -- NUMBER variant
+183  
+184  END;
+185  /
 
 Package body created.
 
 SQL> -- SOSL objects with possible references to sosl_log and sosl_sys
 SQL> @@../sosl_ddl/tables/sosl_config.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> -- requires login with the correct schema, either SOSL or your on schema
 SQL> -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
 SQL> CREATE TABLE sosl_config
@@ -1694,6 +1946,7 @@ Commit complete.
 
 SQL> @@../sosl_ddl/tables/sosl_executor.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> CREATE TABLE sosl_executor
   2    ( executor_id	       NUMBER(38, 0)   GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
   3    , executor_name	       VARCHAR2(256)						 NOT NULL
@@ -1869,7 +2122,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_ins_trg
  21    :NEW.fn_set_script_status := UPPER(:NEW.fn_set_script_status);
  22    :NEW.fn_send_db_mail	 := UPPER(:NEW.fn_send_db_mail);
  23    -- check user
- 24    IF NOT sosl_sys.has_db_user(:NEW.db_user)
+ 24    IF NOT sosl_util.has_db_user(:NEW.db_user)
  25    THEN
  26  	 sosl_log.full_log( p_message => 'The given database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
  27  			  , p_log_type => sosl_sys.FATAL_TYPE
@@ -1879,7 +2132,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_ins_trg
  31  	 ;
  32  	 RAISE_APPLICATION_ERROR(-20003, 'The given database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
  33    END IF;
- 34    IF NOT sosl_sys.has_db_user(:NEW.function_owner)
+ 34    IF NOT sosl_util.has_db_user(:NEW.function_owner)
  35    THEN
  36  	 sosl_log.full_log( p_message => 'The given function owner database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
  37  			  , p_log_type => sosl_sys.FATAL_TYPE
@@ -1890,7 +2143,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_ins_trg
  42  	 RAISE_APPLICATION_ERROR(-20003, 'The given function owner database user is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
  43    END IF;
  44    -- check configured functions
- 45    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_has_scripts, 'NUMBER')
+ 45    IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_has_scripts, 'NUMBER')
  46    THEN
  47  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_has_scripts || ' for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
  48  			  , p_log_type => sosl_sys.FATAL_TYPE
@@ -1901,7 +2154,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_ins_trg
  53  	 ;
  54  	 RAISE_APPLICATION_ERROR(-20004, 'The given function ' || :NEW.fn_has_scripts || ' for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
  55    END IF;
- 56    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_next_script, 'OBJECT')
+ 56    IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_get_next_script, 'OBJECT')
  57    THEN
  58  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_next_script || ' for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to SOSL.'
  59  			  , p_log_type => sosl_sys.FATAL_TYPE
@@ -1911,7 +2164,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_ins_trg
  63  	 ;
  64  	 RAISE_APPLICATION_ERROR(-20005, 'The given function ' || :NEW.fn_get_next_script || ' for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to SOSL.');
  65    END IF;
- 66    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_set_script_status, 'NUMBER')
+ 66    IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_set_script_status, 'NUMBER')
  67    THEN
  68  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_set_script_status || ' for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
  69  			  , p_log_type => sosl_sys.FATAL_TYPE
@@ -1922,7 +2175,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_ins_trg
  74  	 RAISE_APPLICATION_ERROR(-20008, 'The given function ' || :NEW.fn_set_script_status || ' for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
  75    END IF;
  76    IF     :NEW.use_mail = 1
- 77  	  AND NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_send_db_mail, 'NUMBER')
+ 77  	  AND NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_send_db_mail, 'NUMBER')
  78    THEN
  79  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_send_db_mail || ' for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
  80  			  , p_log_type => sosl_sys.FATAL_TYPE
@@ -2019,7 +2272,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_upd_trg
  59    END IF;
  60    -- do all checks again including user
  61    -- check user
- 62    IF NOT sosl_sys.has_db_user(:NEW.db_user)
+ 62    IF NOT sosl_util.has_db_user(:NEW.db_user)
  63    THEN
  64  	 sosl_log.full_log( p_message => 'The given database user is not longer visible for SOSL in ALL_USERS. Executor deactivated. Either the user does not exist or SOSL has no right to see this user.'
  65  			  , p_log_type => sosl_sys.FATAL_TYPE
@@ -2029,7 +2282,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_upd_trg
  69  	 ;
  70  	 :NEW.executor_active := 0;
  71    END IF;
- 72    IF NOT sosl_sys.has_db_user(:NEW.function_owner)
+ 72    IF NOT sosl_util.has_db_user(:NEW.function_owner)
  73    THEN
  74  	 sosl_log.full_log( p_message => 'The given function owner database user is not longer visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
  75  			  , p_log_type => sosl_sys.FATAL_TYPE
@@ -2040,7 +2293,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_upd_trg
  80  	 :NEW.executor_active := 0;
  81    END IF;
  82    -- check configured functions
- 83    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_has_scripts, 'NUMBER')
+ 83    IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_has_scripts, 'NUMBER')
  84    THEN
  85  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_has_scripts || ' for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
  86  			  , p_log_type => sosl_sys.FATAL_TYPE
@@ -2050,7 +2303,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_upd_trg
  90  	 ;
  91  	 RAISE_APPLICATION_ERROR(-20004, 'The given function ' || :NEW.fn_has_scripts || ' for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
  92    END IF;
- 93    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_get_next_script, 'SOSL_PAYLOAD')
+ 93    IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_get_next_script, 'SOSL_PAYLOAD')
  94    THEN
  95  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_get_next_script || ' for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype SOSL_PAYLOAD or is not granted with EXECUTE rights to SOSL.'
  96  			  , p_log_type => sosl_sys.FATAL_TYPE
@@ -2060,7 +2313,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_upd_trg
 100  	 ;
 101  	 RAISE_APPLICATION_ERROR(-20005, 'The given function ' || :NEW.fn_get_next_script || ' for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype SOSL_PAYLOAD or is not granted with EXECUTE rights to SOSL.');
 102    END IF;
-103    IF NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_set_script_status, 'NUMBER')
+103    IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_set_script_status, 'NUMBER')
 104    THEN
 105  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_set_script_status || ' for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
 106  			  , p_log_type => sosl_sys.FATAL_TYPE
@@ -2071,7 +2324,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_upd_trg
 111  	 RAISE_APPLICATION_ERROR(-20008, 'The given function ' || :NEW.fn_set_script_status || ' for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
 112    END IF;
 113    IF     :NEW.use_mail = 1
-114  	  AND NOT sosl_sys.has_function(:NEW.function_owner, :NEW.fn_send_db_mail, 'NUMBER')
+114  	  AND NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_send_db_mail, 'NUMBER')
 115    THEN
 116  	 sosl_log.full_log( p_message => 'The given function ' || :NEW.fn_send_db_mail || ' for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
 117  			  , p_log_type => sosl_sys.FATAL_TYPE
@@ -2111,6 +2364,7 @@ Trigger created.
 SQL> -- internal objects using the API
 SQL> @@../sosl_ddl/tables/sosl_script.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> -- requires login with the correct schema, either SOSL or your on schema
 SQL> -- table is NOT qualified and created in the schema active at execution, columns ordered by access and then space consumption
 SQL> CREATE TABLE sosl_script
@@ -2235,6 +2489,7 @@ Trigger created.
 SQL> -- packages depending on SOSL objects
 SQL> @@../sosl_ddl/packages/sosl.pks
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> -- main package of the Simple Oracle Script Loader
 SQL> CREATE OR REPLACE PACKAGE sosl
   2  AS
@@ -2360,6 +2615,7 @@ Package created.
 
 SQL> @@../sosl_ddl/packages/sosl.pkb
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> CREATE OR REPLACE PACKAGE BODY sosl
   2  AS
   3    -- for description see header file
@@ -2597,7 +2853,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl
 235  	   l_fn_valid := FALSE;
 236  	   FOR rec IN cur_fn_owner(p_fn_has_scripts)
 237  	   LOOP
-238  	     IF sosl_sys.has_function(rec.function_owner, UPPER(p_fn_has_scripts), 'NUMBER')
+238  	     IF sosl_util.has_function(rec.function_owner, UPPER(p_fn_has_scripts), 'NUMBER')
 239  	     THEN
 240  	       l_fn_valid := TRUE;
 241  	       EXIT;
@@ -2698,6 +2954,7 @@ Package body created.
 
 SQL> @@../sosl_ddl/packages/sosl_if.pks
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> -- interface package of the Simple Oracle Script Loader
 SQL> CREATE OR REPLACE PACKAGE sosl_if
   2  AS
@@ -2768,6 +3025,7 @@ Package created.
 
 SQL> @@../sosl_ddl/packages/sosl_if.pkb
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> CREATE OR REPLACE PACKAGE BODY sosl_if
   2  AS
   3    -- see package header for documentation
@@ -2833,6 +3091,7 @@ Package body created.
 SQL> -- wrapper functions
 SQL> @@../sosl_ddl/functions/has_scripts.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> CREATE OR REPLACE FUNCTION has_scripts
   2    RETURN NUMBER
   3  IS
@@ -2863,11 +3122,14 @@ SQL> CREATE OR REPLACE FUNCTION has_scripts
 
 Function created.
 
-SQL> -- grants, everyone can see if scripts are available
-SQL> -- GRANT EXECUTE ON has_scripts TO sosl_guest;
-SQL> -- GRANT EXECUTE ON has_scripts TO sosl_guest;
+SQL> -- grants, everyone can see if scripts are available, inherited by others
+SQL> GRANT EXECUTE ON has_scripts TO sosl_guest;
+
+Grant succeeded.
+
 SQL> -- ==============INSTALL done==============
 SQL> @@../sosl_sql/util/log_silent.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> SET ECHO OFF
 SUCCESS - no errors found during setup          0
