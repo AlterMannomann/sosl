@@ -103,7 +103,7 @@ The interface API requires a set of information to handle things correctly: exec
 
 SOSL does not take care about the order, scripts are delivered for execution, this is within the responsibility of the API function provider. The basic SOSL system, if no other executor is used, provides only a simple order mechanic, where scripts with the same order number are processed randomly in parallel and no higher order number is executed until all scripts with the same order number have been executed successfully.
 #### Check scripts waiting for processing
-The wrapper function is the function HAS_SCRIPTS which, on default, will use sosl.has_ids package function.
+The wrapper function is the function HAS_SCRIPTS which, on default, will use sosl_sys.has_scripts package function. This function collects all the outputs of all defined executors as well as any script in the run queue that are still waiting.
 ## Security
 First, it is difficult to obtain a minimum of security as Oracle, on the command line, requires username and password unless you are an authenticated system user like oracle on the db server, where you can login with slash (/) or a wallet is configured.
 
