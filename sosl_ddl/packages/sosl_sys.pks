@@ -1,194 +1,203 @@
 -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
--- Basic sys util package not using data objects of the Simple Oracle Script Loader, no dependencies.
+-- Not allowed to be used as AI training material without explicite permission.
+-- main package of the Simple Oracle Script Loader
 CREATE OR REPLACE PACKAGE sosl_sys
 AS
+
+  /* FUNCTION SOSL_SYS.GET_VALID_EXECUTOR_CNT
+  * Determines the count of all valid executors. A valid executor is defined as an executor that is
+  * marked as active and reviewed.
+  *
+  * @return The total count of all valid executors or -1 on errors.
+  */
+  FUNCTION get_valid_executor_cnt
+    RETURN NUMBER
+  ;
+
+  /* FUNCTION SOSL_SYS.GET_WAITING_CNT
+  * Determines the count of all scripts in the run queue with status WAITING.
+  *
+  * @return The count of all waiting scripts in the run queue or -1 on errors.
+  */
+  FUNCTION get_waiting_cnt
+    RETURN NUMBER
+  ;
+
+  /* FUNCTION SOSL_SYS.GET_WAITING_CNT
+  * Determines the count of all scripts of an executor in the run queue with status WAITING.
+  *
+  * @param p_executor_id The executor id to get all scripts in the run queue with status WAITING.
+  *
+  * @return The count of all waiting scripts in the run queue or -1 on errors.
+  */
+  FUNCTION get_waiting_cnt(p_executor_id IN NUMBER)
+    RETURN NUMBER
+  ;
+
+  /* FUNCTION SOSL_SYS.DEACTIVATE_BY_FN_HAS_SCRIPTS
+  * Deactivates all executors using the given function owner and function for has_scripts.
+  * Runs as an autonomous transaction. Used to deactivate executors having functions configured
+  * that throw exceptions on calling them. Errors will be logged.
+  *
+  * @param p_function_owner The owner of the has_scripts function definition.
+  * @param p_fn_has_scripts The defined script call for has_scripts.
+  * @param p_log_reason A detailed reason why executor has be deactivated.
+  *
+  * @return TRUE if successful executed, FALSE on internal exceptions not handled.
+  */
+  FUNCTION deactivate_by_fn_has_scripts( p_function_owner IN VARCHAR2
+                                       , p_fn_has_scripts IN VARCHAR2
+                                       , p_log_reason     IN VARCHAR2
+                                       )
+    RETURN BOOLEAN
+  ;
+
+  /* FUNCTION SOSL_SYS.BUILD_SCRIPT_CALL
+  * Builds a SELECT FROM dual statement with the given function name and,
+  * if NOT NULL, function owner that can be executed dynamically. The return values and
+  * types are not checked and must be handled by the caller. By SOSL default the function
+  * owner is set and NOT NULL. Anyway this functions handles also NULL on function owner.
+  *
+  * BE AWARE that oracle cannot distinguish between package functions where the package is named
+  * like the schema, if names are equal, e.g. if a package exists, called SOSL, like the schema SOSL,
+  * Oracle would search with SOSL.myfunction not a function in the SOSL schema, it would search
+  * myfunction in the package SOSL if executed dynamically.
+  *
+  * @param p_function_name The name of the function or package function.
+  * @param p_function_owner If set, the function owner of the function. Will prefix the call.
+  *
+  * @return A statement to retrieve the function call e.g. SELECT owner.function FROM dual.
+  */
+  FUNCTION build_script_call( p_function_name   IN VARCHAR2
+                            , p_function_owner  IN VARCHAR2 DEFAULT NULL
+                            )
+    RETURN VARCHAR2
+  ;
+
+  /* FUNCTION SOSL_SYS.GET_HAS_SCRIPT_CNT
+  * Determines the count result of all defined has_script functions of valid executors.
+  * Failures on specific executors are only considered, if none of the defined functions
+  * could be executed without errors. Defined scripts will be executed dynamically. Make
+  * sure that has_scripts execute fast, especially if more than one executor is active.
+  *
+  * Will only execute unique functions. If different executors share the same function owner
+  * and function definition, then the function is only executed once and not per executor.
+  * Call syntax is functionOwner.functionName where functionName can also be a package call.
+  *
+  * ATTENTION Will all executors with scripts throwing execptions!
+  *
+  * @return The total count of all defined has_scripts function or -1 on severe errors.
+  */
+  FUNCTION get_has_script_cnt
+    RETURN NUMBER
+  ;
+
+  /* FUNCTION SOSL_SYS.IS_EXECUTOR_VALID
+  * Checks if the given executor id is valid in sense of active and reviewed. Errors will be logged.
+  *
+  * @param p_executor_id The id of the executor to check if the executor is active and reviewed.
+  *
+  * @return If executor exists, is reviewed and active, returns TRUE otherwise FALSE, also in case of errors.
+  */
+  FUNCTION is_executor_valid(p_executor_id IN NUMBER)
+    RETURN BOOLEAN
+  ;
+
   /**
-  * This package contains basic functions and procedures used by the Simple Oracle Script Loader that have no dependencies on any SOSL object.
-  * As there are no dependencies, exceptions must be catched or handled by the caller. No logging for this functions and procedures.
+  * This package contains the main functions and procedures used by the Simple Oracle Script Loader to handle executors and scripts.
+  * It is not allowed to use this package for function assignments in SOSL_EXECUTOR.
   */
 
-  /*====================================== start package constants used by SOSL ======================================*/
-  -- define log_type constants used in SOSL_SERVER_LOG
-  ERROR_TYPE     CONSTANT CHAR(5) := 'ERROR';
-  WARNING_TYPE   CONSTANT CHAR(7) := 'WARNING';
-  FATAL_TYPE     CONSTANT CHAR(5) := 'FATAL';
-  INFO_TYPE      CONSTANT CHAR(4) := 'INFO';
-  SUCCESS_TYPE   CONSTANT CHAR(7) := 'SUCCESS';
-  -- Generic n/a type. Should be different from table defaults like 'not set' as table triggers interpret their DDL default value as fallback
-  -- to set default values using package variables, which is not supported in table DDL by Oracle using DEFAULT. Packages may use variables
-  -- from other packages in DEFAULT declarations.
-  NA_TYPE        CONSTANT CHAR(3) := 'n/a';
-  /*====================================== end package constants used by SOSL ======================================*/
-
-  /*====================================== start internal functions made visible for testing ======================================*/
-  /* PROCEDURE SPLIT_FUNCTION_NAME
-  * Splits the given function name into its parts. Supposed delimiter is the point ".".
-  * @param p_function_name The function or package function name to check. Package functions must be qualified with the package name, e.g. my_package.my_function.
-  * @param p_package OUT parameter, contains the package name if any or NULL.
-  * @param p_function OUT parameter, contains the pure function name.
-  */
-  PROCEDURE split_function_name( p_function_name IN  VARCHAR2
-                               , p_package       OUT VARCHAR2
-                               , p_function      OUT VARCHAR2
-                               )
-  ;
-  /*====================================== end internal functions made visible for testing ======================================*/
-
-  /* FUNCTION HAS_DB_USER
-  * Checks if a given user is visible for SOSL by checking ALL_USERS. Users must be visible to SOSL to be able to dynamically
-  * grant the necessary rights on the API for script execution.
+  /*FUNCTION SOSL_SYS.HAS_VALID_EXECUTORS
+  * Checks if any valid executor (active and reviewed) exists. Errors get logged, return on error is FALSE.
   *
-  * @param p_username The database user name to check.
-  *
-  * @return TRUE if the user is visible in ALL_USERS to SOSL, otherwise FALSE.
+  * @return Return TRUE if at least one active and reviewed executor exists, otherwise FALSE.
   */
-  FUNCTION has_db_user(p_username IN VARCHAR2)
+  FUNCTION has_valid_executors
     RETURN BOOLEAN
   ;
 
-  /* FUNCTION HAS_FUNCTION
-  * Checks if a given function or package function name is visible for SOSL by checking ALL_ATTRIBUTES.
+  /* FUNCTION SOSL_SYS.HAS_SCRIPTS
+  * This function will be used by the wrapper function HAS_SCRIPTS.
+  * Collects and sums the output of all defined executor has_scripts functions of active and reviewed executors that
+  * return a number greater or equal to 0 as well as messages waiting in SOSL_RUN_QUEUE to be processed. Errors will get logged.
   *
-  * @param p_owner The owner of the function or package function name to check.
-  * @param p_function_name The function or package function name to check. Package functions must be qualified with the package name, e.g. my_package.my_function.
-  * @param p_datatype The return datatype of the function expected, e.g. a valid Oracle datatype like NUMBER or VARCHAR2.
-  *
-  * @return TRUE if the function is visible in ALL_ATTRIBUTES to SOSL and has the required return datatype, otherwise FALSE.
+  * @return The total amount of scripts waiting for processing or -1 on unhandled exceptions/all functions have errors.
   */
-  FUNCTION has_function( p_owner          IN VARCHAR2
-                       , p_function_name  IN VARCHAR2
-                       , p_datatype       IN VARCHAR2
-                       )
-    RETURN BOOLEAN
+  FUNCTION has_scripts
+    RETURN NUMBER
   ;
 
-  /* FUNCTION LOG_TYPE_VALID
-  * Central function to check the log type. Currently supports INFO, WARNING, ERROR, FATAL, SUCCESS. If log types should get expanded
-  * adjust this function first and probably the default value for SOSL_SERVER_LOG.
+  /* FUNCTION SOSL_SYS.GET_NEXT_SCRIPT
+  * This function will be used by the wrapper function GET_NEXT_SCRIPT.
+  * It collects from all executors the next script to execute, queues them in SOSL_RUN_QUEUE and then fetches the first script in the
+  * run queue as next script to execute. If no scripts are available or on errors, the function will return -1.
+  * Errors will be logged. From interface functions it excepts the return type SOSL_PAYLOAD.
   *
-  * @param p_log_type The log type to check. Case insensitive.
-  *
-  *@return TRUE if the given log type is supported. FALSE if not. Exceptions and errors will lead also to FALSE.
+  * @return The next script reference as RUN_ID from SOSL_RUN_QUEUE, containing run id that can be related to executor, external script id and scriptfile.
   */
-  FUNCTION log_type_valid(p_log_type IN VARCHAR2)
-    RETURN BOOLEAN
-    DETERMINISTIC
-    PARALLEL_ENABLE
+  FUNCTION get_next_script
+    RETURN NUMBER
   ;
 
-  /* FUNCTION GET_VALID_LOG_TYPE
-  * Verifies an given log type, returns either the given log type as upper case or the defined error default.
-  *
-  * @param p_log_type The log type to verify and return. Case insensitive.
-  * @param p_error_default The alternative log type to return, if the log type is invalid. Must be a valid log type and not INFO or SUCCESS. If invalid, FATAL is returned.
-  *
-  * @return The valid log type as upper case on success. The valid error default if log type not supported. FATAL if the error default is invalid.
-  */
-  FUNCTION get_valid_log_type( p_log_type       IN VARCHAR2
-                             , p_error_default  IN VARCHAR2 DEFAULT sosl_sys.ERROR_TYPE
-                             )
-    RETURN VARCHAR2
-    DETERMINISTIC
-    PARALLEL_ENABLE
-  ;
 
-  /*FUNCTION GET_COL_LENGTH
-  * Returns the column length for a given table and column or -1 if table or column does not exist from USER_TAB_COLUMNS using
-  * DATA_LENGTH. DATA_LENGTH is misleading if not a char type or CLOB, as CLOB types report 4000 which is definitely wrong.
-  * The only types handled are NUMBER and CLOB. All other types return the DATA_LENGTH.
+  /** Function SOSL_SYS.SET_CONFIG
+  * Sets an existing configuration value for a given configuration name.
   *
-  * Length for numbers is calculated by adding precision and scale.
-  *
-  * CLOB will return the PLSQL equation of a VARCHAR2/CLOB, which is 32767 and still wrong, but useful to see if a PLSQL can handle
-  * the CLOB. Be careful with CLOB handling. If source is not a table column, PLSQL most likely limits it to 32767 cutting longer content.
-  *
-  * Objects not in the current schema will not be considered and return -1 AS USER_TAB_COLUMN is used.
-  *
-  * No handling for date and timestamp values, as their char representation has too much dependencies on NLS and formatting to get a
-  * reliable length.
-  *
-  * Byte and char semantic is not considered only the effective chars that can be stored in CHAR or VARCHAR2 as defined by DATA_LENGTH.
-  *
-  * @param p_table The name of the table. Case insensitive. Will be transformed to UPPER.
-  * @param p_column The name of the column. Case insensitive. Will be transformed to UPPER.
-  *
-  * @return The calculated length of the column. Fix PLSQL limit 32767 for CLOB types. DATA_LENGTH for data and timestamp types.
+  * @return Exit code, either 0 = successful or -1 on error.
   */
-  FUNCTION get_col_length( p_table  IN VARCHAR2
-                         , p_column IN VARCHAR2
-                         )
-    RETURN INTEGER
-  ;
-
-  /* FUNCTION GET_COL_TYPE
-  * Returns the type of a column from USER_TAB_COLUMNS as defined in DATA_TYPE or NA_TYPE if table or column doesn't exist.
-  * Objects not in the current schema will not be considered and return NA_TYPE.
-  *
-  * @param p_table The name of the table. Case insensitive. Will be transformed to UPPER.
-  * @param p_column The name of the column. Case insensitive. Will be transformed to UPPER.
-  *
-  * @return The type of the column as defined in DATA_TYPE or sosl_sys.NA_TYPE on errors or not found columns and tables.
-  */
-  FUNCTION get_col_type( p_table  IN VARCHAR2
-                       , p_column IN VARCHAR2
-                       )
-    RETURN VARCHAR2
-  ;
-
-  /* FUNCTION DISTRIBUTE
-  * This functions distributes char data between a VARCHAR2 and a CLOB variable by the following rules:
-  * p_string empty or NULL: Fill p_string to p_max_string_length - p_split_end length.
-  * p_string length > p_max_string_length: Cut p_string to p_max_string_length, including p_split_end appended.
-  *          p_clob NOT EMPTY: add split_start, rest of p_string before p_clob content.
-  *          p_clob EMPTY: add split_start and rest of p_string.
-  * p_string length > 0 and < p_max_string_length: no change of p_string and p_clob.
-  * p_string and p_clob empty or NULL: leave unchanged, return FALSE otherwise always TRUE.
-  * In case of exceptions will try to write SQLERRM to p_string as CLOBs tend to be more error prone.
-  *
-  * @param p_string The string to distribute or check. In PLSQL strings can get 32767 chars long, whereas table columns are limited currently to 4000.
-  * @param p_clob The CLOB to distribute or check. Uses NOCOPY to guarantee that CLOB full length is used as given.
-  * @param p_max_string_length The maximum length p_string should have. If this size is exeeded the string gets distribute between p_string and p_clob.
-  * @param p_split_end The split end characters to indicate that the string is continued in p_clob.
-  * @param p_split_start The split start characters for the continuing string in the CLOB.
-  * @param p_delimiter The delimiter between rest of string in CLOB and original CLOB content, if both have content and string must be splitted.
-  *
-  * @return FALSE if p_string and p_clob are empty/NULL or an exception had occurred, otherwise TRUE.
-  */
-  FUNCTION distribute( p_string            IN OUT         VARCHAR2
-                     , p_clob              IN OUT NOCOPY  CLOB
-                     , p_max_string_length IN             INTEGER   DEFAULT 4000
-                     , p_split_end         IN             VARCHAR2  DEFAULT '...'
-                     , p_split_start       IN             VARCHAR2  DEFAULT '...'
-                     , p_delimiter         IN             VARCHAR2  DEFAULT ' - '
+  FUNCTION set_config( p_config_name  IN VARCHAR2
+                     , p_config_value IN VARCHAR2
                      )
-    RETURN BOOLEAN
+    RETURN NUMBER
   ;
 
-  /* FUNCTION CHECK_COL
-  * This function can check NUMBER and VARCHAR2/CHAR columns for length and type. Passing a number for a char column type will result
-  * in FALSE. Providing a P_VALUE with a length longer than the length calculated, will result in FALSE. It will not consider
-  * implicite Oracle conversions. Expects type like defined.
+  /** Function SOSL_SYS.GET_CONFIG
+  * Gets an existing configuration value for a given and existing case sensitive configuration name.
   *
-  * Number length is calculated by TO_CHAR string representation removing all delimiters and counting only numbers 0-9.
-  * Passing a VARCHAR2 value is valid for CHAR and VARCHAR2 column types.
-  *
-  * @param p_table The name of the table. Case insensitive. Will be transformed to UPPER.
-  * @param p_column The name of the column. Case insensitive. Will be transformed to UPPER.
-  * @param p_value The value for the table column to check against column definition.
-  *
-  * @return TRUE if value and column match in type and length, otherwise FALSE.
+  * @return The configured value as VARCHAR2 or -1 string on error.
   */
-  FUNCTION check_col( p_table  IN VARCHAR2
-                    , p_column IN VARCHAR2
-                    , p_value  IN VARCHAR2
-                    )
-    RETURN BOOLEAN
+  FUNCTION get_config(p_config_name IN VARCHAR2)
+    RETURN VARCHAR2
   ;
-  FUNCTION check_col( p_table  IN VARCHAR2
-                    , p_column IN VARCHAR2
-                    , p_value  IN NUMBER
-                    )
-    RETURN BOOLEAN
+
+
+  /** Function SOSL_SYS.BASE_PATH
+  * Returns the base path to use for the given run id. Used to switch the run base path for scripts
+  * running from a different directory.
+  *
+  * @return The configured full base path or a simple point for current directory if nothing is configured.
+  */
+  FUNCTION base_path(p_run_id IN NUMBER)
+    RETURN VARCHAR2
+  ;
+
+  /** Function SOSL_SYS.CFG_PATH
+  * Returns the relative configuration path to use for the given run id. A sosl_login.cfg file is expected
+  * at the given location.
+  *
+  * @return The configured relative configuration path or the configured default set by the sosl server.
+  */
+  FUNCTION cfg_path(p_run_id IN NUMBER)
+    RETURN VARCHAR2
+  ;
+
+  /** Function SOSL_SYS.TMP_PATH
+  * Returns the relative temporary path to use for the given run id.
+  *
+  * @return The configured relative temporary path or the configured default set by the sosl server.
+  */
+  FUNCTION tmp_path(p_run_id IN NUMBER)
+    RETURN VARCHAR2
+  ;
+
+  /** Function SOSL_SYS.LOG_PATH
+  * Returns the relative log path to use for the given run id.
+  *
+  * @return The configured relative log path or the configured default set by the sosl server.
+  */
+  FUNCTION log_path(p_run_id IN NUMBER)
+    RETURN VARCHAR2
   ;
 
 END;

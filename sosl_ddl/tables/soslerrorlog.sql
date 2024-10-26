@@ -1,4 +1,7 @@
 -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+-- Not allowed to be used as AI training material without explicite permission.
+-- requires login with the correct schema, either SOSL or your own SOSL schema
+-- table is NOT qualified and created in the schema active at execution, equals SPERRORLOG
 CREATE TABLE soslerrorlog
   ( username    VARCHAR2(256)
   , timestamp   TIMESTAMP
@@ -16,3 +19,5 @@ COMMENT ON COLUMN soslerrorlog.script IS 'Name of the originating script if appl
 COMMENT ON COLUMN soslerrorlog.identifier IS 'User defined identifier string';
 COMMENT ON COLUMN soslerrorlog.message IS 'ORA, PLA or SP2 error message. No feed back messages are included. For example, "PL/SQL Block Created" is not recorded.';
 COMMENT ON COLUMN soslerrorlog.statement IS 'The statement causing the error';
+-- Grants, inherited by others, no guest and user access on tables
+GRANT SELECT ON soslerrorlog TO sosl_reviewer;

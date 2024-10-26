@@ -2,20 +2,10 @@ Drop user/schema SOSL including tablespace SOSL_TABLESPACE and datafile? Use Ctr
 Drop user/schema SOSL including tablespace SOSL_TABLESPACE and datafile? Use Ctrl-C to stop the script in sqlplus, Enter to continue.
 
 SQL> DROP USER sosl CASCADE;
-SQL> DROP TABLESPACE sosl_tablespace DROP QUOTA INCLUDING CONTENTS AND DATAFILES;
-SQL> -- drop sosl roles
-SQL> DROP ROLE sosl_admin;
-SQL> DROP ROLE sosl_executor;
-SQL> DROP ROLE sosl_reviewer;
-SQL> DROP ROLE sosl_user;
-SQL> DROP ROLE sosl_guest;
-SQL> SET ECHO OFF
-Executed: 08-OCT-24 09.38.36.602536 PM +00:00
-User SOSL dropped
-SOSL roles dropped
-Tablespace SOSL_TABLESPACE and datafile dropped
-by Adi
-using SYS
-on database FREEPDB1
-from terminal ALIEN_M18
+DROP USER sosl CASCADE
+          *
+ERROR at line 1:
+ORA-01918: user 'SOSL' does not exist
+Help: https://docs.oracle.com/error-help/db/ora-01918/
+
 

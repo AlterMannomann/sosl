@@ -73,19 +73,19 @@ Error logging apart from noticing the error are out of scope for SOSL, the provi
     GRANT EXECUTE ON your_api_function TO SOSL;
 
 The basic API consist of wrapper functions.
-### has_ids
+### has_scripts
 Task: Return the number of scripts waiting.
 
-The defined function is used by has_ids and must return the number of scripts waiting. The wrapper will always return a number >= 0. Errors and exceptions will be logged and lead to 0 script ids available. Package functions are also supported. No parameters supported. The name needs not to be equal, but return value and no mandatory parameter must match. Results or exceptions get logged to SOSL_SERVER_LOG. Access right EXECUTE has to be granted to SOSL by the owner. The default is a function from SOSL, that uses a limited basic script management.
+The defined function is used by has_scripts and must return the number of scripts waiting or -1 on error. The wrapper will always return a number >= 0. Errors and exceptions will be logged and lead to 0 scripts available. Package functions are also supported. No parameters supported. The name needs not to be equal, but return a NUMBER value and no mandatory parameter must match. Results or exceptions get logged to SOSL_SERVER_LOG. Access right EXECUTE has to be granted to SOSL by the owner. The default is a function from SOSL, that uses a limited basic script management.
 
-    Wrapper: FUNCTION has_ids RETURN NUMBER;
+    Wrapper: FUNCTION has_scripts RETURN NUMBER;
 
-### get_next_id
-Task: Return the next waiting id of a script and ensure, that this id is not delivered twice.
+### get_next_script
+Task: Return the next waiting script with the object type SOSL_PAYLOAD. The function has to ensure, that this script is not delivered twice. It may return NULL if no script is available or the SOSL_APISOSL_PAYLOAD to distinguish errors from no script available. Errors must be handled by the function owner. Error type
 
-The defined function is used by get_next_id and must return a valid id to access script details.
+The defined function is used by get_next_script and must return a valid id to access script details.
 
-    Wrapper: FUNCTION get_next_id RETURN VARCHAR2;
+    Wrapper: FUNCTION get_next_script RETURN VARCHAR2;
 
 ### Send Mail
 The default SOSL function is SOSL.SEND_MAIL. It uses simple mail relay function on port 25 for an available mail server. You may integrate your mailing into the set script state function and avoid direct mail integration.
@@ -98,8 +98,6 @@ A setup API script is provided to create dynamically the necessary objects in SO
 #### Check IDs waiting for processing
 The wrapper function is the function HAS_IDS which, on default, will use sosl.has_ids package function.
 ## Security
-On database level several roles are available: SOSL_ADMIN, SOSL_EXECUTOR, SOSL_REVIEWER, SOSL_USER, SOSL_GUEST.
-
 First, it is difficult to obtain a minimum of security as Oracle, on the command line, requires username and password unless you are an authenticated system user like oracle on the db server, where you can login with slash (/) or a wallet is configured.
 
 If you want to use wallets the SOSL server is limited to the OS user under which it runs. Thus, whenever you connect with / you will get the wallet of the OS user. You may mitigate this by running different instances with different OS users and wallets. This will put more workload on the server used.
@@ -124,10 +122,27 @@ Database security, regarding executed srcipts, can be improved, if SOSL is insta
 
 Nevertheless, running any script from any source system is a high risk and only applicable in very rare cases, like testing.
 
+To enhance security you may limit access to SOSL schema and check the compile dates of database objects. Those should be stable if the system is setup and running. Additionally you may audit all or specific schema objects. Use SOSL_UTIL.OBJECT_DATE to retrieve last DDL dates of SOSL objects.
+
 **DO NOT USE SOSL FOR PRODUCTION SYSTEMS**
 
 Find a better solution. If you know what scripts to execute, put them in the database. You should not quick fix production systems as they have an reliable and accepted state. Use a hotfix for those issues and avoid those issues before going to production due to proper testing.
+### Roles
+On database level several roles are available: SOSL_ADMIN, SOSL_EXECUTOR, SOSL_REVIEWER, SOSL_USER, SOSL_GUEST.
 
+    SOSL_ADMIN
+    |- DELETE rights
+    |_ SOSL_EXECUTOR
+      |- select, insert and update rights, execute rights
+      |_ SOSL_REVIEWER
+        |- select rights, limited update rights
+        |_ SOSL_USER
+          |- select rights
+          |_ SOSL_GUEST
+            |- limited select rights
+
+The application manages necessary role grants for configured function owners. Only reviewed executors will get roles granted, otherwise
+roles, if exist, get revoked.
 ## Disclaimer
 Use this software at your own risk. No liabilities or warranties are given, no support is guaranteed. Any result of executing this software is under the responsibility of the legal entity using this software. For details see license.
 
