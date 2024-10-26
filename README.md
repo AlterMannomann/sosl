@@ -83,20 +83,27 @@ The defined function is used by has_scripts and must return the number of script
 ### get_next_script
 Task: Return the next waiting script with the object type SOSL_PAYLOAD. The function has to ensure, that this script is not delivered twice. It may return NULL if no script is available or the SOSL_APISOSL_PAYLOAD to distinguish errors from no script available. Errors must be handled by the function owner. Error type
 
-The defined function is used by get_next_script and must return a valid id to access script details.
+The defined function is used by get_next_script and must return a valid SOSL_PAYLOAD object to access script details.
 
-    Wrapper: FUNCTION get_next_script RETURN VARCHAR2;
+    Wrapper: FUNCTION get_next_script RETURN SOSL_PAYLOAD;
+
+### set_script_status
+Task: Provide details to the caller about the current script status.
+
+    Wrapper FUNCTION set_script_status( p_reference   IN SOSL_PAYLOAD
+                                      , p_status      IN NUMBER
+                                      , p_status_msg  IN VARCHAR2 DEFAULT NULL
+                                      )
+              RETURN NUMBER;
 
 ### Send Mail
-The default SOSL function is SOSL.SEND_MAIL. It uses simple mail relay function on port 25 for an available mail server. You may integrate your mailing into the set script state function and avoid direct mail integration.
+The default SOSL function is SOSL_UTIL.DUMMY_MAIL. It just logs the output of a possible mail body. You may provide a mail function, as well as sender and recipients or you implement (this is the better solution) in your interface functions provided to SOSL.
 ### Scripts
-The API requires an ID as VARCHAR2 that is referenced for identifying, getting and setting the relevant informations for script execution.
+The interface API requires a set of information to handle things correctly: executor id, external script id as VARCHAR2 and the script filename including relative or absolute path. The SOSL type SOSL_PAYLOAD offers the possibility to transfer this information within one object and is the required output for getting the next script. All other interface API functions should return NUMBER.
 
 SOSL does not take care about the order, scripts are delivered for execution, this is within the responsibility of the API function provider. The basic SOSL system, if no other executor is used, provides only a simple order mechanic, where scripts with the same order number are processed randomly in parallel and no higher order number is executed until all scripts with the same order number have been executed successfully.
-
-A setup API script is provided to create dynamically the necessary objects in SOSL with SOSL. The SOSL server understands three commands: RUN, STOP, API. On API it will create the necessary implementations as configured. (tbd)
-#### Check IDs waiting for processing
-The wrapper function is the function HAS_IDS which, on default, will use sosl.has_ids package function.
+#### Check scripts waiting for processing
+The wrapper function is the function HAS_SCRIPTS which, on default, will use sosl.has_ids package function.
 ## Security
 First, it is difficult to obtain a minimum of security as Oracle, on the command line, requires username and password unless you are an authenticated system user like oracle on the db server, where you can login with slash (/) or a wallet is configured.
 
