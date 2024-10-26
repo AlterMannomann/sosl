@@ -5,8 +5,7 @@ CREATE OR REPLACE PACKAGE sosl_log
 AS
   /**
   * This package contains basic functions and procedures used by the Simple Oracle Script Loader for managing logging.
-  * Apart from sosl_server_log table, there are no dependencies, severe exceptions must be catched or handled by the caller.
-  * The interface has as well functions and procedures. Functions inform about success or error, whereas procedure exceptions
+  * The interface has as well functions and procedures. Functions inform about success or error, whereas severe procedure exceptions
   * must be handled by the caller. The intention is to log as much information as possible before running into an exception
   * that can't be handled any longer.
   *
@@ -71,6 +70,67 @@ AS
   ;
 /*====================================== end internal functions made visible for testing ======================================*/
 
+  /* FUNCTION SOSL_LOG.LOG_TYPE_VALID
+  * Central function to check the log type. Supports the log types defined in SOSL_CONSTANTS. If log types should get expanded
+  * adjust constants, this function, the table constraint on log_type and probably the default value for SOSL_SERVER_LOG in
+  * table definition and trigger.
+  *
+  * @param p_log_type The log type to check. Case insensitive.
+  *
+  *@return TRUE if the given log type is supported. FALSE if not. Exceptions and errors will lead also to FALSE.
+  */
+  FUNCTION log_type_valid(p_log_type IN VARCHAR2)
+    RETURN BOOLEAN
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  ;
+
+  /* FUNCTION SOSL_LOG.GET_VALID_LOG_TYPE
+  * Verifies an given log type, returns either the given log type as upper case or the defined error default.
+  *
+  * @param p_log_type The log type to verify and return. Case insensitive.
+  * @param p_error_default The alternative log type to return, if the log type is invalid. Must be a valid log type and not INFO or SUCCESS. If invalid, FATAL is returned.
+  *
+  * @return The valid log type as upper case on success. The valid error default if log type not supported. FATAL if the error default is invalid.
+  */
+  FUNCTION get_valid_log_type( p_log_type       IN VARCHAR2
+                             , p_error_default  IN VARCHAR2 DEFAULT sosl_constants.LOG_ERROR_TYPE
+                             )
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  ;
+
+  /* FUNCTION SOSL_LOG.DISTRIBUTE
+  * This functions distributes char data between a VARCHAR2 and a CLOB variable by the following rules:
+  * p_string empty or NULL: Fill p_string to p_max_string_length - p_split_end length.
+  * p_string length > p_max_string_length: Cut p_string to p_max_string_length, including p_split_end appended.
+  *          p_clob NOT EMPTY: add split_start, rest of p_string before p_clob content.
+  *          p_clob EMPTY: add split_start and rest of p_string.
+  * p_string length > 0 and < p_max_string_length: no change of p_string and p_clob.
+  * p_string and p_clob empty or NULL: leave unchanged, return FALSE otherwise always TRUE.
+  * In case of exceptions will try to write SQLERRM to p_string as CLOBs tend to be more error prone.
+  * Mainly used by SOSL_SERVER_LOG.
+  *
+  * @param p_string The string to distribute or check. In PLSQL strings can get 32767 chars long, whereas table columns are limited currently to 4000.
+  * @param p_clob The CLOB to distribute or check. Uses NOCOPY to guarantee that CLOB full length is used as given.
+  * @param p_max_string_length The maximum length p_string should have. If this size is exeeded the string gets distribute between p_string and p_clob.
+  * @param p_split_end The split end characters to indicate that the string is continued in p_clob.
+  * @param p_split_start The split start characters for the continuing string in the CLOB.
+  * @param p_delimiter The delimiter between rest of string in CLOB and original CLOB content, if both have content and string must be splitted.
+  *
+  * @return FALSE if p_string and p_clob are empty/NULL or an exception had occurred, otherwise TRUE.
+  */
+  FUNCTION distribute( p_string            IN OUT         VARCHAR2
+                     , p_clob              IN OUT NOCOPY  CLOB
+                     , p_max_string_length IN             INTEGER   DEFAULT 4000
+                     , p_split_end         IN             VARCHAR2  DEFAULT '...'
+                     , p_split_start       IN             VARCHAR2  DEFAULT '...'
+                     , p_delimiter         IN             VARCHAR2  DEFAULT ' - '
+                     )
+    RETURN BOOLEAN
+  ;
+
   /* PROCEDURE SOSL_LOG.FULL_LOG
   * Procedure with all parameters for logging. Will check parameters before logging. You should at least set also p_log_category
   * and p_caller, to be able to assign the log entry to a specific event and object. On parameter errors a separate log entry is
@@ -91,7 +151,7 @@ AS
   * @param p_full_message The full message as CLOB if the message size exceeds the PLSQL limit of 32767 bytes. Must be given if p_message is NULL.
   */
   PROCEDURE full_log( p_message          IN VARCHAR2
-                    , p_log_type         IN VARCHAR2    DEFAULT sosl_sys.INFO_TYPE
+                    , p_log_type         IN VARCHAR2    DEFAULT sosl_constants.LOG_INFO_TYPE
                     , p_log_category     IN VARCHAR2    DEFAULT 'not set'
                     , p_caller           IN VARCHAR2    DEFAULT NULL
                     , p_guid             IN VARCHAR2    DEFAULT NULL
@@ -103,23 +163,128 @@ AS
                     )
   ;
 
-  /* FUNCTION SOSL_LOG.DUMMY_MAIL
-  * This is a testing function that will NOT send any mail. It will log the mail message created in SOSL_SERVER_LOG using
-  * the field full_message, so output can be controlled.
+  /* PROCEDURE SOSL_LOG.EXCEPTION_LOG
+  * Prepared and standardize logging for unhandled exceptions with reduced parameters. This procedure will not deal with extra exceptions.
+  * It will try to log the exception and then return to the caller without raising any new exceptions or logging them. It is designed
+  * for relative stability in case of exceptions. Will do a simple NVL check on parameters, nothing more before formatting and submitting
+  * the log entry. Will set log type to SOSL_CONSTANTS.LOG_FATAL_TYPE.
   *
-  * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
-  * @param p_recipients The semicolon separated list of mail recipient addresses.
-  * @param p_subject A preferablly short subject for the mail.
-  * @param p_message The correctly formatted mail message.
-  *
-  * @return Will return 0 on success or -1 on errors.
+  * @param p_caller The full name of function, procedure or package that has caused the unhandled exception. Case sensitive.
+  * @param p_category The log category for the function, procedure or package. Case sensitive.
+  * @param p_sqlerrmsg The full error message, usually SQLERRM. Limited to VARCHAR2 limit 32767 chars.
   */
-  FUNCTION dummy_mail( p_sender      IN VARCHAR2
-                     , p_recipients  IN VARCHAR2
-                     , p_subject     IN VARCHAR2
-                     , p_message     IN VARCHAR2
-                     )
-    RETURN NUMBER
+  PROCEDURE exception_log( p_caller     IN VARCHAR2
+                         , p_category   IN VARCHAR2
+                         , p_sqlerrmsg  IN VARCHAR2
+                         )
+  ;
+
+  /* PROCEDURE SOSL_LOG.MINIMAL_ERROR_LOG
+  * Prepared and standardize logging for errors with reduced parameters. Will do a simple NVL check on parameters, nothing more
+  * before formatting and submitting the log entry. Will log own exceptions but not raise those exceptions.
+  * Will set log type to SOSL_CONSTANTS.LOG_ERROR_TYPE.
+  *
+  * @param p_caller The full name of function, procedure or package that has caused the error. Case sensitive.
+  * @param p_category The log category for the function, procedure or package. Case sensitive.
+  * @param p_short_msg The short error message, preferably smaller than 4000 chars. Will be formatted using p_caller.
+  * @param p_full_msg The complete error message, with details on the error. Will not be formatted but may contain parts of p_short_msg, if message is longer than 4000 chars.
+  */
+  PROCEDURE minimal_error_log( p_caller     IN VARCHAR2
+                             , p_category   IN VARCHAR2
+                             , p_short_msg  IN VARCHAR2
+                             , p_full_msg   IN CLOB     DEFAULT NULL
+                             )
+  ;
+  PROCEDURE minimal_error_log( p_caller     IN VARCHAR2
+                             , p_category   IN VARCHAR2
+                             , p_short_msg  IN VARCHAR2
+                             , p_full_msg   IN VARCHAR2
+                             )
+  ;
+
+  /* PROCEDURE SOSL_LOG.MINIMAL_ERROR_LOG
+  * Prepared and standardize logging for information with reduced parameters. Will do a simple NVL check on parameters, nothing more
+  * before formatting and submitting the log entry. Will log own exceptions but not raise those exceptions.
+  * Will set log type to SOSL_CONSTANTS.LOG_INFO_TYPE.
+  *
+  * @param p_caller The full name of function, procedure or package that should be logged. Case sensitive.
+  * @param p_category The log category for the function, procedure or package. Case sensitive.
+  * @param p_short_msg The short info message, preferably smaller than 4000 chars. Will be formatted using p_caller.
+  * @param p_full_msg The complete info message, with details. Will not be formatted but may contain parts of p_short_msg, if message is longer than 4000 chars.
+  */
+  PROCEDURE minimal_info_log( p_caller     IN VARCHAR2
+                            , p_category   IN VARCHAR2
+                            , p_short_msg  IN VARCHAR2
+                            , p_full_msg   IN CLOB      DEFAULT NULL
+                            )
+  ;
+  PROCEDURE minimal_info_log( p_caller     IN VARCHAR2
+                            , p_category   IN VARCHAR2
+                            , p_short_msg  IN VARCHAR2
+                            , p_full_msg   IN VARCHAR2
+                            )
+  ;
+
+  /* PROCEDURE SOSL_LOG.MINIMAL_WARNING_LOG
+  * Prepared and standardize logging for warning with reduced parameters. Will do a simple NVL check on parameters, nothing more
+  * before formatting and submitting the log entry. Will log own exceptions but not raise those exceptions.
+  * Will set log type to SOSL_CONSTANTS.LOG_WARNING_TYPE.
+  *
+  * @param p_caller The full name of function, procedure or package that should be logged. Case sensitive.
+  * @param p_category The log category for the function, procedure or package. Case sensitive.
+  * @param p_short_msg The short warning message, preferably smaller than 4000 chars. Will be formatted using p_caller.
+  * @param p_full_msg The complete warning message, with details. Will not be formatted but may contain parts of p_short_msg, if message is longer than 4000 chars.
+  */
+  PROCEDURE minimal_warning_log( p_caller     IN VARCHAR2
+                               , p_category   IN VARCHAR2
+                               , p_short_msg  IN VARCHAR2
+                               , p_full_msg   IN CLOB     DEFAULT NULL
+                               )
+  ;
+  PROCEDURE minimal_warning_log( p_caller     IN VARCHAR2
+                               , p_category   IN VARCHAR2
+                               , p_short_msg  IN VARCHAR2
+                               , p_full_msg   IN VARCHAR2
+                               )
+  ;
+
+  /* PROCEDURE SOSL_LOG.LOG_COLUMN_CHANGE
+  * Checks old and new values of a given column for differences and logs the difference. The log type will be WARNING if
+  * forbidden is TRUE, otherwise INFO. Supported types: VARCHAR2, NUMBER, DATE and TIMESTAMP
+  *
+  * @param p_old_value The old column value.
+  * @param p_new_value The new column value.
+  * @param p_column_name The name of the table and column, e.g. table.column that is checked for changes. No checks, apart from NULL, only log info. Used as log category.
+  * @param p_caller The name of the procedure, package, trigger or function that is calling this procedure. No checks, apart from NULL, only log info.
+  * @param p_forbidden Influences the log type, if TRUE the log type is WARNING else the log type is INFO.
+  */
+  PROCEDURE log_column_change( p_old_value     IN VARCHAR2
+                             , p_new_value     IN VARCHAR2
+                             , p_column_name   IN VARCHAR2
+                             , p_caller        IN VARCHAR2
+                             , p_forbidden     IN BOOLEAN  DEFAULT TRUE
+                             )
+  ;
+  PROCEDURE log_column_change( p_old_value     IN NUMBER
+                             , p_new_value     IN NUMBER
+                             , p_column_name   IN VARCHAR2
+                             , p_caller        IN VARCHAR2
+                             , p_forbidden     IN BOOLEAN  DEFAULT TRUE
+                             )
+  ;
+  PROCEDURE log_column_change( p_old_value     IN DATE
+                             , p_new_value     IN DATE
+                             , p_column_name   IN VARCHAR2
+                             , p_caller        IN VARCHAR2
+                             , p_forbidden     IN BOOLEAN  DEFAULT TRUE
+                             )
+  ;
+  PROCEDURE log_column_change( p_old_value     IN TIMESTAMP
+                             , p_new_value     IN TIMESTAMP
+                             , p_column_name   IN VARCHAR2
+                             , p_caller        IN VARCHAR2
+                             , p_forbidden     IN BOOLEAN  DEFAULT TRUE
+                             )
   ;
 
 END;

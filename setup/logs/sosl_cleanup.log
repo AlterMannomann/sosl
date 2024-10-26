@@ -26,17 +26,31 @@ SQL> DROP PACKAGE sosl_if;
 
 Package dropped.
 
-SQL> @@../sosl_ddl/packages/drop/drop_sosl_pkb.sql
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_api_pkb.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> DROP PACKAGE BODY sosl;
+SQL> DROP PACKAGE BODY sosl_api;
 
 Package body dropped.
 
-SQL> @@../sosl_ddl/packages/drop/drop_sosl_pks.sql
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_api_pks.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> DROP PACKAGE sosl;
+SQL> DROP PACKAGE sosl_api;
+
+Package dropped.
+
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_sys_pkb.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> DROP PACKAGE BODY sosl_sys;
+
+Package body dropped.
+
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_sys_pks.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> DROP PACKAGE sosl_sys;
 
 Package dropped.
 
@@ -68,26 +82,33 @@ SQL> DROP PACKAGE sosl_log;
 
 Package dropped.
 
-SQL> @@../sosl_ddl/packages/drop/drop_sosl_sys_pkb.sql
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_constants_pkb.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> DROP PACKAGE BODY sosl_sys;
+SQL> DROP PACKAGE BODY sosl_constants;
 
 Package body dropped.
 
-SQL> @@../sosl_ddl/packages/drop/drop_sosl_sys_pks.sql
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_constants_pks.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> DROP PACKAGE sosl_sys;
+SQL> DROP PACKAGE sosl_constants;
 
 Package dropped.
 
 SQL> -- view objects
-SQL> -- table objects
+SQL> -- table objects including associated table trigger
 SQL> @@../sosl_ddl/tables/drop/drop_sosl_script.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP TABLE sosl_script PURGE;
+
+Table dropped.
+
+SQL> @@../sosl_ddl/tables/drop/drop_sosl_run_queue.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> DROP TABLE sosl_run_queue PURGE;
 
 Table dropped.
 
@@ -101,6 +122,10 @@ Table dropped.
 SQL> @@../sosl_ddl/tables/drop/drop_sosl_config.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> REVOKE SELECT ON sosl_config FROM sosl_reviewer;
+
+Revoke succeeded.
+
 SQL> DROP TABLE sosl_config PURGE;
 
 Table dropped.
@@ -108,7 +133,7 @@ Table dropped.
 SQL> @@../sosl_ddl/tables/drop/drop_sosl_server_log.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> REVOKE SELECT ON sosl_server_log FROM sosl_user;
+SQL> REVOKE SELECT ON sosl_server_log FROM sosl_reviewer;
 
 Revoke succeeded.
 
@@ -119,7 +144,7 @@ Table dropped.
 SQL> @@../sosl_ddl/tables/drop/drop_soslerrorlog.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> REVOKE SELECT ON soslerrorlog FROM sosl_user;
+SQL> REVOKE SELECT ON soslerrorlog FROM sosl_reviewer;
 
 Revoke succeeded.
 

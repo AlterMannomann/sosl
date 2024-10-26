@@ -3,197 +3,304 @@
 CREATE OR REPLACE PACKAGE BODY sosl_sys
 AS
   -- for description see header file
-  FUNCTION log_type_valid(p_log_type IN VARCHAR2)
-    RETURN BOOLEAN
-    DETERMINISTIC
-    PARALLEL_ENABLE
+  FUNCTION get_valid_executor_cnt
+    RETURN NUMBER
   IS
-    l_return  BOOLEAN;
+    l_return NUMBER;
+  BEGIN
+    SELECT COUNT(*)
+      INTO l_return
+      FROM sosl_executor
+     WHERE executor_active   = sosl_constants.NUM_YES
+       AND executor_reviewed = sosl_constants.NUM_YES
+    ;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log('sosl_sys.get_valid_executor_cnt', 'SOSL_SYS', SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN -1;
+  END get_valid_executor_cnt;
+
+  FUNCTION get_waiting_cnt
+    RETURN NUMBER
+  IS
+    l_return NUMBER;
+  BEGIN
+    SELECT COUNT(*)
+      INTO l_return
+      FROM sosl_run_queue
+     WHERE run_state = sosl_constants.RUN_STATE_WAITING
+    ;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log('sosl_sys.get_waiting_cnt', 'SOSL_SYS', SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN -1;
+  END get_waiting_cnt;
+
+  FUNCTION get_waiting_cnt(p_executor_id IN NUMBER)
+    RETURN NUMBER
+  IS
+    l_return NUMBER;
+  BEGIN
+    SELECT COUNT(*)
+      INTO l_return
+      FROM sosl_run_queue
+     WHERE run_state   = sosl_constants.RUN_STATE_WAITING
+       AND executor_id = p_executor_id
+    ;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log('sosl_sys.get_waiting_cnt executor', 'SOSL_SYS', SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN -1;
+  END get_waiting_cnt;
+
+  FUNCTION deactivate_by_fn_has_scripts( p_function_owner IN VARCHAR2
+                                       , p_fn_has_scripts IN VARCHAR2
+                                       , p_log_reason     IN VARCHAR2
+                                       )
+    RETURN BOOLEAN
+  IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+    l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SYS';
+    l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_sys.deactivate_by_fn_has_scripts';
+  BEGIN
+    sosl_log.minimal_warning_log(l_self_caller, l_self_log_category, p_log_reason);
+    UPDATE sosl_executor
+       SET executor_active    = sosl_constants.NUM_NO
+         , executor_reviewed  = sosl_constants.NUM_NO
+     WHERE function_owner = p_function_owner
+       AND fn_has_scripts = p_fn_has_scripts
+    ;
+    COMMIT;
+    RETURN TRUE;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+      RETURN FALSE;
+  END deactivate_by_fn_has_scripts;
+
+  FUNCTION build_script_call( p_function_name   IN VARCHAR2
+                            , p_function_owner  IN VARCHAR2 DEFAULT NULL
+                            )
+    RETURN VARCHAR2
+  IS
+    l_statement VARCHAR2(1024);
+  BEGIN
+    IF p_function_owner IS NOT NULL
+    THEN
+      l_statement := 'SELECT ' || p_function_owner || '.' || p_function_name || ' FROM dual';
+    ELSE
+      l_statement := 'SELECT ' || p_function_name || ' FROM dual';
+    END IF;
+    RETURN l_statement;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log('sosl_sys.build_script_call', 'SOSL_SYS', SQLERRM);
+      RETURN 'SELECT -1 FROM dual';
+  END build_script_call;
+
+  FUNCTION get_has_script_cnt
+    RETURN NUMBER
+  IS
+    l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SYS';
+    l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_sys.get_has_script_cnt';
+    l_total             NUMBER;
+    l_count             NUMBER;
+    l_success           BOOLEAN;
+    l_statement         VARCHAR2(1024);
+    CURSOR cur_fn_has_scripts
+    IS
+      SELECT function_owner
+           , fn_has_scripts
+        FROM sosl_executor
+       WHERE executor_active   = sosl_constants.NUM_YES
+         AND executor_reviewed = sosl_constants.NUM_YES
+       GROUP BY function_owner
+              , fn_has_scripts
+    ;
+  BEGIN
+    -- flag to determine if at least one execution was successful
+    l_success := FALSE;
+    l_total   := 0;
+    l_count   := 0;
+    -- loop through functions
+    FOR rec IN cur_fn_has_scripts
+    LOOP
+      l_statement := sosl_sys.build_script_call(rec.fn_has_scripts, rec.function_owner);
+      BEGIN
+        EXECUTE IMMEDIATE l_statement INTO l_count;
+      EXCEPTION
+        WHEN OTHERS THEN
+          sosl_log.exception_log(l_self_caller, l_self_log_category, l_statement || ': ' || SQLERRM);
+          l_count := -1;
+      END;
+      IF l_count < 0
+      THEN
+        -- we have errors with this function disable executors using this function
+        IF NOT sosl_sys.deactivate_by_fn_has_scripts(rec.function_owner, rec.fn_has_scripts, 'Function returns exceptions or values below zero. Executors deactivated. Fix function issue before.')
+        THEN
+          -- error situation
+          sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Could not deactivate executors for function ' || rec.fn_has_scripts || ' function owner ' || rec.function_owner);
+        END IF;
+      ELSE
+        l_success := TRUE;
+        l_total   := l_total + l_count;
+      END IF;
+    END LOOP;
+    -- now check if we have at least one function executed with success
+    IF NOT l_success
+    THEN
+      -- we should report the error situation
+      sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'No defined has_scripts function is working. Disabled executors.');
+      l_total := -1;
+    END IF;
+    RETURN l_total;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN -1;
+  END get_has_script_cnt;
+
+  FUNCTION is_executor_valid(p_executor_id IN NUMBER)
+    RETURN BOOLEAN
+  IS
+    l_valid_count NUMBER;
+    l_return      BOOLEAN;
   BEGIN
     l_return := FALSE;
-    IF UPPER(p_log_type) IN ( sosl_sys.INFO_TYPE
-                            , sosl_sys.WARNING_TYPE
-                            , sosl_sys.ERROR_TYPE
-                            , sosl_sys.FATAL_TYPE
-                            , sosl_sys.SUCCESS_TYPE
-                            )
-    THEN
-      l_return := TRUE;
-    END IF;
+    SELECT COUNT(*)
+      INTO l_valid_count
+      FROM sosl_executor
+     WHERE executor_id        = p_executor_id
+       AND executor_active    = sosl_constants.NUM_YES
+       AND executor_reviewed  = sosl_constants.NUM_YES
+    ;
+    l_return := (l_valid_count != 0);
     RETURN l_return;
   EXCEPTION
     WHEN OTHERS THEN
+      sosl_log.exception_log('sosl_sys.is_executor_valid', 'SOSL_SYS', SQLERRM);
       RETURN FALSE;
-  END log_type_valid;
+  END is_executor_valid;
 
-  FUNCTION get_valid_log_type( p_log_type       IN VARCHAR2
-                             , p_error_default  IN VARCHAR2 DEFAULT sosl_sys.ERROR_TYPE
-                             )
-    RETURN VARCHAR2
-    DETERMINISTIC
-    PARALLEL_ENABLE
-  IS
-    l_return  VARCHAR2(30);
-  BEGIN
-    l_return := sosl_sys.FATAL_TYPE;
-    IF log_type_valid(p_log_type)
-    THEN
-      l_return := UPPER(p_log_type);
-    ELSE
-      IF      log_type_valid(p_error_default)
-         AND  UPPER(p_error_default) NOT IN ( sosl_sys.INFO_TYPE
-                                            , sosl_sys.SUCCESS_TYPE
-                                            )
-      THEN
-        l_return := UPPER(p_error_default);
-      END IF;
-    END IF;
-    RETURN l_return;
-  EXCEPTION
-    WHEN OTHERS THEN
-      RETURN sosl_sys.FATAL_TYPE;
-  END get_valid_log_type;
-
-  FUNCTION distribute( p_string            IN OUT         VARCHAR2
-                     , p_clob              IN OUT NOCOPY  CLOB
-                     , p_max_string_length IN             INTEGER   DEFAULT 4000
-                     , p_split_end         IN             VARCHAR2  DEFAULT '...'
-                     , p_split_start       IN             VARCHAR2  DEFAULT '...'
-                     , p_delimiter         IN             VARCHAR2  DEFAULT ' - '
-                     )
+  FUNCTION has_valid_executors
     RETURN BOOLEAN
   IS
-    l_string  VARCHAR2(32767);
+    l_return            BOOLEAN;
+    l_self_log_category sosl_server_log.log_category%TYPE := 'HAS_SCRIPTS';
+    l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_sys.has_valid_executors';
   BEGIN
-    IF     (p_string IS NULL OR NVL(LENGTH(TRIM(p_string)), 0) = 0)
-       AND (p_clob   IS NULL OR NVL(LENGTH(TRIM(p_clob)), 0) = 0)
-    THEN
-      RETURN FALSE;
-    END IF;
-    IF     p_string IS NOT NULL AND NVL(LENGTH(TRIM(p_string)), 0) > 0
-       AND p_clob   IS NOT NULL AND NVL(LENGTH(TRIM(p_clob)), 0) > 0
-    THEN
-      IF LENGTH(p_string) > p_max_string_length
-      THEN
-        -- need to split
-        l_string := p_split_start || SUBSTR(p_string, (p_max_string_length - LENGTH(p_split_end) + 1)) || p_delimiter;
-        p_string := SUBSTR(p_string, 1, (p_max_string_length - LENGTH(p_split_end))) || p_split_end;
-        p_clob   := l_string || p_clob;
-      END IF;
-      RETURN TRUE;
-    END IF;
-    IF p_string IS NOT NULL AND NVL(LENGTH(TRIM(p_string)), 0) > 0
-    THEN
-      IF LENGTH(p_string) > p_max_string_length
-      THEN
-        -- need to split
-        l_string := p_split_start || SUBSTR(p_string, (p_max_string_length - LENGTH(p_split_end) + 1));
-        p_string := SUBSTR(p_string, 1, (p_max_string_length - LENGTH(p_split_end))) || p_split_end;
-        p_clob   := TO_CLOB(l_string);
-      ELSE
-        p_clob := TO_CLOB(l_string);
-      END IF;
-      RETURN TRUE;
-    END IF;
-    IF p_clob IS NOT NULL AND NVL(LENGTH(TRIM(p_clob)), 0) > 0
-    THEN
-      IF LENGTH(p_clob) > p_max_string_length
-      THEN
-        p_string := TO_CHAR(SUBSTR(p_clob, 1, (p_max_string_length - LENGTH(p_split_end))) || p_split_end);
-      ELSE
-        p_string := TO_CHAR(p_clob);
-      END IF;
-      RETURN TRUE;
-    END IF;
-    -- should not reach this point
-    p_string := 'ERROR sosl_sys.distribute: INCOMPLETE LOGIC';
-    RETURN FALSE;
+    l_return := (sosl_sys.get_valid_executor_cnt > 0);
+    RETURN l_return;
   EXCEPTION
     WHEN OTHERS THEN
-      p_string := TRIM(SUBSTR(SQLERRM, 1, 4000));
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
       RETURN FALSE;
-  END distribute;
+  END has_valid_executors;
 
-  FUNCTION txt_boolean( p_bool   IN BOOLEAN
-                      , p_true   IN VARCHAR2 DEFAULT 'TRUE'
-                      , p_false  IN VARCHAR2 DEFAULT 'FALSE'
-                      )
-    RETURN VARCHAR2
-    DETERMINISTIC
-    PARALLEL_ENABLE
+  FUNCTION has_scripts
+    RETURN NUMBER
   IS
+    l_return            NUMBER;
+    l_waiting           NUMBER;
+    l_defined           NUMBER;
+    l_self_log_category sosl_server_log.log_category%TYPE := 'HAS_SCRIPTS';
+    l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_sys.has_scripts';
   BEGIN
-    IF p_bool
+    l_return      := -1;
+    IF sosl_sys.has_valid_executors
     THEN
-      RETURN TRIM(SUBSTR(NVL(p_true, 'TRUE'), 1, 10));
+      -- initialize the total count
+      l_return := 0;
+      -- get count of waiting scripts
+      l_waiting := sosl_sys.get_waiting_cnt;
+      l_defined := sosl_sys.get_has_script_cnt;
+      IF      l_waiting >= 0
+         AND  l_defined >= 0
+      THEN
+        -- build total
+        l_return := l_waiting + l_defined;
+      ELSE
+        -- report error
+        sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Defined functions or run queue in error. Fix problems before expecting valid results');
+        l_return := -1;
+      END IF;
     ELSE
-      RETURN TRIM(SUBSTR(NVL(p_false, 'FALSE'), 1, 10));
+      -- log no valid executors
+      sosl_log.minimal_warning_log(l_self_caller, l_self_log_category, 'Nothing to do, no valid executors. Return 0 scripts available');
+      l_return := 0;
     END IF;
-  END txt_boolean; -- boolean input
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+      RETURN -1;
+  END has_scripts;
 
-  FUNCTION txt_boolean( p_bool   IN NUMBER
-                      , p_true   IN VARCHAR2 DEFAULT 'TRUE'
-                      , p_false  IN VARCHAR2 DEFAULT 'FALSE'
-                      )
-    RETURN VARCHAR2
-    DETERMINISTIC
-    PARALLEL_ENABLE
+  FUNCTION get_next_script
+    RETURN NUMBER
   IS
   BEGIN
-    RETURN sosl_sys.txt_boolean((p_bool = 1), p_true, p_false);
-  END txt_boolean; -- number input
+    RETURN NULL;
+  END get_next_script;
 
-  FUNCTION yes_no( p_bool   IN BOOLEAN
-                 , p_true   IN VARCHAR2 DEFAULT 'YES'
-                 , p_false  IN VARCHAR2 DEFAULT 'NO'
-                 )
-    RETURN VARCHAR2
-    DETERMINISTIC
-    PARALLEL_ENABLE
+  FUNCTION set_config( p_config_name  IN VARCHAR2
+                     , p_config_value IN VARCHAR2
+                     )
+    RETURN NUMBER
   IS
   BEGIN
-    RETURN sosl_sys.txt_boolean(p_bool, p_true, p_false);
-  END yes_no;
+    RETURN NULL;
+  END set_config;
 
-  FUNCTION yes_no( p_bool   IN NUMBER
-                 , p_true   IN VARCHAR2 DEFAULT 'YES'
-                 , p_false  IN VARCHAR2 DEFAULT 'NO'
-                 )
-    RETURN VARCHAR2
-    DETERMINISTIC
-    PARALLEL_ENABLE
-  IS
-  BEGIN
-    RETURN sosl_sys.txt_boolean((p_bool = 1), p_true, p_false);
-  END yes_no;
-
-  FUNCTION utc_mail_date
+  FUNCTION get_config(p_config_name IN VARCHAR2)
     RETURN VARCHAR2
   IS
-    l_date VARCHAR2(500);
   BEGIN
-    l_date := TO_CHAR(SYSTIMESTAMP AT TIME ZONE SESSIONTIMEZONE, 'Dy, DD Mon YYYY HH24:MI:SS TZHTZM');
-    RETURN l_date;
-  END utc_mail_date;
+    RETURN NULL;
+  END get_config;
 
-  FUNCTION format_mail( p_sender      IN VARCHAR2
-                      , p_recipients  IN VARCHAR2
-                      , p_subject     IN VARCHAR2
-                      , p_message     IN VARCHAR2
-                      )
+  FUNCTION base_path(p_run_id IN NUMBER)
     RETURN VARCHAR2
   IS
-    l_crlf          VARCHAR2(2)       := CHR(13) || CHR(10);
-    l_mail_message  VARCHAR2(32767);
   BEGIN
-    l_mail_message := 'From: ' || p_sender || l_crlf ||
-                      'To: ' || p_recipients || l_crlf ||
-                      'Date: ' || sosl_sys.utc_mail_date || l_crlf ||
-                      'Subject: ' || p_subject || l_crlf ||
-                      p_message
-    ;
-    RETURN l_mail_message;
-  END format_mail;
+    RETURN NULL;
+  END base_path;
+
+  FUNCTION cfg_path(p_run_id IN NUMBER)
+    RETURN VARCHAR2
+  IS
+  BEGIN
+    RETURN NULL;
+  END cfg_path;
+
+  FUNCTION tmp_path(p_run_id IN NUMBER)
+    RETURN VARCHAR2
+  IS
+  BEGIN
+    RETURN NULL;
+  END tmp_path;
+
+  FUNCTION log_path(p_run_id IN NUMBER)
+    RETURN VARCHAR2
+  IS
+  BEGIN
+    RETURN NULL;
+  END log_path;
 
 END;
 /

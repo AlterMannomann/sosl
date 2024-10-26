@@ -9,21 +9,16 @@ IS
   *
   * @return The amount of scripts waiting for all valid executor has_scripts functions or -1 if all functions have errors.
   */
-  l_return    NUMBER;
-  l_category  sosl_server_log.log_category%TYPE := 'HAS_SCRIPTS';
-  l_caller    sosl_server_log.caller%TYPE       := 'has_scripts wrapper';
+  l_return            NUMBER;
+  l_self_log_category sosl_server_log.log_category%TYPE := 'HAS_SCRIPTS';
+  l_self_caller       sosl_server_log.caller%TYPE       := 'has_scripts wrapper';
 BEGIN
-  l_return := sosl.has_scripts;
+  l_return := sosl_sys.has_scripts;
   RETURN l_return;
 EXCEPTION
   WHEN OTHERS THEN
     -- log the error instead of RAISE
-    sosl_log.full_log( p_message => 'Unhandled exception in HAS_SCRIPTS wrapper function: ' || SQLERRM
-                     , p_log_type => sosl_sys.FATAL_TYPE
-                     , p_log_category => l_category
-                     , p_caller => l_caller
-                     )
-    ;
+    sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
     RETURN -1;
 END;
 /

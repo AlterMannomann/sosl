@@ -6,9 +6,9 @@ AS
   FUNCTION has_scripts
     RETURN NUMBER
   IS
-    l_return    NUMBER;
-    l_category  sosl_server_log.log_category%TYPE   := 'HAS_SCRIPTS';
-    l_caller    sosl_server_log.caller%TYPE         := 'sosl.has_scripts';
+    l_return            NUMBER;
+    l_self_log_category sosl_server_log.log_category%TYPE   := 'HAS_SCRIPTS';
+    l_self_caller       sosl_server_log.caller%TYPE         := 'sosl_if.has_scripts';
   BEGIN
     SELECT COUNT(*)
       INTO l_return
@@ -18,12 +18,7 @@ AS
   EXCEPTION
     WHEN OTHERS THEN
       -- log the error instead of RAISE
-      sosl_log.full_log( p_message => 'Unhandled exception in sosl.has_scripts function: ' || SQLERRM
-                       , p_log_type => sosl_sys.FATAL_TYPE
-                       , p_log_category => l_category
-                       , p_caller => l_caller
-                       )
-      ;
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
       RETURN -1;
   END has_scripts;
 
@@ -54,7 +49,7 @@ AS
   IS
     l_return  NUMBER;
   BEGIN
-    RETURN sosl_log.dummy_mail(p_sender, p_recipients, p_subject, p_message);
+    RETURN sosl_util.dummy_mail(p_sender, p_recipients, p_subject, p_message);
   END send_mail;
 
 END;

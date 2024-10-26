@@ -18,27 +18,36 @@ SPOOL logs/sosl_setup.log
 @@../sosl_ddl/types/sosl_payload.sql
 -- SQLPlus error logging table
 @@../sosl_ddl/tables/soslerrorlog.sql
--- package with no dependency on SOSL objects
-@@../sosl_ddl/packages/sosl_sys.pks
-@@../sosl_ddl/packages/sosl_sys.pkb
 -- logging table
 @@../sosl_ddl/tables/sosl_server_log.sql
+-- SOSL objects basic objects
+@@../sosl_ddl/tables/sosl_config.sql
+@@../sosl_ddl/tables/sosl_executor.sql
+@@../sosl_ddl/tables/sosl_run_queue.sql
+-- internal interface objects using the API
+@@../sosl_ddl/tables/sosl_script.sql
+-- package with no dependency on SOSL objects
+@@../sosl_ddl/packages/sosl_constants.pks
+@@../sosl_ddl/packages/sosl_constants.pkb
 -- logging package
 @@../sosl_ddl/packages/sosl_log.pks
 @@../sosl_ddl/packages/sosl_log.pkb
 -- util package
 @@../sosl_ddl/packages/sosl_util.pks
 @@../sosl_ddl/packages/sosl_util.pkb
--- SOSL objects with possible references to sosl_log and sosl_sys
-@@../sosl_ddl/tables/sosl_config.sql
-@@../sosl_ddl/tables/sosl_executor.sql
--- internal objects using the API
-@@../sosl_ddl/tables/sosl_script.sql
 -- packages depending on SOSL objects
-@@../sosl_ddl/packages/sosl.pks
-@@../sosl_ddl/packages/sosl.pkb
+@@../sosl_ddl/packages/sosl_sys.pks
+@@../sosl_ddl/packages/sosl_sys.pkb
+@@../sosl_ddl/packages/sosl_api.pks
+@@../sosl_ddl/packages/sosl_api.pkb
 @@../sosl_ddl/packages/sosl_if.pks
 @@../sosl_ddl/packages/sosl_if.pkb
+-- table trigger using packages and tables defined
+@@../sosl_ddl/trigger/sosl_server_log_trg.sql
+@@../sosl_ddl/trigger/sosl_config_trg.sql
+@@../sosl_ddl/trigger/sosl_executor_trg.sql
+@@../sosl_ddl/trigger/sosl_run_queue_trg.sql
+@@../sosl_ddl/trigger/sosl_script_trg.sql
 -- wrapper functions
 @@../sosl_ddl/functions/has_scripts.sql
 -- ==============INSTALL done==============

@@ -122,6 +122,8 @@ Database security, regarding executed srcipts, can be improved, if SOSL is insta
 
 Nevertheless, running any script from any source system is a high risk and only applicable in very rare cases, like testing.
 
+To enhance security you may limit access to SOSL schema and check the compile dates of database objects. Those should be stable if the system is setup and running. Additionally you may audit all or specific schema objects. Use SOSL_UTIL.OBJECT_DATE to retrieve last DDL dates of SOSL objects.
+
 **DO NOT USE SOSL FOR PRODUCTION SYSTEMS**
 
 Find a better solution. If you know what scripts to execute, put them in the database. You should not quick fix production systems as they have an reliable and accepted state. Use a hotfix for those issues and avoid those issues before going to production due to proper testing.
