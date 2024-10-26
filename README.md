@@ -66,9 +66,9 @@ The basic server design is
 ## Interface
 The basic interface consist of views, packages and the table SOSLERRORLOG. You may define to whom to grant the interface using the table SOSL_EXECUTORS. If defining PUBLIC, consider that only one login config file for every executor is possible. It is recommended that you use defined executors.
 ## API
-To use this application, interfaces exist, that must be configured in SOSL_CONFIG. Only one set of API can be generated, which means that script queueing and handling from different schemas must be handled behind the screen of SOSL.
+To use this application, interfaces exist, that must be configured in SOSL_EXECUTOR. Only one set of API can be generated per executor. Executors may share the same function owner and function. In this case the interface API functions must handle themselves the internal script states for the different executors running.
 
-Error logging apart from noticing the error are out of scope for SOSL, the provided API function must manage this on its own. All configured functions must be granted as executable to SOSL, and afterwards configured in SOSL_CONFIG. Functions must be visible for SOSL in ALL_OBJECTS and ALL_TAB_PRIVS.
+Error logging apart from noticing the error are out of scope for SOSL, the provided API function must manage this on its own. All configured functions must be granted as executable to SOSL, and afterwards configured in SOSL_EXECUTOR. Functions must be visible for SOSL in ALL_OBJECTS and ALL_TAB_PRIVS.
 
     GRANT EXECUTE ON your_api_function TO SOSL;
 
@@ -76,19 +76,19 @@ The basic API consist of wrapper functions.
 ### has_scripts
 Task: Return the number of scripts waiting.
 
-The defined function is used by has_scripts and must return the number of scripts waiting or -1 on error. The wrapper will always return a number >= 0. Errors and exceptions will be logged and lead to 0 scripts available. Package functions are also supported. No parameters supported. The name needs not to be equal, but return a NUMBER value and no mandatory parameter must match. Results or exceptions get logged to SOSL_SERVER_LOG. Access right EXECUTE has to be granted to SOSL by the owner. The default is a function from SOSL, that uses a limited basic script management.
+The defined function is used by has_scripts and must return the number of scripts waiting or -1 on error. The wrapper will ignore functions in error, but deactivate any executor that uses a function with errors. Errors and exceptions will be logged and lead to <= 0 scripts available. Package functions are also supported. No parameters supported. The name needs not to be equal, but return a NUMBER value and no mandatory parameter must match. Results or exceptions get logged to SOSL_SERVER_LOG. Access right EXECUTE has to be granted to SOSL by the owner.
 
-    Wrapper: FUNCTION has_scripts RETURN NUMBER;
+    Interface Definition: FUNCTION your_has_scripts RETURN NUMBER;
 
 ### get_next_script
-Task: Return the next waiting script with the object type SOSL_PAYLOAD. The function has to ensure, that this script is not delivered twice. It may return NULL if no script is available or the SOSL_APISOSL_PAYLOAD to distinguish errors from no script available. Errors must be handled by the function owner. Error type
+Task: Return the next waiting script with the object type SOSL_PAYLOAD. The function has to ensure, that this script is not delivered twice. It may return NULL if no script is available or is in error. This function is only called if has_scripts reports waiting scripts. Errors must be handled by the function owner.
 
-The defined function is used by get_next_script and must return a valid SOSL_PAYLOAD object to access script details.
+The defined function is used by SOSL and must return a valid SOSL_PAYLOAD object to access script details.
 
-    Wrapper: FUNCTION get_next_script RETURN SOSL_PAYLOAD;
+    Interface Definition: FUNCTION get_next_script RETURN SOSL_PAYLOAD;
 
 ### set_script_status
-Task: Provide details to the caller about the current script status.
+Task: Provide details to the caller about the current script status. On success should return 0 otherwise -1. If script status cannot be set, the related executor is deactivated.
 
     Wrapper FUNCTION set_script_status( p_reference   IN SOSL_PAYLOAD
                                       , p_status      IN NUMBER
