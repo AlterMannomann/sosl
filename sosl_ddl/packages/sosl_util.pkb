@@ -290,6 +290,43 @@ AS
       RETURN FALSE;
   END grant_role;
 
+  FUNCTION revoke_role( p_db_user IN VARCHAR2
+                      , p_role    IN VARCHAR2
+                      )
+    RETURN BOOLEAN
+  IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+    l_return            BOOLEAN;
+    l_statement         VARCHAR2(1024);
+    l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_UTIL';
+    l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_util.revoke_role';
+  BEGIN
+    l_return := FALSE;
+    IF NOT has_role(p_db_user, p_role)
+    THEN
+      -- role not given or revoked
+      l_return := TRUE;
+    ELSE
+      -- give grant
+      l_statement := 'REVOKE ' || p_role || ' FROM ' || p_db_user;
+      BEGIN
+        EXECUTE IMMEDIATE l_statement;
+        l_return := TRUE;
+      EXCEPTION
+        WHEN OTHERS THEN
+          -- log error
+          sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM || ' - Could not execute: ' || l_statement);
+          l_return := FALSE;
+      END;
+    END IF;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log event instead of raise
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+      RETURN FALSE;
+  END revoke_role;
+
   FUNCTION utc_mail_date
     RETURN VARCHAR2
   IS

@@ -102,8 +102,6 @@ The default SOSL function is SOSL_UTIL.DUMMY_MAIL. It just logs the output of a 
 The interface API requires a set of information to handle things correctly: executor id, external script id as VARCHAR2 and the script filename including relative or absolute path. The SOSL type SOSL_PAYLOAD offers the possibility to transfer this information within one object and is the required output for getting the next script. All other interface API functions should return NUMBER.
 
 SOSL does not take care about the order, scripts are delivered for execution, this is within the responsibility of the API function provider. The basic SOSL system, if no other executor is used, provides only a simple order mechanic, where scripts with the same order number are processed randomly in parallel and no higher order number is executed until all scripts with the same order number have been executed successfully.
-#### Check scripts waiting for processing
-The wrapper function is the function HAS_SCRIPTS which, on default, will use sosl.has_ids package function.
 ## Security
 First, it is difficult to obtain a minimum of security as Oracle, on the command line, requires username and password unless you are an authenticated system user like oracle on the db server, where you can login with slash (/) or a wallet is configured.
 
