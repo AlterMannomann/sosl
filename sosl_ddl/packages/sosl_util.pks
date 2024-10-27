@@ -147,6 +147,20 @@ AS
     RETURN BOOLEAN
   ;
 
+  /* FUNCTION SOSL_UTIL.REVOKE_ROLE
+  * This function revoke a given role from a given database user.
+  *
+  * @param p_db_user The database user to remove the role grant. Has to be a valid database user.
+  * @param p_role The role to remove. Limited to roles starting with SOSL. Must be a valid and existing role with ADMIN rights for SOSL schema.
+  *
+  * @return Will return TRUE, if user has not the role or has been revoked the role successfully, otherwise FALSE, also in case of errors which get logged.
+  */
+  FUNCTION revoke_role( p_db_user IN VARCHAR2
+                      , p_role    IN VARCHAR2
+                      )
+    RETURN BOOLEAN
+  ;
+
   /* FUNCTION SOSL_UTIL.UTC_MAIL_DATE
   * Returns the current date timestamp as a formatted string for date values in mail.
   *

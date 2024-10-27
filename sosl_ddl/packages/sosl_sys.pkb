@@ -69,18 +69,40 @@ AS
     RETURN BOOLEAN
   IS
     PRAGMA AUTONOMOUS_TRANSACTION;
+    l_return            BOOLEAN;
     l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SYS';
     l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_sys.deactivate_by_fn_has_scripts';
-  BEGIN
-    sosl_log.minimal_warning_log(l_self_caller, l_self_log_category, p_log_reason);
-    UPDATE sosl_executor
-       SET executor_active    = sosl_constants.NUM_NO
-         , executor_reviewed  = sosl_constants.NUM_NO
-     WHERE function_owner = p_function_owner
-       AND fn_has_scripts = p_fn_has_scripts
+    CURSOR cur_deactivate( cp_function_owner IN VARCHAR2
+                         , cp_function_name  IN VARCHAR2
+                         )
+    IS
+      SELECT executor_id
+           , function_owner
+        FROM sosl_executor
+       WHERE function_owner = cp_function_owner
+         AND fn_has_scripts = cp_function_name
     ;
-    COMMIT;
-    RETURN TRUE;
+  BEGIN
+    l_return := TRUE;
+    sosl_log.minimal_warning_log(l_self_caller, l_self_log_category, p_log_reason);
+    FOR rec IN cur_deactivate(p_function_owner, p_fn_has_scripts)
+    LOOP
+      -- disable executor
+      UPDATE sosl_executor
+         SET executor_active    = sosl_constants.NUM_NO
+           , executor_reviewed  = sosl_constants.NUM_NO
+       WHERE executor_id = rec.executor_id
+      ;
+      COMMIT;
+      -- revoke grants for function owner
+      IF NOT sosl_util.revoke_role(rec.function_owner, 'SOSL_EXECUTOR')
+      THEN
+        sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Unable to revoke grant SOSL_EXECUTOR from ' || rec.function_owner);
+        -- if one fails, it all is in error
+        l_return := FALSE;
+      END IF;
+    END LOOP;
+    RETURN l_return;
   EXCEPTION
     WHEN OTHERS THEN
       -- log the error instead of RAISE
@@ -255,6 +277,10 @@ AS
     RETURN NUMBER
   IS
   BEGIN
+    -- select all valid executors and get their results, store results in SOSL_RUN_QUEUE.
+      -- if NULL not clear if in error, might also be timing issue between has_scripts and next script, just log it as warning
+    -- fetch the first waiting, if any, from SOSL_RUN_QUEUE and return the RUN_ID
+    -- on errors return -1
     RETURN NULL;
   END get_next_script;
 

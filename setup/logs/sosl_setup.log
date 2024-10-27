@@ -2509,152 +2509,166 @@ SQL> CREATE OR REPLACE PACKAGE sosl_util
 144  	 RETURN BOOLEAN
 145    ;
 146  
-147    /* FUNCTION SOSL_UTIL.UTC_MAIL_DATE
-148    * Returns the current date timestamp as a formatted string for date values in mail.
+147    /* FUNCTION SOSL_UTIL.REVOKE_ROLE
+148    * This function revoke a given role from a given database user.
 149    *
-150    * @return A date string conform to RFC5322 for using mail or NULL on errors.
-151    *
-152    * @see https://datatracker.ietf.org/doc/html/rfc5322
-153    */
-154    FUNCTION utc_mail_date
-155  	 RETURN VARCHAR2
-156    ;
-157  
-158    /* FUNCTION SOSL_UTIL.FORMAT_MAIL
-159    * This function formats a mail message conforming to RFC5322. The content of p_message is not checked against RFC. This is
-160    * the repsonsibility of the user. This is for small messages that do not exceed 32k in total.
-161    *
-162    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
-163    * @param p_recipients The semicolon separated list of mail recipient addresses.
-164    * @param p_subject A preferablly short subject for the mail.
-165    * @param p_message The correctly formatted mail message.
-166    *
-167    * @return A formatted string with complete mail message that can be used with RFC compliant mail servers or NULL on errors.
-168    */
-169    FUNCTION format_mail( p_sender	   IN VARCHAR2
-170  			   , p_recipients  IN VARCHAR2
-171  			   , p_subject	   IN VARCHAR2
-172  			   , p_message	   IN VARCHAR2
-173  			   )
-174  	 RETURN VARCHAR2
-175    ;
-176  
-177    /* FUNCTION SOSL_UTIL.CHECK_MAIL_ADDRESS
-178    * Checks the format of an email address roughly. Does not check if this is a valid and working email address.
-179    * Format checking based on a minimal email address like a@b.io, which requires a minimum length of six chars
-180    * and having the @ and the . as domain separator in the email address. Errors will get logged.
-181    *
-182    * @param The email address to check, basic expected format is user@company.domain.
-183    *
-184    * @return Return TRUE if the address fulfills the minimum criteria for a mail address otherwise FALSE, including for errors.
-185    */
-186    FUNCTION check_mail_address_format(p_mail_address IN VARCHAR2)
-187  	 RETURN BOOLEAN
-188    ;
-189  
-190    /* FUNCTION SOSL_UTIL.DUMMY_MAIL
-191    * This is a testing function that will NOT send any mail. It will log the mail message created in SOSL_SERVER_LOG using
-192    * the field full_message, so output can be controlled.
-193    *
-194    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
-195    * @param p_recipients The semicolon separated list of mail recipient addresses.
-196    * @param p_subject A preferablly short subject for the mail.
-197    * @param p_message The correctly formatted mail message.
-198    *
-199    * @return Will return 0 on success or -1 on errors.
-200    */
-201    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
-202  			  , p_recipients  IN VARCHAR2
-203  			  , p_subject	  IN VARCHAR2
-204  			  , p_message	  IN VARCHAR2
-205  			  )
-206  	 RETURN NUMBER
-207    ;
-208  
-209    /* FUNCTION SOSL_UTIL.TXT_BOOLEAN
-210    * Provides text values to display instead of BOOLEAN or NUMBER values interpreted as BOOLEAN. Numbers are interpreted
-211    * similar to Oracle SQL, where 0 is FALSE and 1 is TRUE. 1 is considered as TRUE, any other value as FALSE. NULL values
-212    * are interpreted as sosl_sys.NA_TYPE. Maximum 10 characters for TRUE/FALSE equation.
-213    *
-214    * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
-215    * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
-216    * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
-217    *
-218    * @return The text equation for the given p_bool value or sosl_constants.GEN_NA_TYPE on errors.
-219    */
-220    FUNCTION txt_boolean( p_bool   IN BOOLEAN
-221  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
-222  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
-223  			   )
-224  	 RETURN VARCHAR2
-225  	 DETERMINISTIC
-226  	 PARALLEL_ENABLE
-227    ;
-228    FUNCTION txt_boolean( p_bool   IN NUMBER
-229  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
-230  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
-231  			   )
-232  	 RETURN VARCHAR2
-233  	 DETERMINISTIC
-234  	 PARALLEL_ENABLE
-235    ;
-236  
-237    /* FUNCTION SOSL_UTIL.YES_NO
-238    * A simple wrapper for txt_boolean with YES/NO instead of TRUE/FALSE.
-239    *
-240    * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
-241    * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
-242    * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
-243    *
-244    * @return The text equation for the given p_bool value or sosl_constants.GEN_NA_TYPE on errors.
-245    */
-246    FUNCTION yes_no( p_bool	 IN BOOLEAN
-247  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
-248  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
-249  		      )
-250  	 RETURN VARCHAR2
-251  	 DETERMINISTIC
-252  	 PARALLEL_ENABLE
-253    ;
-254    FUNCTION yes_no( p_bool	 IN NUMBER
-255  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
-256  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
-257  		      )
-258  	 RETURN VARCHAR2
-259  	 DETERMINISTIC
-260  	 PARALLEL_ENABLE
-261    ;
-262  
-263    /* FUNCTION SOSL_UTIL.run_state_text
-264    * Returns the text interpretation (english) for the supported run states.
-265    *
-266    * @param p_run_state The numerical run state to express as text.
-267    *
-268    * @return The text equation for the given run state or sosl_constants.GEN_NA_TYPE on errors.
-269    */
-270    FUNCTION run_state_text(p_run_state IN NUMBER)
-271  	 RETURN VARCHAR2
-272  	 DETERMINISTIC
-273  	 PARALLEL_ENABLE
-274    ;
-275  
-276    /* FUNCTION SOSL_UTIL.OBJECT_DATE
-277    * Works only for objects in the current schema, using USER_OBJECTS. Will return the LAST_DDL_TIME or the NA date type
-278    * from SOSL_CONSTANTS if the object could not be found. Object type has to conform to object types used in USER_OBJECTS.
+150    * @param p_db_user The database user to remove the role grant. Has to be a valid database user.
+151    * @param p_role The role to remove. Limited to roles starting with SOSL. Must be a valid and existing role with ADMIN rights for SOSL schema.
+152    *
+153    * @return Will return TRUE, if user has not the role or has been revoked the role successfully, otherwise FALSE, also in case of errors which get logged.
+154    */
+155    FUNCTION revoke_role( p_db_user IN VARCHAR2
+156  			   , p_role    IN VARCHAR2
+157  			   )
+158  	 RETURN BOOLEAN
+159    ;
+160  
+161    /* FUNCTION SOSL_UTIL.UTC_MAIL_DATE
+162    * Returns the current date timestamp as a formatted string for date values in mail.
+163    *
+164    * @return A date string conform to RFC5322 for using mail or NULL on errors.
+165    *
+166    * @see https://datatracker.ietf.org/doc/html/rfc5322
+167    */
+168    FUNCTION utc_mail_date
+169  	 RETURN VARCHAR2
+170    ;
+171  
+172    /* FUNCTION SOSL_UTIL.FORMAT_MAIL
+173    * This function formats a mail message conforming to RFC5322. The content of p_message is not checked against RFC. This is
+174    * the repsonsibility of the user. This is for small messages that do not exceed 32k in total.
+175    *
+176    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
+177    * @param p_recipients The semicolon separated list of mail recipient addresses.
+178    * @param p_subject A preferablly short subject for the mail.
+179    * @param p_message The correctly formatted mail message.
+180    *
+181    * @return A formatted string with complete mail message that can be used with RFC compliant mail servers or NULL on errors.
+182    */
+183    FUNCTION format_mail( p_sender	   IN VARCHAR2
+184  			   , p_recipients  IN VARCHAR2
+185  			   , p_subject	   IN VARCHAR2
+186  			   , p_message	   IN VARCHAR2
+187  			   )
+188  	 RETURN VARCHAR2
+189    ;
+190  
+191    /* FUNCTION SOSL_UTIL.CHECK_MAIL_ADDRESS
+192    * Checks the format of an email address roughly. Does not check if this is a valid and working email address.
+193    * Format checking based on a minimal email address like a@b.io, which requires a minimum length of six chars
+194    * and having the @ and the . as domain separator in the email address. Errors will get logged.
+195    *
+196    * @param The email address to check, basic expected format is user@company.domain.
+197    *
+198    * @return Return TRUE if the address fulfills the minimum criteria for a mail address otherwise FALSE, including for errors.
+199    */
+200    FUNCTION check_mail_address_format(p_mail_address IN VARCHAR2)
+201  	 RETURN BOOLEAN
+202    ;
+203  
+204    /* FUNCTION SOSL_UTIL.DUMMY_MAIL
+205    * This is a testing function that will NOT send any mail. It will log the mail message created in SOSL_SERVER_LOG using
+206    * the field full_message, so output can be controlled.
+207    *
+208    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
+209    * @param p_recipients The semicolon separated list of mail recipient addresses.
+210    * @param p_subject A preferablly short subject for the mail.
+211    * @param p_message The correctly formatted mail message.
+212    *
+213    * @return Will return 0 on success or -1 on errors.
+214    */
+215    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
+216  			  , p_recipients  IN VARCHAR2
+217  			  , p_subject	  IN VARCHAR2
+218  			  , p_message	  IN VARCHAR2
+219  			  )
+220  	 RETURN NUMBER
+221    ;
+222  
+223    /* FUNCTION SOSL_UTIL.TXT_BOOLEAN
+224    * Provides text values to display instead of BOOLEAN or NUMBER values interpreted as BOOLEAN. Numbers are interpreted
+225    * similar to Oracle SQL, where 0 is FALSE and 1 is TRUE. 1 is considered as TRUE, any other value as FALSE. NULL values
+226    * are interpreted as sosl_sys.NA_TYPE. Maximum 10 characters for TRUE/FALSE equation.
+227    *
+228    * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
+229    * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+230    * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+231    *
+232    * @return The text equation for the given p_bool value or sosl_constants.GEN_NA_TYPE on errors.
+233    */
+234    FUNCTION txt_boolean( p_bool   IN BOOLEAN
+235  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+236  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+237  			   )
+238  	 RETURN VARCHAR2
+239  	 DETERMINISTIC
+240  	 PARALLEL_ENABLE
+241    ;
+242    FUNCTION txt_boolean( p_bool   IN NUMBER
+243  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+244  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+245  			   )
+246  	 RETURN VARCHAR2
+247  	 DETERMINISTIC
+248  	 PARALLEL_ENABLE
+249    ;
+250  
+251    /* FUNCTION SOSL_UTIL.YES_NO
+252    * A simple wrapper for txt_boolean with YES/NO instead of TRUE/FALSE.
+253    *
+254    * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
+255    * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+256    * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+257    *
+258    * @return The text equation for the given p_bool value or sosl_constants.GEN_NA_TYPE on errors.
+259    */
+260    FUNCTION yes_no( p_bool	 IN BOOLEAN
+261  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
+262  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
+263  		      )
+264  	 RETURN VARCHAR2
+265  	 DETERMINISTIC
+266  	 PARALLEL_ENABLE
+267    ;
+268    FUNCTION yes_no( p_bool	 IN NUMBER
+269  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
+270  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
+271  		      )
+272  	 RETURN VARCHAR2
+273  	 DETERMINISTIC
+274  	 PARALLEL_ENABLE
+275    ;
+276  
+277    /* FUNCTION SOSL_UTIL.run_state_text
+278    * Returns the text interpretation (english) for the supported run states.
 279    *
-280    * @param p_object_name The name of the object, will be transformed to UPPERCASE as SOSL does not use mixed case.
-281    * @param p_object_type A valid object type for USER_OBJECTS, e.g. FUNCTION, PACKAGE, PACKAGE BODY, PROCEDURE.
-282    *
-283    * @return The LAST_DDL_TIME as noted in USER_OBJECTS or SOSL_CONSTANTS.GEN_NA_DATE_TYPE on errors or not found.
-284    */
-285    FUNCTION object_date( p_object_name IN VARCHAR2
-286  			   , p_object_type IN VARCHAR2
-287  			   )
-288  	 RETURN DATE
-289    ;
-290  
-291  END;
-292  /
+280    * @param p_run_state The numerical run state to express as text.
+281    *
+282    * @return The text equation for the given run state or sosl_constants.GEN_NA_TYPE on errors.
+283    */
+284    FUNCTION run_state_text(p_run_state IN NUMBER)
+285  	 RETURN VARCHAR2
+286  	 DETERMINISTIC
+287  	 PARALLEL_ENABLE
+288    ;
+289  
+290    /* FUNCTION SOSL_UTIL.OBJECT_DATE
+291    * Works only for objects in the current schema, using USER_OBJECTS. Will return the LAST_DDL_TIME or the NA date type
+292    * from SOSL_CONSTANTS if the object could not be found. Object type has to conform to object types used in USER_OBJECTS.
+293    *
+294    * @param p_object_name The name of the object, will be transformed to UPPERCASE as SOSL does not use mixed case.
+295    * @param p_object_type A valid object type for USER_OBJECTS, e.g. FUNCTION, PACKAGE, PACKAGE BODY, PROCEDURE.
+296    *
+297    * @return The LAST_DDL_TIME as noted in USER_OBJECTS or SOSL_CONSTANTS.GEN_NA_DATE_TYPE on errors or not found.
+298    */
+299    FUNCTION object_date( p_object_name IN VARCHAR2
+300  			   , p_object_type IN VARCHAR2
+301  			   )
+302  	 RETURN DATE
+303    ;
+304  
+305  END;
+306  /
 
 Package created.
 
@@ -2951,219 +2965,256 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_util
 288  	   RETURN FALSE;
 289    END grant_role;
 290  
-291    FUNCTION utc_mail_date
-292  	 RETURN VARCHAR2
-293    IS
-294  	 l_date VARCHAR2(500);
-295    BEGIN
-296  	 l_date := TO_CHAR(SYSTIMESTAMP AT TIME ZONE SESSIONTIMEZONE, 'Dy, DD Mon YYYY HH24:MI:SS TZHTZM');
-297  	 RETURN l_date;
-298    EXCEPTION
-299  	 WHEN OTHERS THEN
-300  	   -- log event instead of raise
-301  	   sosl_log.exception_log('sosl_util.utc_mail_date', 'SOSL_UTIL', SQLERRM);
-302  	   RETURN NULL;
-303    END utc_mail_date;
-304  
-305    FUNCTION format_mail( p_sender	   IN VARCHAR2
-306  			   , p_recipients  IN VARCHAR2
-307  			   , p_subject	   IN VARCHAR2
-308  			   , p_message	   IN VARCHAR2
-309  			   )
-310  	 RETURN VARCHAR2
-311    IS
-312  	 l_crlf 	 VARCHAR2(2)	   := CHR(13) || CHR(10);
-313  	 l_mail_message  VARCHAR2(32767);
-314    BEGIN
-315  	 l_mail_message := 'From: ' || p_sender || l_crlf ||
-316  			   'To: ' || p_recipients || l_crlf ||
-317  			   'Date: ' || sosl_util.utc_mail_date || l_crlf ||
-318  			   'Subject: ' || p_subject || l_crlf ||
-319  			   p_message
-320  	 ;
-321  	 RETURN l_mail_message;
-322    EXCEPTION
-323  	 WHEN OTHERS THEN
-324  	   -- log event instead of raise
-325  	   sosl_log.exception_log('sosl_util.format_mail', 'SOSL_UTIL', SQLERRM);
-326  	   RETURN NULL;
-327    END format_mail;
-328  
-329    FUNCTION check_mail_address_format(p_mail_address IN VARCHAR2)
-330  	 RETURN BOOLEAN
-331    IS
-332  	 l_return	     BOOLEAN;
-333  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_UTIL';
-334  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_util.check_mail_address_format';
-335    BEGIN
-336  	 l_return := FALSE;
-337  	 IF	 LENGTH(p_mail_address) > 5
-338  	    AND  INSTR(p_mail_address, '@') > 0
-339  	    AND  INSTR(p_mail_address, '.') > 0
-340  	 THEN
-341  	   l_return := TRUE;
-342  	 END IF;
-343  	 RETURN l_return;
-344    EXCEPTION
-345  	 WHEN OTHERS THEN
-346  	   -- log event instead of raise
-347  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-348  	   RETURN FALSE;
-349    END check_mail_address_format;
-350  
-351    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
-352  			  , p_recipients  IN VARCHAR2
-353  			  , p_subject	  IN VARCHAR2
-354  			  , p_message	  IN VARCHAR2
-355  			  )
-356  	 RETURN NUMBER
-357    IS
-358  	 l_message	     VARCHAR2(32767);
-359  	 l_self_log_category sosl_server_log.log_category%TYPE	 := 'MAIL DUMMY';
-360  	 l_self_caller	     sosl_server_log.caller%TYPE	 := 'sosl_log.dummy_mail';
-361    BEGIN
-362  	 l_message := sosl_util.format_mail(p_sender, p_recipients, p_subject, p_message);
-363  	 sosl_log.minimal_info_log(l_self_caller, l_self_log_category, 'Fake mail with subject "' || p_subject || '" created in full_message. Check the results.', l_message);
-364  	 RETURN sosl_constants.NUM_SUCCESS;
-365    EXCEPTION
-366  	 WHEN OTHERS THEN
-367  	   -- log the error instead of RAISE
-368  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-369  	   RETURN sosl_constants.NUM_ERROR;
-370    END dummy_mail;
-371  
-372    FUNCTION txt_boolean( p_bool   IN BOOLEAN
-373  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
-374  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
-375  			   )
-376  	 RETURN VARCHAR2
-377  	 DETERMINISTIC
-378  	 PARALLEL_ENABLE
-379    IS
-380    BEGIN
-381  	 IF p_bool
-382  	 THEN
-383  	   RETURN TRIM(SUBSTR(NVL(p_true, 'TRUE'), 1, 10));
-384  	 ELSE
-385  	   RETURN TRIM(SUBSTR(NVL(p_false, 'FALSE'), 1, 10));
-386  	 END IF;
-387    EXCEPTION
-388  	 WHEN OTHERS THEN
-389  	   sosl_log.exception_log('sosl_util.txt_boolean BOOLEAN', 'SOSL_UTIL', SQLERRM);
-390  	   RETURN sosl_constants.GEN_NA_TYPE;
-391    END txt_boolean; -- boolean input
-392  
-393    FUNCTION txt_boolean( p_bool   IN NUMBER
-394  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
-395  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
-396  			   )
-397  	 RETURN VARCHAR2
-398  	 DETERMINISTIC
-399  	 PARALLEL_ENABLE
-400    IS
-401    BEGIN
-402  	 RETURN sosl_util.txt_boolean((p_bool = 1), p_true, p_false);
-403    EXCEPTION
-404  	 WHEN OTHERS THEN
-405  	   sosl_log.exception_log('sosl_util.txt_boolean NUMBER', 'SOSL_UTIL', SQLERRM);
-406  	   RETURN sosl_constants.GEN_NA_TYPE;
-407    END txt_boolean; -- number input
+291    FUNCTION revoke_role( p_db_user IN VARCHAR2
+292  			   , p_role    IN VARCHAR2
+293  			   )
+294  	 RETURN BOOLEAN
+295    IS
+296  	 PRAGMA AUTONOMOUS_TRANSACTION;
+297  	 l_return	     BOOLEAN;
+298  	 l_statement	     VARCHAR2(1024);
+299  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_UTIL';
+300  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_util.revoke_role';
+301    BEGIN
+302  	 l_return := FALSE;
+303  	 IF NOT has_role(p_db_user, p_role)
+304  	 THEN
+305  	   -- role not given or revoked
+306  	   l_return := TRUE;
+307  	 ELSE
+308  	   -- give grant
+309  	   l_statement := 'REVOKE ' || p_role || ' FROM ' || p_db_user;
+310  	   BEGIN
+311  	     EXECUTE IMMEDIATE l_statement;
+312  	     l_return := TRUE;
+313  	   EXCEPTION
+314  	     WHEN OTHERS THEN
+315  	       -- log error
+316  	       sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM || ' - Could not execute: ' || l_statement);
+317  	       l_return := FALSE;
+318  	   END;
+319  	 END IF;
+320  	 RETURN l_return;
+321    EXCEPTION
+322  	 WHEN OTHERS THEN
+323  	   -- log event instead of raise
+324  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+325  	   RETURN FALSE;
+326    END revoke_role;
+327  
+328    FUNCTION utc_mail_date
+329  	 RETURN VARCHAR2
+330    IS
+331  	 l_date VARCHAR2(500);
+332    BEGIN
+333  	 l_date := TO_CHAR(SYSTIMESTAMP AT TIME ZONE SESSIONTIMEZONE, 'Dy, DD Mon YYYY HH24:MI:SS TZHTZM');
+334  	 RETURN l_date;
+335    EXCEPTION
+336  	 WHEN OTHERS THEN
+337  	   -- log event instead of raise
+338  	   sosl_log.exception_log('sosl_util.utc_mail_date', 'SOSL_UTIL', SQLERRM);
+339  	   RETURN NULL;
+340    END utc_mail_date;
+341  
+342    FUNCTION format_mail( p_sender	   IN VARCHAR2
+343  			   , p_recipients  IN VARCHAR2
+344  			   , p_subject	   IN VARCHAR2
+345  			   , p_message	   IN VARCHAR2
+346  			   )
+347  	 RETURN VARCHAR2
+348    IS
+349  	 l_crlf 	 VARCHAR2(2)	   := CHR(13) || CHR(10);
+350  	 l_mail_message  VARCHAR2(32767);
+351    BEGIN
+352  	 l_mail_message := 'From: ' || p_sender || l_crlf ||
+353  			   'To: ' || p_recipients || l_crlf ||
+354  			   'Date: ' || sosl_util.utc_mail_date || l_crlf ||
+355  			   'Subject: ' || p_subject || l_crlf ||
+356  			   p_message
+357  	 ;
+358  	 RETURN l_mail_message;
+359    EXCEPTION
+360  	 WHEN OTHERS THEN
+361  	   -- log event instead of raise
+362  	   sosl_log.exception_log('sosl_util.format_mail', 'SOSL_UTIL', SQLERRM);
+363  	   RETURN NULL;
+364    END format_mail;
+365  
+366    FUNCTION check_mail_address_format(p_mail_address IN VARCHAR2)
+367  	 RETURN BOOLEAN
+368    IS
+369  	 l_return	     BOOLEAN;
+370  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_UTIL';
+371  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_util.check_mail_address_format';
+372    BEGIN
+373  	 l_return := FALSE;
+374  	 IF	 LENGTH(p_mail_address) > 5
+375  	    AND  INSTR(p_mail_address, '@') > 0
+376  	    AND  INSTR(p_mail_address, '.') > 0
+377  	 THEN
+378  	   l_return := TRUE;
+379  	 END IF;
+380  	 RETURN l_return;
+381    EXCEPTION
+382  	 WHEN OTHERS THEN
+383  	   -- log event instead of raise
+384  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+385  	   RETURN FALSE;
+386    END check_mail_address_format;
+387  
+388    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
+389  			  , p_recipients  IN VARCHAR2
+390  			  , p_subject	  IN VARCHAR2
+391  			  , p_message	  IN VARCHAR2
+392  			  )
+393  	 RETURN NUMBER
+394    IS
+395  	 l_message	     VARCHAR2(32767);
+396  	 l_self_log_category sosl_server_log.log_category%TYPE	 := 'MAIL DUMMY';
+397  	 l_self_caller	     sosl_server_log.caller%TYPE	 := 'sosl_log.dummy_mail';
+398    BEGIN
+399  	 l_message := sosl_util.format_mail(p_sender, p_recipients, p_subject, p_message);
+400  	 sosl_log.minimal_info_log(l_self_caller, l_self_log_category, 'Fake mail with subject "' || p_subject || '" created in full_message. Check the results.', l_message);
+401  	 RETURN sosl_constants.NUM_SUCCESS;
+402    EXCEPTION
+403  	 WHEN OTHERS THEN
+404  	   -- log the error instead of RAISE
+405  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+406  	   RETURN sosl_constants.NUM_ERROR;
+407    END dummy_mail;
 408  
-409    FUNCTION yes_no( p_bool	 IN BOOLEAN
-410  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
-411  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
-412  		      )
+409    FUNCTION txt_boolean( p_bool   IN BOOLEAN
+410  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+411  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+412  			   )
 413  	 RETURN VARCHAR2
 414  	 DETERMINISTIC
 415  	 PARALLEL_ENABLE
 416    IS
 417    BEGIN
-418  	 RETURN sosl_util.txt_boolean(p_bool, p_true, p_false);
-419    EXCEPTION
-420  	 WHEN OTHERS THEN
-421  	   sosl_log.exception_log('sosl_util.yes_no BOOLEAN', 'SOSL_UTIL', SQLERRM);
-422  	   RETURN sosl_constants.GEN_NA_TYPE;
-423    END yes_no;
-424  
-425    FUNCTION yes_no( p_bool	 IN NUMBER
-426  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
-427  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
-428  		      )
-429  	 RETURN VARCHAR2
-430  	 DETERMINISTIC
-431  	 PARALLEL_ENABLE
-432    IS
-433    BEGIN
-434  	 RETURN sosl_util.txt_boolean((p_bool = 1), p_true, p_false);
-435    EXCEPTION
-436  	 WHEN OTHERS THEN
-437  	   sosl_log.exception_log('sosl_util.yes_no NUMBER', 'SOSL_UTIL', SQLERRM);
-438  	   RETURN sosl_constants.GEN_NA_TYPE;
-439    END yes_no;
-440  
-441    FUNCTION run_state_text(p_run_state IN NUMBER)
-442  	 RETURN VARCHAR2
-443  	 DETERMINISTIC
-444  	 PARALLEL_ENABLE
-445    IS
-446  	 l_return VARCHAR2(30);
-447    BEGIN
-448  	 l_return := CASE p_run_state
-449  		       WHEN sosl_constants.RUN_STATE_WAITING
-450  		       THEN 'Waiting'
-451  		       WHEN sosl_constants.RUN_STATE_ENQUEUED
-452  		       THEN 'Enqueued'
-453  		       WHEN sosl_constants.RUN_STATE_STARTED
-454  		       THEN 'Started'
-455  		       WHEN sosl_constants.RUN_STATE_RUNNING
-456  		       THEN 'Running'
-457  		       WHEN sosl_constants.RUN_STATE_FINISHED
-458  		       THEN 'Finished'
-459  		       WHEN sosl_constants.RUN_STATE_ERROR
-460  		       THEN 'ERROR'
-461  		       ELSE sosl_constants.GEN_NA_TYPE || ' run state unknown'
-462  		     END;
-463  	 RETURN l_return;
-464    EXCEPTION
-465  	 WHEN OTHERS THEN
-466  	   sosl_log.exception_log('sosl_util.run_state_text', 'SOSL_UTIL', SQLERRM);
-467  	   RETURN sosl_constants.GEN_NA_TYPE;
-468    END run_state_text;
-469  
-470    FUNCTION object_date( p_object_name IN VARCHAR2
-471  			   , p_object_type IN VARCHAR2
-472  			   )
-473  	 RETURN DATE
-474    IS
-475  	 l_has_object  NUMBER;
-476  	 l_return      DATE;
-477    BEGIN
-478  	 l_return := sosl_constants.GEN_NA_DATE_TYPE;
-479  	 SELECT COUNT(*)
-480  	   INTO l_has_object
-481  	   FROM user_objects
-482  	  WHERE object_name = TRIM(UPPER(p_object_name))
-483  	    AND object_type = TRIM(UPPER(p_object_type))
-484  	 ;
-485  	 -- only if we have exactly one object
-486  	 IF l_has_object = 1
-487  	 THEN
-488  	   SELECT last_ddl_time
-489  	     INTO l_return
-490  	     FROM user_objects
-491  	    WHERE object_name = TRIM(UPPER(p_object_name))
-492  	      AND object_type = TRIM(UPPER(p_object_type))
-493  	   ;
-494  	 END IF;
-495  	 RETURN l_return;
-496    EXCEPTION
-497  	 WHEN OTHERS THEN
-498  	   sosl_log.exception_log('sosl_util.object_date', 'SOSL_UTIL', SQLERRM);
-499  	   RETURN sosl_constants.GEN_NA_DATE_TYPE;
-500    END object_date;
-501  
-502  END;
-503  /
+418  	 IF p_bool
+419  	 THEN
+420  	   RETURN TRIM(SUBSTR(NVL(p_true, 'TRUE'), 1, 10));
+421  	 ELSE
+422  	   RETURN TRIM(SUBSTR(NVL(p_false, 'FALSE'), 1, 10));
+423  	 END IF;
+424    EXCEPTION
+425  	 WHEN OTHERS THEN
+426  	   sosl_log.exception_log('sosl_util.txt_boolean BOOLEAN', 'SOSL_UTIL', SQLERRM);
+427  	   RETURN sosl_constants.GEN_NA_TYPE;
+428    END txt_boolean; -- boolean input
+429  
+430    FUNCTION txt_boolean( p_bool   IN NUMBER
+431  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+432  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+433  			   )
+434  	 RETURN VARCHAR2
+435  	 DETERMINISTIC
+436  	 PARALLEL_ENABLE
+437    IS
+438    BEGIN
+439  	 RETURN sosl_util.txt_boolean((p_bool = 1), p_true, p_false);
+440    EXCEPTION
+441  	 WHEN OTHERS THEN
+442  	   sosl_log.exception_log('sosl_util.txt_boolean NUMBER', 'SOSL_UTIL', SQLERRM);
+443  	   RETURN sosl_constants.GEN_NA_TYPE;
+444    END txt_boolean; -- number input
+445  
+446    FUNCTION yes_no( p_bool	 IN BOOLEAN
+447  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
+448  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
+449  		      )
+450  	 RETURN VARCHAR2
+451  	 DETERMINISTIC
+452  	 PARALLEL_ENABLE
+453    IS
+454    BEGIN
+455  	 RETURN sosl_util.txt_boolean(p_bool, p_true, p_false);
+456    EXCEPTION
+457  	 WHEN OTHERS THEN
+458  	   sosl_log.exception_log('sosl_util.yes_no BOOLEAN', 'SOSL_UTIL', SQLERRM);
+459  	   RETURN sosl_constants.GEN_NA_TYPE;
+460    END yes_no;
+461  
+462    FUNCTION yes_no( p_bool	 IN NUMBER
+463  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
+464  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
+465  		      )
+466  	 RETURN VARCHAR2
+467  	 DETERMINISTIC
+468  	 PARALLEL_ENABLE
+469    IS
+470    BEGIN
+471  	 RETURN sosl_util.txt_boolean((p_bool = 1), p_true, p_false);
+472    EXCEPTION
+473  	 WHEN OTHERS THEN
+474  	   sosl_log.exception_log('sosl_util.yes_no NUMBER', 'SOSL_UTIL', SQLERRM);
+475  	   RETURN sosl_constants.GEN_NA_TYPE;
+476    END yes_no;
+477  
+478    FUNCTION run_state_text(p_run_state IN NUMBER)
+479  	 RETURN VARCHAR2
+480  	 DETERMINISTIC
+481  	 PARALLEL_ENABLE
+482    IS
+483  	 l_return VARCHAR2(30);
+484    BEGIN
+485  	 l_return := CASE p_run_state
+486  		       WHEN sosl_constants.RUN_STATE_WAITING
+487  		       THEN 'Waiting'
+488  		       WHEN sosl_constants.RUN_STATE_ENQUEUED
+489  		       THEN 'Enqueued'
+490  		       WHEN sosl_constants.RUN_STATE_STARTED
+491  		       THEN 'Started'
+492  		       WHEN sosl_constants.RUN_STATE_RUNNING
+493  		       THEN 'Running'
+494  		       WHEN sosl_constants.RUN_STATE_FINISHED
+495  		       THEN 'Finished'
+496  		       WHEN sosl_constants.RUN_STATE_ERROR
+497  		       THEN 'ERROR'
+498  		       ELSE sosl_constants.GEN_NA_TYPE || ' run state unknown'
+499  		     END;
+500  	 RETURN l_return;
+501    EXCEPTION
+502  	 WHEN OTHERS THEN
+503  	   sosl_log.exception_log('sosl_util.run_state_text', 'SOSL_UTIL', SQLERRM);
+504  	   RETURN sosl_constants.GEN_NA_TYPE;
+505    END run_state_text;
+506  
+507    FUNCTION object_date( p_object_name IN VARCHAR2
+508  			   , p_object_type IN VARCHAR2
+509  			   )
+510  	 RETURN DATE
+511    IS
+512  	 l_has_object  NUMBER;
+513  	 l_return      DATE;
+514    BEGIN
+515  	 l_return := sosl_constants.GEN_NA_DATE_TYPE;
+516  	 SELECT COUNT(*)
+517  	   INTO l_has_object
+518  	   FROM user_objects
+519  	  WHERE object_name = TRIM(UPPER(p_object_name))
+520  	    AND object_type = TRIM(UPPER(p_object_type))
+521  	 ;
+522  	 -- only if we have exactly one object
+523  	 IF l_has_object = 1
+524  	 THEN
+525  	   SELECT last_ddl_time
+526  	     INTO l_return
+527  	     FROM user_objects
+528  	    WHERE object_name = TRIM(UPPER(p_object_name))
+529  	      AND object_type = TRIM(UPPER(p_object_type))
+530  	   ;
+531  	 END IF;
+532  	 RETURN l_return;
+533    EXCEPTION
+534  	 WHEN OTHERS THEN
+535  	   sosl_log.exception_log('sosl_util.object_date', 'SOSL_UTIL', SQLERRM);
+536  	   RETURN sosl_constants.GEN_NA_DATE_TYPE;
+537    END object_date;
+538  
+539  END;
+540  /
 
 Package body created.
 
@@ -3448,241 +3499,263 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_sys
  67  	 RETURN BOOLEAN
  68    IS
  69  	 PRAGMA AUTONOMOUS_TRANSACTION;
- 70  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SYS';
- 71  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_sys.deactivate_by_fn_has_scripts';
- 72    BEGIN
- 73  	 sosl_log.minimal_warning_log(l_self_caller, l_self_log_category, p_log_reason);
- 74  	 UPDATE sosl_executor
- 75  	    SET executor_active    = sosl_constants.NUM_NO
- 76  	      , executor_reviewed  = sosl_constants.NUM_NO
- 77  	  WHERE function_owner = p_function_owner
- 78  	    AND fn_has_scripts = p_fn_has_scripts
- 79  	 ;
- 80  	 COMMIT;
- 81  	 RETURN TRUE;
- 82    EXCEPTION
- 83  	 WHEN OTHERS THEN
- 84  	   -- log the error instead of RAISE
- 85  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
- 86  	   RETURN FALSE;
- 87    END deactivate_by_fn_has_scripts;
- 88  
- 89    FUNCTION build_script_call( p_function_name   IN VARCHAR2
- 90  				 , p_function_owner  IN VARCHAR2 DEFAULT NULL
- 91  				 )
- 92  	 RETURN VARCHAR2
- 93    IS
- 94  	 l_statement VARCHAR2(1024);
- 95    BEGIN
- 96  	 IF p_function_owner IS NOT NULL
- 97  	 THEN
- 98  	   l_statement := 'SELECT ' || p_function_owner || '.' || p_function_name || ' FROM dual';
- 99  	 ELSE
-100  	   l_statement := 'SELECT ' || p_function_name || ' FROM dual';
-101  	 END IF;
-102  	 RETURN l_statement;
-103    EXCEPTION
-104  	 WHEN OTHERS THEN
-105  	   -- log the error instead of RAISE
-106  	   sosl_log.exception_log('sosl_sys.build_script_call', 'SOSL_SYS', SQLERRM);
-107  	   RETURN 'SELECT -1 FROM dual';
-108    END build_script_call;
-109  
-110    FUNCTION get_has_script_cnt
-111  	 RETURN NUMBER
-112    IS
-113  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SYS';
-114  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_sys.get_has_script_cnt';
-115  	 l_total	     NUMBER;
-116  	 l_count	     NUMBER;
-117  	 l_success	     BOOLEAN;
-118  	 l_statement	     VARCHAR2(1024);
-119  	 CURSOR cur_fn_has_scripts
-120  	 IS
-121  	   SELECT function_owner
-122  		, fn_has_scripts
-123  	     FROM sosl_executor
-124  	    WHERE executor_active   = sosl_constants.NUM_YES
-125  	      AND executor_reviewed = sosl_constants.NUM_YES
-126  	    GROUP BY function_owner
-127  		   , fn_has_scripts
-128  	 ;
-129    BEGIN
-130  	 -- flag to determine if at least one execution was successful
-131  	 l_success := FALSE;
-132  	 l_total   := 0;
-133  	 l_count   := 0;
-134  	 -- loop through functions
-135  	 FOR rec IN cur_fn_has_scripts
-136  	 LOOP
-137  	   l_statement := sosl_sys.build_script_call(rec.fn_has_scripts, rec.function_owner);
-138  	   BEGIN
-139  	     EXECUTE IMMEDIATE l_statement INTO l_count;
-140  	   EXCEPTION
-141  	     WHEN OTHERS THEN
-142  	       sosl_log.exception_log(l_self_caller, l_self_log_category, l_statement || ': ' || SQLERRM);
-143  	       l_count := -1;
-144  	   END;
-145  	   IF l_count < 0
-146  	   THEN
-147  	     -- we have errors with this function disable executors using this function
-148  	     IF NOT sosl_sys.deactivate_by_fn_has_scripts(rec.function_owner, rec.fn_has_scripts, 'Function returns exceptions or values below zero. Executors deactivated. Fix function issue before.')
-149  	     THEN
-150  	       -- error situation
-151  	       sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Could not deactivate executors for function ' || rec.fn_has_scripts || ' function owner ' || rec.function_owner);
-152  	     END IF;
-153  	   ELSE
-154  	     l_success := TRUE;
-155  	     l_total   := l_total + l_count;
-156  	   END IF;
-157  	 END LOOP;
-158  	 -- now check if we have at least one function executed with success
-159  	 IF NOT l_success
-160  	 THEN
-161  	   -- we should report the error situation
-162  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'No defined has_scripts function is working. Disabled executors.');
-163  	   l_total := -1;
-164  	 END IF;
-165  	 RETURN l_total;
-166    EXCEPTION
-167  	 WHEN OTHERS THEN
-168  	   -- log the error instead of RAISE
-169  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-170  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
-171  	   RETURN -1;
-172    END get_has_script_cnt;
-173  
-174    FUNCTION is_executor_valid(p_executor_id IN NUMBER)
-175  	 RETURN BOOLEAN
-176    IS
-177  	 l_valid_count NUMBER;
-178  	 l_return      BOOLEAN;
-179    BEGIN
-180  	 l_return := FALSE;
-181  	 SELECT COUNT(*)
-182  	   INTO l_valid_count
-183  	   FROM sosl_executor
-184  	  WHERE executor_id	   = p_executor_id
-185  	    AND executor_active    = sosl_constants.NUM_YES
-186  	    AND executor_reviewed  = sosl_constants.NUM_YES
-187  	 ;
-188  	 l_return := (l_valid_count != 0);
-189  	 RETURN l_return;
-190    EXCEPTION
-191  	 WHEN OTHERS THEN
-192  	   sosl_log.exception_log('sosl_sys.is_executor_valid', 'SOSL_SYS', SQLERRM);
-193  	   RETURN FALSE;
-194    END is_executor_valid;
+ 70  	 l_return	     BOOLEAN;
+ 71  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SYS';
+ 72  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_sys.deactivate_by_fn_has_scripts';
+ 73  	 CURSOR cur_deactivate( cp_function_owner IN VARCHAR2
+ 74  			      , cp_function_name  IN VARCHAR2
+ 75  			      )
+ 76  	 IS
+ 77  	   SELECT executor_id
+ 78  		, function_owner
+ 79  	     FROM sosl_executor
+ 80  	    WHERE function_owner = cp_function_owner
+ 81  	      AND fn_has_scripts = cp_function_name
+ 82  	 ;
+ 83    BEGIN
+ 84  	 l_return := TRUE;
+ 85  	 sosl_log.minimal_warning_log(l_self_caller, l_self_log_category, p_log_reason);
+ 86  	 FOR rec IN cur_deactivate(p_function_owner, p_fn_has_scripts)
+ 87  	 LOOP
+ 88  	   -- disable executor
+ 89  	   UPDATE sosl_executor
+ 90  	      SET executor_active    = sosl_constants.NUM_NO
+ 91  		, executor_reviewed  = sosl_constants.NUM_NO
+ 92  	    WHERE executor_id = rec.executor_id
+ 93  	   ;
+ 94  	   COMMIT;
+ 95  	   -- revoke grants for function owner
+ 96  	   IF NOT sosl_util.revoke_role(rec.function_owner, 'SOSL_EXECUTOR')
+ 97  	   THEN
+ 98  	     sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Unable to revoke grant SOSL_EXECUTOR from ' || rec.function_owner);
+ 99  	     -- if one fails, it all is in error
+100  	     l_return := FALSE;
+101  	   END IF;
+102  	 END LOOP;
+103  	 RETURN l_return;
+104    EXCEPTION
+105  	 WHEN OTHERS THEN
+106  	   -- log the error instead of RAISE
+107  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+108  	   RETURN FALSE;
+109    END deactivate_by_fn_has_scripts;
+110  
+111    FUNCTION build_script_call( p_function_name   IN VARCHAR2
+112  				 , p_function_owner  IN VARCHAR2 DEFAULT NULL
+113  				 )
+114  	 RETURN VARCHAR2
+115    IS
+116  	 l_statement VARCHAR2(1024);
+117    BEGIN
+118  	 IF p_function_owner IS NOT NULL
+119  	 THEN
+120  	   l_statement := 'SELECT ' || p_function_owner || '.' || p_function_name || ' FROM dual';
+121  	 ELSE
+122  	   l_statement := 'SELECT ' || p_function_name || ' FROM dual';
+123  	 END IF;
+124  	 RETURN l_statement;
+125    EXCEPTION
+126  	 WHEN OTHERS THEN
+127  	   -- log the error instead of RAISE
+128  	   sosl_log.exception_log('sosl_sys.build_script_call', 'SOSL_SYS', SQLERRM);
+129  	   RETURN 'SELECT -1 FROM dual';
+130    END build_script_call;
+131  
+132    FUNCTION get_has_script_cnt
+133  	 RETURN NUMBER
+134    IS
+135  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SYS';
+136  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_sys.get_has_script_cnt';
+137  	 l_total	     NUMBER;
+138  	 l_count	     NUMBER;
+139  	 l_success	     BOOLEAN;
+140  	 l_statement	     VARCHAR2(1024);
+141  	 CURSOR cur_fn_has_scripts
+142  	 IS
+143  	   SELECT function_owner
+144  		, fn_has_scripts
+145  	     FROM sosl_executor
+146  	    WHERE executor_active   = sosl_constants.NUM_YES
+147  	      AND executor_reviewed = sosl_constants.NUM_YES
+148  	    GROUP BY function_owner
+149  		   , fn_has_scripts
+150  	 ;
+151    BEGIN
+152  	 -- flag to determine if at least one execution was successful
+153  	 l_success := FALSE;
+154  	 l_total   := 0;
+155  	 l_count   := 0;
+156  	 -- loop through functions
+157  	 FOR rec IN cur_fn_has_scripts
+158  	 LOOP
+159  	   l_statement := sosl_sys.build_script_call(rec.fn_has_scripts, rec.function_owner);
+160  	   BEGIN
+161  	     EXECUTE IMMEDIATE l_statement INTO l_count;
+162  	   EXCEPTION
+163  	     WHEN OTHERS THEN
+164  	       sosl_log.exception_log(l_self_caller, l_self_log_category, l_statement || ': ' || SQLERRM);
+165  	       l_count := -1;
+166  	   END;
+167  	   IF l_count < 0
+168  	   THEN
+169  	     -- we have errors with this function disable executors using this function
+170  	     IF NOT sosl_sys.deactivate_by_fn_has_scripts(rec.function_owner, rec.fn_has_scripts, 'Function returns exceptions or values below zero. Executors deactivated. Fix function issue before.')
+171  	     THEN
+172  	       -- error situation
+173  	       sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Could not deactivate executors for function ' || rec.fn_has_scripts || ' function owner ' || rec.function_owner);
+174  	     END IF;
+175  	   ELSE
+176  	     l_success := TRUE;
+177  	     l_total   := l_total + l_count;
+178  	   END IF;
+179  	 END LOOP;
+180  	 -- now check if we have at least one function executed with success
+181  	 IF NOT l_success
+182  	 THEN
+183  	   -- we should report the error situation
+184  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'No defined has_scripts function is working. Disabled executors.');
+185  	   l_total := -1;
+186  	 END IF;
+187  	 RETURN l_total;
+188    EXCEPTION
+189  	 WHEN OTHERS THEN
+190  	   -- log the error instead of RAISE
+191  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+192  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+193  	   RETURN -1;
+194    END get_has_script_cnt;
 195  
-196    FUNCTION has_valid_executors
+196    FUNCTION is_executor_valid(p_executor_id IN NUMBER)
 197  	 RETURN BOOLEAN
 198    IS
-199  	 l_return	     BOOLEAN;
-200  	 l_self_log_category sosl_server_log.log_category%TYPE := 'HAS_SCRIPTS';
-201  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_sys.has_valid_executors';
-202    BEGIN
-203  	 l_return := (sosl_sys.get_valid_executor_cnt > 0);
-204  	 RETURN l_return;
-205    EXCEPTION
-206  	 WHEN OTHERS THEN
-207  	   -- log the error instead of RAISE
-208  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-209  	   RETURN FALSE;
-210    END has_valid_executors;
-211  
-212    FUNCTION has_scripts
-213  	 RETURN NUMBER
-214    IS
-215  	 l_return	     NUMBER;
-216  	 l_waiting	     NUMBER;
-217  	 l_defined	     NUMBER;
-218  	 l_self_log_category sosl_server_log.log_category%TYPE := 'HAS_SCRIPTS';
-219  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_sys.has_scripts';
-220    BEGIN
-221  	 l_return      := -1;
-222  	 IF sosl_sys.has_valid_executors
-223  	 THEN
-224  	   -- initialize the total count
-225  	   l_return := 0;
-226  	   -- get count of waiting scripts
-227  	   l_waiting := sosl_sys.get_waiting_cnt;
-228  	   l_defined := sosl_sys.get_has_script_cnt;
-229  	   IF	   l_waiting >= 0
-230  	      AND  l_defined >= 0
-231  	   THEN
-232  	     -- build total
-233  	     l_return := l_waiting + l_defined;
-234  	   ELSE
-235  	     -- report error
-236  	     sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Defined functions or run queue in error. Fix problems before expecting valid results');
-237  	     l_return := -1;
-238  	   END IF;
-239  	 ELSE
-240  	   -- log no valid executors
-241  	   sosl_log.minimal_warning_log(l_self_caller, l_self_log_category, 'Nothing to do, no valid executors. Return 0 scripts available');
-242  	   l_return := 0;
-243  	 END IF;
-244  	 RETURN l_return;
-245    EXCEPTION
-246  	 WHEN OTHERS THEN
-247  	   -- log the error instead of RAISE
-248  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-249  	   RETURN -1;
-250    END has_scripts;
-251  
-252    FUNCTION get_next_script
-253  	 RETURN NUMBER
-254    IS
-255    BEGIN
-256  	 RETURN NULL;
-257    END get_next_script;
-258  
-259    FUNCTION set_config( p_config_name  IN VARCHAR2
-260  			  , p_config_value IN VARCHAR2
-261  			  )
-262  	 RETURN NUMBER
-263    IS
-264    BEGIN
-265  	 RETURN NULL;
-266    END set_config;
-267  
-268    FUNCTION get_config(p_config_name IN VARCHAR2)
-269  	 RETURN VARCHAR2
-270    IS
-271    BEGIN
-272  	 RETURN NULL;
-273    END get_config;
-274  
-275    FUNCTION base_path(p_run_id IN NUMBER)
-276  	 RETURN VARCHAR2
-277    IS
-278    BEGIN
-279  	 RETURN NULL;
-280    END base_path;
-281  
-282    FUNCTION cfg_path(p_run_id IN NUMBER)
-283  	 RETURN VARCHAR2
-284    IS
-285    BEGIN
-286  	 RETURN NULL;
-287    END cfg_path;
-288  
-289    FUNCTION tmp_path(p_run_id IN NUMBER)
-290  	 RETURN VARCHAR2
-291    IS
-292    BEGIN
-293  	 RETURN NULL;
-294    END tmp_path;
-295  
-296    FUNCTION log_path(p_run_id IN NUMBER)
-297  	 RETURN VARCHAR2
-298    IS
-299    BEGIN
-300  	 RETURN NULL;
-301    END log_path;
-302  
-303  END;
-304  /
+199  	 l_valid_count NUMBER;
+200  	 l_return      BOOLEAN;
+201    BEGIN
+202  	 l_return := FALSE;
+203  	 SELECT COUNT(*)
+204  	   INTO l_valid_count
+205  	   FROM sosl_executor
+206  	  WHERE executor_id	   = p_executor_id
+207  	    AND executor_active    = sosl_constants.NUM_YES
+208  	    AND executor_reviewed  = sosl_constants.NUM_YES
+209  	 ;
+210  	 l_return := (l_valid_count != 0);
+211  	 RETURN l_return;
+212    EXCEPTION
+213  	 WHEN OTHERS THEN
+214  	   sosl_log.exception_log('sosl_sys.is_executor_valid', 'SOSL_SYS', SQLERRM);
+215  	   RETURN FALSE;
+216    END is_executor_valid;
+217  
+218    FUNCTION has_valid_executors
+219  	 RETURN BOOLEAN
+220    IS
+221  	 l_return	     BOOLEAN;
+222  	 l_self_log_category sosl_server_log.log_category%TYPE := 'HAS_SCRIPTS';
+223  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_sys.has_valid_executors';
+224    BEGIN
+225  	 l_return := (sosl_sys.get_valid_executor_cnt > 0);
+226  	 RETURN l_return;
+227    EXCEPTION
+228  	 WHEN OTHERS THEN
+229  	   -- log the error instead of RAISE
+230  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+231  	   RETURN FALSE;
+232    END has_valid_executors;
+233  
+234    FUNCTION has_scripts
+235  	 RETURN NUMBER
+236    IS
+237  	 l_return	     NUMBER;
+238  	 l_waiting	     NUMBER;
+239  	 l_defined	     NUMBER;
+240  	 l_self_log_category sosl_server_log.log_category%TYPE := 'HAS_SCRIPTS';
+241  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_sys.has_scripts';
+242    BEGIN
+243  	 l_return      := -1;
+244  	 IF sosl_sys.has_valid_executors
+245  	 THEN
+246  	   -- initialize the total count
+247  	   l_return := 0;
+248  	   -- get count of waiting scripts
+249  	   l_waiting := sosl_sys.get_waiting_cnt;
+250  	   l_defined := sosl_sys.get_has_script_cnt;
+251  	   IF	   l_waiting >= 0
+252  	      AND  l_defined >= 0
+253  	   THEN
+254  	     -- build total
+255  	     l_return := l_waiting + l_defined;
+256  	   ELSE
+257  	     -- report error
+258  	     sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Defined functions or run queue in error. Fix problems before expecting valid results');
+259  	     l_return := -1;
+260  	   END IF;
+261  	 ELSE
+262  	   -- log no valid executors
+263  	   sosl_log.minimal_warning_log(l_self_caller, l_self_log_category, 'Nothing to do, no valid executors. Return 0 scripts available');
+264  	   l_return := 0;
+265  	 END IF;
+266  	 RETURN l_return;
+267    EXCEPTION
+268  	 WHEN OTHERS THEN
+269  	   -- log the error instead of RAISE
+270  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+271  	   RETURN -1;
+272    END has_scripts;
+273  
+274    FUNCTION get_next_script
+275  	 RETURN NUMBER
+276    IS
+277    BEGIN
+278  	 RETURN NULL;
+279    END get_next_script;
+280  
+281    FUNCTION set_config( p_config_name  IN VARCHAR2
+282  			  , p_config_value IN VARCHAR2
+283  			  )
+284  	 RETURN NUMBER
+285    IS
+286    BEGIN
+287  	 RETURN NULL;
+288    END set_config;
+289  
+290    FUNCTION get_config(p_config_name IN VARCHAR2)
+291  	 RETURN VARCHAR2
+292    IS
+293    BEGIN
+294  	 RETURN NULL;
+295    END get_config;
+296  
+297    FUNCTION base_path(p_run_id IN NUMBER)
+298  	 RETURN VARCHAR2
+299    IS
+300    BEGIN
+301  	 RETURN NULL;
+302    END base_path;
+303  
+304    FUNCTION cfg_path(p_run_id IN NUMBER)
+305  	 RETURN VARCHAR2
+306    IS
+307    BEGIN
+308  	 RETURN NULL;
+309    END cfg_path;
+310  
+311    FUNCTION tmp_path(p_run_id IN NUMBER)
+312  	 RETURN VARCHAR2
+313    IS
+314    BEGIN
+315  	 RETURN NULL;
+316    END tmp_path;
+317  
+318    FUNCTION log_path(p_run_id IN NUMBER)
+319  	 RETURN VARCHAR2
+320    IS
+321    BEGIN
+322  	 RETURN NULL;
+323    END log_path;
+324  
+325  END;
+326  /
 
 Package body created.
 
