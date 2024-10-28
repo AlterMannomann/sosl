@@ -12,7 +12,7 @@ AS
   BEGIN
     SELECT COUNT(*)
       INTO l_return
-      FROM sosl_script
+      FROM sosl_if_script
     ;
     RETURN -1;
   EXCEPTION

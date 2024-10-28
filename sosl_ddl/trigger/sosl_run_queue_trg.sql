@@ -79,6 +79,35 @@ BEGIN
   :NEW.ext_script_id  := :OLD.ext_script_id;
   sosl_log.log_column_change(:NEW.script_file, :OLD.script_file, 'SOSL_RUN_QUEUE.SCRIPT_FILE', l_self_caller);
   :NEW.script_file    := :OLD.script_file;
+  -- check run state order, error can always be set
+  IF :NEW.run_state != sosl_constants.RUN_STATE_ERROR
+  THEN
+    -- only if run state has changed
+    IF :NEW.run_state != :OLD.run_state
+    THEN
+      -- normal transitions, organized as ordered sequence numbers 0 to 4
+      -- WAITING -> ENQUEUED, ENQUEUED -> STARTED, STARTED -> RUNNING, RUNNING -> FINISHED, FINSHED -> WAITING
+      IF     (   :OLD.run_state = sosl_constants.RUN_STATE_ERROR
+              OR :OLD.run_state = sosl_constants.RUN_STATE_FINISHED
+             )
+         AND :NEW.run_state != sosl_constants.RUN_STATE_WAITING
+      THEN
+        -- log it
+        sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Wrong state transition: ' || sosl_util.run_state_text(:OLD.run_state) || ' not allowed to change to ' || sosl_util.run_state_text(:NEW.run_state) || '. State set to ERROR.');
+        -- ignore invalid run state, set state to error
+        :NEW.run_state := sosl_constants.RUN_STATE_ERROR;
+      ELSE
+        -- next state must be exactly old run state +1
+        IF :NEW.run_state != (:OLD.run_state + 1)
+        THEN
+          -- log it
+          sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Wrong state transition: ' || sosl_util.run_state_text(:OLD.run_state) || ' not allowed to change to ' || sosl_util.run_state_text(:NEW.run_state) || '. State set to ERROR.');
+          -- ignore invalid run state, set state to error
+          :NEW.run_state := sosl_constants.RUN_STATE_ERROR;
+        END IF;
+      END IF;
+    END IF;
+  END IF;
   -- check executor and prevent updates on run state if not valid, set run state to error if executor not valid
   IF sosl_sys.is_executor_valid(:NEW.executor_id)
   THEN

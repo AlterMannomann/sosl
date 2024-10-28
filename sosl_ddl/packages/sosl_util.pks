@@ -305,5 +305,16 @@ AS
     RETURN DATE
   ;
 
+  /* FUNCTION SOSL_UTIL.GET_VALID_RUN_STATE
+  * Checks if given run state in valid and returns the valid run state or error state.
+  *
+  * @param The run state to check. See SOSL_CONSTANTS for defined run states.
+  *
+  * @return Either the given run state if valid or SOSL_CONSTANTS.RUN_STATE_ERROR.
+  */
+  FUNCTION get_valid_run_state(p_run_state IN NUMBER)
+    RETURN NUMBER
+  ;
+
 END;
 /

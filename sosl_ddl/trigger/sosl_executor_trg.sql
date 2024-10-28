@@ -89,18 +89,6 @@ BEGIN
       ;
       RAISE_APPLICATION_ERROR(-20010, 'The given function "' || NVL(:NEW.fn_send_db_mail, sosl_constants.GEN_NULL_TEXT) || '" for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
     END IF;
-    -- sender and recipients, only basic format checking
-    IF    NOT sosl_util.check_mail_address_format(:NEW.mail_sender)
-       OR NOT sosl_util.check_mail_address_format(:NEW.mail_recipients)
-    THEN
-      sosl_log.minimal_error_log( l_self_caller
-                                , l_self_log_category
-                                , '-20011 To activate mail, mail sender and recipients must contain at least one valid email address in default format, e.g. user@company.domain. Mail cannot be activated if this entries are missing. Only basic format is checked. Configured mail server may deny using an invalid mail address if not using dummy mail to log.'
-                                , 'Failed mail activate for SOSL_EXECUTOR table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
-                                )
-      ;
-      RAISE_APPLICATION_ERROR(-20011, 'To activate mail, mail sender and recipients must contain at least one valid email address in default format, e.g. user@company.domain. Mail cannot be activated if this entries are missing. Only basic format is checked. Configured mail server may deny using an invalid mail address if not using dummy mail to log.');
-    END IF;
   END IF;
   -- log the insert
   sosl_log.minimal_info_log( l_self_caller
@@ -111,7 +99,7 @@ BEGIN
 EXCEPTION
   WHEN OTHERS THEN
     -- catch and log all undefined exceptions
-    IF SQLCODE NOT IN (-20005, -20006, -20007, -20008, -20009, -20010, -20011)
+    IF SQLCODE NOT IN (-20005, -20006, -20007, -20008, -20009, -20010)
     THEN
       sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
     END IF;
@@ -217,18 +205,6 @@ BEGIN
       ;
       RAISE_APPLICATION_ERROR(-20010, 'The given function "' || NVL(:NEW.fn_send_db_mail, sosl_constants.GEN_NULL_TEXT) || '" for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
     END IF;
-    -- sender and recipients, only basic format checking
-    IF    NOT sosl_util.check_mail_address_format(:NEW.mail_sender)
-       OR NOT sosl_util.check_mail_address_format(:NEW.mail_recipients)
-    THEN
-      sosl_log.minimal_error_log( l_self_caller
-                                , l_self_log_category
-                                , '-20011 To activate mail, mail sender and recipients must contain at least one valid email address in default format, e.g. user@company.domain. Mail cannot be activated if this entries are missing. Only basic format is checked. Configured mail server may deny using an invalid mail address if not using dummy mail to log.'
-                                , 'Failed mail activate for SOSL_EXECUTOR table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
-                                )
-      ;
-      RAISE_APPLICATION_ERROR(-20011, 'To activate mail, mail sender and recipients must contain at least one valid email address in default format, e.g. user@company.domain. Mail cannot be activated if this entries are missing. Only basic format is checked. Configured mail server may deny using an invalid mail address if not using dummy mail to log.');
-    END IF;
   END IF;
   -- check grants if active and reviewed
   IF      :NEW.executor_active    = sosl_constants.NUM_YES
@@ -244,7 +220,7 @@ BEGIN
                                 , 'Failed granting necessary roles for SOSL_EXECUTOR table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                                 )
       ;
-      RAISE_APPLICATION_ERROR(-20012, 'Error granting necessary roles to db user (SOSL_USER) or function owner (SOSL_EXECUTOR). Check setup and roles. Probably grant the roles manually before trying update again.');
+      RAISE_APPLICATION_ERROR(-20011, 'Error granting necessary roles to db user (SOSL_USER) or function owner (SOSL_EXECUTOR). Check setup and roles. Probably grant the roles manually before trying update again.');
     END IF;
   END IF;
   -- log the update
@@ -256,7 +232,7 @@ BEGIN
 EXCEPTION
   WHEN OTHERS THEN
     -- catch and log all undefined exceptions
-    IF SQLCODE NOT IN (-20005, -20006, -20007, -20008, -20009, -20010, -20011, -20012)
+    IF SQLCODE NOT IN (-20005, -20006, -20007, -20008, -20009, -20010, -20011)
     THEN
       sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
     END IF;

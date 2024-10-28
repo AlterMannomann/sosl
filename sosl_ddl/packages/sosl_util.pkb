@@ -538,5 +538,28 @@ AS
       RETURN sosl_constants.GEN_NA_DATE_TYPE;
   END object_date;
 
+  FUNCTION get_valid_run_state(p_run_state IN NUMBER)
+    RETURN NUMBER
+  IS
+  BEGIN
+    IF p_run_state IN ( sosl_constants.RUN_STATE_WAITING
+                      , sosl_constants.RUN_STATE_ENQUEUED
+                      , sosl_constants.RUN_STATE_STARTED
+                      , sosl_constants.RUN_STATE_RUNNING
+                      , sosl_constants.RUN_STATE_FINISHED
+                      , sosl_constants.RUN_STATE_ERROR
+                      )
+    THEN
+      RETURN p_run_state;
+    ELSE
+      sosl_log.minimal_error_log('sosl_util.get_valid_run_state', 'SOSL_UTIL', 'Run state ' || p_run_state || ' not supported.');
+      RETURN sosl_constants.RUN_STATE_ERROR;
+    END IF;
+  EXCEPTION
+    WHEN OTHERS THEN
+      sosl_log.exception_log('sosl_util.get_valid_run_state', 'SOSL_UTIL', SQLERRM);
+      RETURN -1;
+  END get_valid_run_state;
+
 END;
 /

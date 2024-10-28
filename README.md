@@ -88,16 +88,24 @@ The defined function is used by SOSL and must return a valid SOSL_PAYLOAD object
     Interface Definition: FUNCTION get_next_script RETURN SOSL_PAYLOAD;
 
 ### set_script_status
-Task: Provide details to the caller about the current script status. On success should return 0 otherwise -1. If script status cannot be set, the related executor is deactivated.
+Task: Provide details to the interface provider about the current script status. On success should return 0 otherwise -1. If script status cannot be set, the related executor is deactivated. With run id the current details of the script run can be fetched from SOSL_RUN_QUEUE. The function will get the intended state. The current state in SOSL_RUN_QUEUE may differ, if errors happened. Corrent state handling is up to the function provider.
 
-    Wrapper FUNCTION set_script_status( p_reference   IN SOSL_PAYLOAD
-                                      , p_status      IN NUMBER
-                                      , p_status_msg  IN VARCHAR2 DEFAULT NULL
+    Wrapper FUNCTION set_script_status( p_run_id  IN NUMBER
+                                      , p_status  IN NUMBER
                                       )
               RETURN NUMBER;
 
 ### Send Mail
-The default SOSL function is SOSL_UTIL.DUMMY_MAIL. It just logs the output of a possible mail body. You may provide a mail function, as well as sender and recipients or you implement (this is the better solution) in your interface functions provided to SOSL.
+Task: Provide details to the interface provider about the current script status. On success should return 0 otherwise -1. Building and sending the mail is up to the interface function.
+
+If mail is activated, the defined function is called on every state change. The function will get the intended state. The current state in SOSL_RUN_QUEUE may differ, if errors happened.
+
+    Wrapper FUNCTION send_db_mail( p_run_id  IN NUMBER
+                                 , p_status  IN NUMBER
+                                 )
+              RETURN NUMBER;
+
+This is just an option to enable and disable mail on demand. You might as well integrate your mail function in the set_script_status interface function and leave mail deactivated.
 ### Scripts
 The interface API requires a set of information to handle things correctly: executor id, external script id as VARCHAR2 and the script filename including relative or absolute path. The SOSL type SOSL_PAYLOAD offers the possibility to transfer this information within one object and is the required output for getting the next script. All other interface API functions should return NUMBER.
 

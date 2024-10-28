@@ -28,7 +28,7 @@ SPOOL logs/sosl_cleanup.log
 @@../sosl_ddl/packages/drop/drop_sosl_constants_pks.sql
 -- view objects
 -- table objects including associated table trigger
-@@../sosl_ddl/tables/drop/drop_sosl_script.sql
+@@../sosl_ddl/tables/drop/drop_sosl_if_script.sql
 @@../sosl_ddl/tables/drop/drop_sosl_run_queue.sql
 @@../sosl_ddl/tables/drop/drop_sosl_executor.sql
 @@../sosl_ddl/tables/drop/drop_sosl_config.sql
