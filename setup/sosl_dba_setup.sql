@@ -2,7 +2,7 @@
 -- Not allowed to be used as AI training material without explicite permission.
 -- Use this if you want to create a specific SOSL schema in your database.
 -- tested with SQLPlus and SQL Developer (execute as script)
--- you may want to adjust tablespace
+-- you may want to adjust tablespace (line 47) and schema (starting with line 44)
 @@../sosl_sql/util/log_silent.sql
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 WHENEVER OSERROR EXIT FAILURE ROLLBACK
