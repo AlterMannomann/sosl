@@ -4450,40 +4450,45 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_sys
 835  	 RETURN NUMBER
 836    IS
 837  	 l_run_id	     NUMBER;
-838  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SYS';
-839  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_sys.get_next_script';
-840    BEGIN
-841  	 l_run_id := -1;
-842  	 -- if we have scripts
-843  	 IF sosl_sys.has_scripts > 0
-844  	 THEN
-845  	   -- select all valid executors and get their results, store results in SOSL_RUN_QUEUE.
-846  	   IF NOT sosl_sys.register_waiting
-847  	   THEN
-848  	     -- probably an error with defined functions, log the error
-849  	     NULL; -- tbd.
-850  	   END IF;
-851  	   -- as we should have scripts, the run queue still may have scripts even if register failed
-852  	   l_run_id := sosl_sys.fetch_next_run_id;
-853  	   IF l_run_id = sosl_constants.NUM_ERROR
-854  	   THEN
-855  	     -- log the error
-856  	     NULL; -- tbd.
-857  	   ELSE
-858  	     -- mark run id as enqueued
-859  	     NULL; -- tbd.
-860  	   END IF;
-861  	 END IF;
-862  	 RETURN l_run_id;
-863    EXCEPTION
-864  	 WHEN OTHERS THEN
-865  	   -- log the error instead of RAISE
-866  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-867  	   RETURN -1;
-868    END get_next_script;
-869  
-870  END;
-871  /
+838  	 l_state_result      NUMBER;
+839  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SYS';
+840  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_sys.get_next_script';
+841    BEGIN
+842  	 l_run_id := -1;
+843  	 -- if we have scripts
+844  	 IF sosl_sys.has_scripts > 0
+845  	 THEN
+846  	   -- select all valid executors and get their results, store results in SOSL_RUN_QUEUE.
+847  	   IF NOT sosl_sys.register_waiting
+848  	   THEN
+849  	     -- probably an error with defined functions, log the error
+850  	     sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Defined functions in error, not registered any new script.');
+851  	   END IF;
+852  	   -- as we should have scripts, the run queue still may have scripts even if register failed
+853  	   l_run_id := sosl_sys.fetch_next_run_id;
+854  	   IF l_run_id = sosl_constants.NUM_ERROR
+855  	   THEN
+856  	     -- log the error
+857  	     sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Unable to fetch next run id.');
+858  	   ELSE
+859  	     -- mark run id as enqueued
+860  	     l_state_result := sosl_sys.set_script_status(l_run_id, sosl_constants.RUN_STATE_ENQUEUED);
+861  	     IF l_state_result = sosl_constants.NUM_ERROR
+862  	     THEN
+863  	       sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Could not update run state to ENQUEUED for run id: ' || l_run_id);
+864  	     END IF;
+865  	   END IF;
+866  	 END IF;
+867  	 RETURN l_run_id;
+868    EXCEPTION
+869  	 WHEN OTHERS THEN
+870  	   -- log the error instead of RAISE
+871  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+872  	   RETURN -1;
+873    END get_next_script;
+874  
+875  END;
+876  /
 
 Package body created.
 
@@ -5436,6 +5441,127 @@ SQL> -- grants, everyone can see if scripts are available, inherited by others
 SQL> GRANT EXECUTE ON has_scripts TO sosl_guest;
 
 Grant succeeded.
+
+SQL> @@sosl_config_defaults.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> -- load default values that can be configured in the database (mandatory)
+SQL> -- basic configuration
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_description)
+  3    VALUES
+  4    ('SOSL_PATH_CFG', '..\..\sosl_cfg\', 'Relative path with delimiter at path end to configuration files the SOSL server uses. Set by SOSL server. As configuration files contain credentials and secrets the path should be in a safe space with controlled user rights.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_max_length, config_description)
+  3    VALUES
+  4    ('SOSL_PATH_TMP', '..\..\sosl_tmp\', 239, 'Relative path with delimiter at path end to temporary files the SOSL server uses. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_max_length, config_description)
+  3    VALUES
+  4    ('SOSL_PATH_LOG', '..\..\sosl_log\', 239, 'Relative path with delimiter at path end to log files the SOSL server creates. Set by SOSL server. Parameter for sql files, limited to 239 chars.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_description)
+  3    VALUES
+  4    ('SOSL_START_LOG', 'sosl_server', 'Log filename for start and end of SOSL server CMD. Set by SOSL server.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_description)
+  3    VALUES
+  4    ('SOSL_BASE_LOG', 'sosl_job_', 'Base log filename for single job runs. Will be extended by GUID. Set by SOSL server.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_description)
+  3    VALUES
+  4    ('SOSL_EXT_LOG', 'log', 'Log file extension to use. Set by SOSL server.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_description)
+  3    VALUES
+  4    ('SOSL_EXT_TMP', 'tmp', 'Log file extension for temporary logs to use. On error those file extension will be renamed to SOSL_EXT_ERROR extension. Set by SOSL server.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_description)
+  3    VALUES
+  4    ('SOSL_EXT_LOCK', 'lock', 'Default process lock file extension. Lock files will always get deleted either on service start or after a run. Set by SOSL server.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_description)
+  3    VALUES
+  4    ('SOSL_EXT_ERROR', 'err', 'Default process error file extension. Set by SOSL server.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_MAX_PARALLEL', '8', 'NUMBER', 'The maximum of parallel started scripts. Read by the SOSL server. After this amount if scripts is started, next scripts are only loaded, if the run count is below this value.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_RUNMODE', 'RUN', 'CHAR', 'Determines if the server should RUN, WAIT or STOP. Read by the SOSL server. RUN will cause the SOSL server, if started to run as long as it does not get a STOP signal from the database. Set it to STOP to stop the SOSL server. Set to WAIT if the server should not call any script apart the check for the run mode. Can be locally overwritten.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_DEFAULT_WAIT', '1', 'NUMBER', 'Determines the normal sleep time in seconds the sosl server has between calls if scripts are available for processing.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_NOJOB_WAIT', '120', 'NUMBER', 'Determines the sleep time in seconds the sosl server has between calls if no scripts are available for processing.')
+  5  ;
+
+1 row created.
+
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_type, config_description)
+  3    VALUES
+  4    ('SOSL_PAUSE_WAIT', '3600', 'NUMBER', 'Determines the sleep time in seconds the sosl server has between calls if run mode is set to wait.')
+  5  ;
+
+1 row created.
+
+SQL> COMMIT;
+
+Commit complete.
 
 SQL> -- ==============INSTALL done==============
 SQL> @@../sosl_sql/util/log_silent.sql

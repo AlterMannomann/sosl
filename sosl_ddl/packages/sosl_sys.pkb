@@ -837,6 +837,7 @@ AS
     RETURN NUMBER
   IS
     l_run_id            NUMBER;
+    l_state_result      NUMBER;
     l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SYS';
     l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_sys.get_next_script';
   BEGIN
@@ -848,17 +849,21 @@ AS
       IF NOT sosl_sys.register_waiting
       THEN
         -- probably an error with defined functions, log the error
-        NULL; -- tbd.
+        sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Defined functions in error, not registered any new script.');
       END IF;
       -- as we should have scripts, the run queue still may have scripts even if register failed
       l_run_id := sosl_sys.fetch_next_run_id;
       IF l_run_id = sosl_constants.NUM_ERROR
       THEN
         -- log the error
-        NULL; -- tbd.
+        sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Unable to fetch next run id.');
       ELSE
         -- mark run id as enqueued
-        NULL; -- tbd.
+        l_state_result := sosl_sys.set_script_status(l_run_id, sosl_constants.RUN_STATE_ENQUEUED);
+        IF l_state_result = sosl_constants.NUM_ERROR
+        THEN
+          sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Could not update run state to ENQUEUED for run id: ' || l_run_id);
+        END IF;
       END IF;
     END IF;
     RETURN l_run_id;

@@ -50,6 +50,7 @@ SPOOL logs/sosl_setup.log
 @@../sosl_ddl/trigger/sosl_if_script_trg.sql
 -- wrapper functions
 @@../sosl_ddl/functions/has_scripts.sql
+@@sosl_config_defaults.sql
 -- ==============INSTALL done==============
 @@../sosl_sql/util/log_silent.sql
 -- check errors and display them, if so
