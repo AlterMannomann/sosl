@@ -93,7 +93,7 @@ BEGIN
          AND :NEW.run_state != sosl_constants.RUN_STATE_WAITING
       THEN
         -- log it
-        sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Wrong state transition: ' || sosl_util.run_state_text(:OLD.run_state) || ' not allowed to change to ' || sosl_util.run_state_text(:NEW.run_state) || '. State set to ERROR.');
+        sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Wrong state transition: ' || sosl_constants.run_state_text(:OLD.run_state) || ' not allowed to change to ' || sosl_constants.run_state_text(:NEW.run_state) || '. State set to ERROR.');
         -- ignore invalid run state, set state to error
         :NEW.run_state := sosl_constants.RUN_STATE_ERROR;
       ELSE
@@ -101,7 +101,7 @@ BEGIN
         IF :NEW.run_state != (:OLD.run_state + 1)
         THEN
           -- log it
-          sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Wrong state transition: ' || sosl_util.run_state_text(:OLD.run_state) || ' not allowed to change to ' || sosl_util.run_state_text(:NEW.run_state) || '. State set to ERROR.');
+          sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Wrong state transition: ' || sosl_constants.run_state_text(:OLD.run_state) || ' not allowed to change to ' || sosl_constants.run_state_text(:NEW.run_state) || '. State set to ERROR.');
           -- ignore invalid run state, set state to error
           :NEW.run_state := sosl_constants.RUN_STATE_ERROR;
         END IF;

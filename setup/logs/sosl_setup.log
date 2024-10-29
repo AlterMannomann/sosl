@@ -348,7 +348,7 @@ SQL> CREATE TABLE sosl_executor
   8    , fn_set_script_status  VARCHAR2(520)						 NOT NULL
   9    , cfg_file	       VARCHAR2(4000)						 NOT NULL
  10    , use_mail	       NUMBER(1, 0)    DEFAULT 0				 NOT NULL
- 11    , fn_send_db_mail       VARCHAR2(520)   DEFAULT 'sosl_log.dummy_mail'		 NOT NULL
+ 11    , fn_send_db_mail       VARCHAR2(520)   DEFAULT 'yourpackage.yourfunction'	 NOT NULL
  12    , executor_active       NUMBER(1, 0)    DEFAULT 0				 NOT NULL
  13    , executor_reviewed     NUMBER(1, 0)    DEFAULT 0				 NOT NULL
  14    , created	       DATE	       DEFAULT SYSDATE				 NOT NULL
@@ -674,16 +674,17 @@ SQL> CREATE TABLE sosl_if_script
   4    , run_state	     NUMBER(1, 0)   DEFAULT 0				      NOT NULL
   5    , run_group	     VARCHAR2(30)   DEFAULT 'DEFAULT'			      NOT NULL
   6    , run_order	     NUMBER(38, 0)  DEFAULT 1				      NOT NULL
-  7    , created	     DATE	    DEFAULT SYSDATE			      NOT NULL
-  8    , updated	     DATE	    DEFAULT SYSDATE			      NOT NULL
+  7    , script_active	     NUMBER(1, 0)   DEFAULT 0				      NOT NULL
+  8    , created	     DATE	    DEFAULT SYSDATE			      NOT NULL
   9    , created_by	     VARCHAR2(256)  DEFAULT USER			      NOT NULL
  10    , created_by_os	     VARCHAR2(256)  DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 11    , updated_by	     VARCHAR2(256)  DEFAULT USER
- 12    , updated_by_os	     VARCHAR2(256)  DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
- 13    , executor_id	     NUMBER(38, 0)
- 14    , script_description  VARCHAR2(4000)
- 15    )
- 16  ;
+ 11    , executor_id	     NUMBER(38, 0)
+ 12    , updated	     DATE
+ 13    , updated_by	     VARCHAR2(256)  DEFAULT USER
+ 14    , updated_by_os	     VARCHAR2(256)  DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
+ 15    , script_description  VARCHAR2(4000)
+ 16    )
+ 17  ;
 
 Table created.
 
@@ -713,6 +714,10 @@ SQL> COMMENT ON COLUMN sosl_if_script.run_state IS 'Holds the run state: 0 Waiti
 Comment created.
 
 SQL> COMMENT ON COLUMN sosl_if_script.run_group IS 'A minimalistic group ID provided as is. Mixed case delivers mixed results. Up to installer to manage specific groups. Allows grouping of scripts.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_if_script.script_active IS 'Defines active state of script. Only active scripts are handled. 0 is inactive, 1 is active.';
 
 Comment created.
 
@@ -761,6 +766,13 @@ SQL> ALTER TABLE sosl_if_script
 
 Table altered.
 
+SQL> ALTER TABLE sosl_if_script
+  2    ADD CONSTRAINT sosl_if_script_chk_active
+  3    CHECK (script_active IN (0, 1))
+  4  ;
+
+Table altered.
+
 SQL> -- foreign key
 SQL> ALTER TABLE sosl_if_script
   2    ADD CONSTRAINT sosl_if_script_fk
@@ -794,12 +806,12 @@ SQL> CREATE OR REPLACE PACKAGE sosl_constants
  15    -- Generic n/a type. Should be different from table defaults like 'not set' as table triggers interpret their DDL default value as fallback
  16    -- to set default values using package variables, which is not supported in table DDL by Oracle using DEFAULT. Packages may use variables
  17    -- from other packages in DEFAULT declarations.
- 18    GEN_NA_TYPE	     CONSTANT CHAR(3)  := 'n/a';
- 19    GEN_NA_DATE_TYPE      CONSTANT DATE     := TO_DATE('01.01.1900', 'DD.MM.YYYY');
- 20    GEN_NA_TIMESTAMP_TYPE CONSTANT DATE     := TO_TIMESTAMP('01.01.1900', 'DD.MM.YYYY');
- 21    GEN_DATE_FORMAT	     CONSTANT CHAR(21) := 'YYYY-MM-DD HH24:MI:SS';
- 22    GEN_TIMESTAMP_FORMAT  CONSTANT CHAR(21) := 'YYYY-MM-DD HH24:MI:SS.FF';
- 23    GEN_NULL_TEXT	     CONSTANT CHAR(4)  := 'NULL';
+ 18    GEN_NA_TYPE	     CONSTANT CHAR(3)	 := 'n/a';
+ 19    GEN_NA_DATE_TYPE      CONSTANT DATE	 := TO_DATE('01.01.1900', 'DD.MM.YYYY');
+ 20    GEN_NA_TIMESTAMP_TYPE CONSTANT TIMESTAMP  := TO_TIMESTAMP('01.01.1900', 'DD.MM.YYYY');
+ 21    GEN_DATE_FORMAT	     CONSTANT CHAR(21)	 := 'YYYY-MM-DD HH24:MI:SS';
+ 22    GEN_TIMESTAMP_FORMAT  CONSTANT CHAR(24)	 := 'YYYY-MM-DD HH24:MI:SS.FF';
+ 23    GEN_NULL_TEXT	     CONSTANT CHAR(4)	 := 'NULL';
  24    -- numerical equations to TRUE/YES and FALSE/NO
  25    NUM_YES		     CONSTANT INTEGER  := 1;
  26    NUM_NO		     CONSTANT INTEGER  := 0;
@@ -814,118 +826,156 @@ SQL> CREATE OR REPLACE PACKAGE sosl_constants
  35    RUN_STATE_RUNNING     CONSTANT INTEGER  := 3;
  36    RUN_STATE_FINISHED    CONSTANT INTEGER  := 4;
  37    RUN_STATE_ERROR	     CONSTANT INTEGER  := -1;
- 38    /*====================================== end package constants used by SOSL ======================================*/
- 39    -- All get_ functions only return the defined constant, no extra code. Constant name prefixed with GET_.
- 40    FUNCTION get_log_error_type
- 41  	 RETURN VARCHAR2
- 42  	 DETERMINISTIC
- 43  	 PARALLEL_ENABLE
- 44    ;
- 45    FUNCTION get_log_warning_type
- 46  	 RETURN VARCHAR2
- 47  	 DETERMINISTIC
- 48  	 PARALLEL_ENABLE
- 49    ;
- 50    FUNCTION get_log_fatal_type
- 51  	 RETURN VARCHAR2
- 52  	 DETERMINISTIC
- 53  	 PARALLEL_ENABLE
- 54    ;
- 55    FUNCTION get_log_info_type
- 56  	 RETURN VARCHAR2
- 57  	 DETERMINISTIC
- 58  	 PARALLEL_ENABLE
- 59    ;
- 60    FUNCTION get_log_success_type
- 61  	 RETURN VARCHAR2
- 62  	 DETERMINISTIC
- 63  	 PARALLEL_ENABLE
- 64    ;
- 65    FUNCTION get_gen_na_type
- 66  	 RETURN VARCHAR2
- 67  	 DETERMINISTIC
- 68  	 PARALLEL_ENABLE
- 69    ;
- 70    FUNCTION get_gen_na_date_type
- 71  	 RETURN DATE
- 72  	 DETERMINISTIC
- 73  	 PARALLEL_ENABLE
- 74    ;
- 75    FUNCTION get_gen_na_timestamp_type
- 76  	 RETURN DATE
- 77  	 DETERMINISTIC
- 78  	 PARALLEL_ENABLE
- 79    ;
- 80    FUNCTION get_gen_date_format
- 81  	 RETURN VARCHAR2
- 82  	 DETERMINISTIC
- 83  	 PARALLEL_ENABLE
- 84    ;
- 85    FUNCTION get_gen_timestamp_format
- 86  	 RETURN VARCHAR2
- 87  	 DETERMINISTIC
- 88  	 PARALLEL_ENABLE
- 89    ;
- 90    FUNCTION get_gen_null_text
- 91  	 RETURN VARCHAR2
- 92  	 DETERMINISTIC
- 93  	 PARALLEL_ENABLE
- 94    ;
- 95    FUNCTION get_num_yes
- 96  	 RETURN NUMBER
- 97  	 DETERMINISTIC
- 98  	 PARALLEL_ENABLE
- 99    ;
-100    FUNCTION get_num_no
-101  	 RETURN NUMBER
-102  	 DETERMINISTIC
-103  	 PARALLEL_ENABLE
-104    ;
-105    FUNCTION get_num_error
-106  	 RETURN NUMBER
-107  	 DETERMINISTIC
-108  	 PARALLEL_ENABLE
-109    ;
-110    FUNCTION get_num_success
-111  	 RETURN NUMBER
-112  	 DETERMINISTIC
-113  	 PARALLEL_ENABLE
-114    ;
-115    FUNCTION get_run_state_waiting
-116  	 RETURN NUMBER
-117  	 DETERMINISTIC
-118  	 PARALLEL_ENABLE
-119    ;
-120    FUNCTION get_run_state_enqueued
-121  	 RETURN NUMBER
-122  	 DETERMINISTIC
-123  	 PARALLEL_ENABLE
-124    ;
-125    FUNCTION get_run_state_started
-126  	 RETURN NUMBER
-127  	 DETERMINISTIC
-128  	 PARALLEL_ENABLE
-129    ;
-130    FUNCTION get_run_state_running
-131  	 RETURN NUMBER
-132  	 DETERMINISTIC
-133  	 PARALLEL_ENABLE
-134    ;
-135    FUNCTION get_run_state_finished
-136  	 RETURN NUMBER
-137  	 DETERMINISTIC
-138  	 PARALLEL_ENABLE
-139    ;
-140    FUNCTION get_run_state_error
-141  	 RETURN NUMBER
-142  	 DETERMINISTIC
-143  	 PARALLEL_ENABLE
-144    ;
-145  
-146  END;
-147  /
+ 38    -- formatting
+ 39    LF		     CONSTANT CHAR(1)  := CHR(10);
+ 40    CR		     CONSTANT CHAR(1)  := CHR(13);
+ 41    CRLF		     CONSTANT CHAR(2)  := CHR(13) || CHR(10);
+ 42    /*====================================== end package constants used by SOSL ======================================*/
+ 43  
+ 44    /* FUNCTION SOSL_CONSTANTS.run_state_text
+ 45    * Returns the text interpretation (english) for the supported run states.
+ 46    *
+ 47    * @param p_run_state The numerical run state to express as text.
+ 48    *
+ 49    * @return The text equation for the given run state or sosl_constants.GEN_NA_TYPE on errors.
+ 50    */
+ 51    FUNCTION run_state_text(p_run_state IN NUMBER)
+ 52  	 RETURN VARCHAR2
+ 53  	 DETERMINISTIC
+ 54  	 PARALLEL_ENABLE
+ 55    ;
+ 56  
+ 57    -- All get_ functions only return the defined constant, no extra code. Constant name prefixed with GET_.
+ 58    FUNCTION get_log_error_type
+ 59  	 RETURN VARCHAR2
+ 60  	 DETERMINISTIC
+ 61  	 PARALLEL_ENABLE
+ 62    ;
+ 63    FUNCTION get_log_warning_type
+ 64  	 RETURN VARCHAR2
+ 65  	 DETERMINISTIC
+ 66  	 PARALLEL_ENABLE
+ 67    ;
+ 68    FUNCTION get_log_fatal_type
+ 69  	 RETURN VARCHAR2
+ 70  	 DETERMINISTIC
+ 71  	 PARALLEL_ENABLE
+ 72    ;
+ 73    FUNCTION get_log_info_type
+ 74  	 RETURN VARCHAR2
+ 75  	 DETERMINISTIC
+ 76  	 PARALLEL_ENABLE
+ 77    ;
+ 78    FUNCTION get_log_success_type
+ 79  	 RETURN VARCHAR2
+ 80  	 DETERMINISTIC
+ 81  	 PARALLEL_ENABLE
+ 82    ;
+ 83    FUNCTION get_gen_na_type
+ 84  	 RETURN VARCHAR2
+ 85  	 DETERMINISTIC
+ 86  	 PARALLEL_ENABLE
+ 87    ;
+ 88    FUNCTION get_gen_na_date_type
+ 89  	 RETURN DATE
+ 90  	 DETERMINISTIC
+ 91  	 PARALLEL_ENABLE
+ 92    ;
+ 93    FUNCTION get_gen_na_timestamp_type
+ 94  	 RETURN DATE
+ 95  	 DETERMINISTIC
+ 96  	 PARALLEL_ENABLE
+ 97    ;
+ 98    FUNCTION get_gen_date_format
+ 99  	 RETURN VARCHAR2
+100  	 DETERMINISTIC
+101  	 PARALLEL_ENABLE
+102    ;
+103    FUNCTION get_gen_timestamp_format
+104  	 RETURN VARCHAR2
+105  	 DETERMINISTIC
+106  	 PARALLEL_ENABLE
+107    ;
+108    FUNCTION get_gen_null_text
+109  	 RETURN VARCHAR2
+110  	 DETERMINISTIC
+111  	 PARALLEL_ENABLE
+112    ;
+113    FUNCTION get_num_yes
+114  	 RETURN NUMBER
+115  	 DETERMINISTIC
+116  	 PARALLEL_ENABLE
+117    ;
+118    FUNCTION get_num_no
+119  	 RETURN NUMBER
+120  	 DETERMINISTIC
+121  	 PARALLEL_ENABLE
+122    ;
+123    FUNCTION get_num_error
+124  	 RETURN NUMBER
+125  	 DETERMINISTIC
+126  	 PARALLEL_ENABLE
+127    ;
+128    FUNCTION get_num_success
+129  	 RETURN NUMBER
+130  	 DETERMINISTIC
+131  	 PARALLEL_ENABLE
+132    ;
+133    FUNCTION get_run_state_waiting
+134  	 RETURN NUMBER
+135  	 DETERMINISTIC
+136  	 PARALLEL_ENABLE
+137    ;
+138    FUNCTION get_run_state_enqueued
+139  	 RETURN NUMBER
+140  	 DETERMINISTIC
+141  	 PARALLEL_ENABLE
+142    ;
+143    FUNCTION get_run_state_started
+144  	 RETURN NUMBER
+145  	 DETERMINISTIC
+146  	 PARALLEL_ENABLE
+147    ;
+148    FUNCTION get_run_state_running
+149  	 RETURN NUMBER
+150  	 DETERMINISTIC
+151  	 PARALLEL_ENABLE
+152    ;
+153    FUNCTION get_run_state_finished
+154  	 RETURN NUMBER
+155  	 DETERMINISTIC
+156  	 PARALLEL_ENABLE
+157    ;
+158    FUNCTION get_run_state_error
+159  	 RETURN NUMBER
+160  	 DETERMINISTIC
+161  	 PARALLEL_ENABLE
+162    ;
+163    FUNCTION get_lf
+164  	 RETURN VARCHAR2
+165  	 DETERMINISTIC
+166  	 PARALLEL_ENABLE
+167    ;
+168    FUNCTION get_cr
+169  	 RETURN VARCHAR2
+170  	 DETERMINISTIC
+171  	 PARALLEL_ENABLE
+172    ;
+173    FUNCTION get_crlf
+174  	 RETURN VARCHAR2
+175  	 DETERMINISTIC
+176  	 PARALLEL_ENABLE
+177    ;
+178  
+179  END;
+180  /
 
 Package created.
+
+SQL> -- grants
+SQL> GRANT EXECUTE ON sosl_constants TO sosl_user;
+
+Grant succeeded.
 
 SQL> @@../sosl_ddl/packages/sosl_constants.pkb
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
@@ -933,197 +983,253 @@ SQL> -- Not allowed to be used as AI training material without explicite permiss
 SQL> CREATE OR REPLACE PACKAGE BODY sosl_constants
   2  AS
   3    -- for description see header file
-  4    FUNCTION get_log_error_type
-  5  	 RETURN VARCHAR2
-  6  	 DETERMINISTIC
-  7  	 PARALLEL_ENABLE
-  8    IS
-  9    BEGIN
- 10  	 RETURN sosl_constants.LOG_ERROR_TYPE;
- 11    END get_log_error_type;
- 12  
- 13    FUNCTION get_log_warning_type
- 14  	 RETURN VARCHAR2
- 15  	 DETERMINISTIC
- 16  	 PARALLEL_ENABLE
- 17    IS
- 18    BEGIN
- 19  	 RETURN sosl_constants.LOG_WARNING_TYPE;
- 20    END get_log_warning_type;
- 21  
- 22    FUNCTION get_log_fatal_type
- 23  	 RETURN VARCHAR2
- 24  	 DETERMINISTIC
- 25  	 PARALLEL_ENABLE
- 26    IS
- 27    BEGIN
- 28  	 RETURN sosl_constants.LOG_FATAL_TYPE;
- 29    END get_log_fatal_type;
- 30  
- 31    FUNCTION get_log_info_type
- 32  	 RETURN VARCHAR2
- 33  	 DETERMINISTIC
- 34  	 PARALLEL_ENABLE
- 35    IS
- 36    BEGIN
- 37  	 RETURN sosl_constants.LOG_INFO_TYPE;
- 38    END get_log_info_type;
- 39  
- 40    FUNCTION get_log_success_type
- 41  	 RETURN VARCHAR2
- 42  	 DETERMINISTIC
- 43  	 PARALLEL_ENABLE
- 44    IS
- 45    BEGIN
- 46  	 RETURN sosl_constants.LOG_SUCCESS_TYPE;
- 47    END get_log_success_type;
- 48  
- 49    FUNCTION get_gen_na_type
- 50  	 RETURN VARCHAR2
- 51  	 DETERMINISTIC
- 52  	 PARALLEL_ENABLE
- 53    IS
- 54    BEGIN
- 55  	 RETURN sosl_constants.GEN_NA_TYPE;
- 56    END get_gen_na_type;
- 57  
- 58    FUNCTION get_gen_na_date_type
- 59  	 RETURN DATE
- 60  	 DETERMINISTIC
- 61  	 PARALLEL_ENABLE
- 62    IS
- 63    BEGIN
- 64  	 RETURN sosl_constants.GEN_NA_DATE_TYPE;
- 65    END get_gen_na_date_type;
- 66  
- 67    FUNCTION get_gen_na_timestamp_type
- 68  	 RETURN DATE
- 69  	 DETERMINISTIC
- 70  	 PARALLEL_ENABLE
- 71    IS
- 72    BEGIN
- 73  	 RETURN sosl_constants.GEN_NA_TIMESTAMP_TYPE;
- 74    END get_gen_na_timestamp_type;
- 75  
- 76    FUNCTION get_gen_date_format
- 77  	 RETURN VARCHAR2
- 78  	 DETERMINISTIC
- 79  	 PARALLEL_ENABLE
- 80    IS
- 81    BEGIN
- 82  	 RETURN sosl_constants.GEN_DATE_FORMAT;
- 83    END get_gen_date_format;
- 84  
- 85    FUNCTION get_gen_timestamp_format
- 86  	 RETURN VARCHAR2
- 87  	 DETERMINISTIC
- 88  	 PARALLEL_ENABLE
- 89    IS
- 90    BEGIN
- 91  	 RETURN sosl_constants.GEN_TIMESTAMP_FORMAT;
- 92    END get_gen_timestamp_format;
- 93  
- 94    FUNCTION get_gen_null_text
- 95  	 RETURN VARCHAR2
- 96  	 DETERMINISTIC
- 97  	 PARALLEL_ENABLE
- 98    IS
- 99    BEGIN
-100  	 RETURN sosl_constants.GEN_NULL_TEXT;
-101    END get_gen_null_text;
-102  
-103    FUNCTION get_num_yes
-104  	 RETURN NUMBER
-105  	 DETERMINISTIC
-106  	 PARALLEL_ENABLE
-107    IS
-108    BEGIN
-109  	 RETURN sosl_constants.NUM_YES;
-110    END get_num_yes;
-111  
-112    FUNCTION get_num_no
-113  	 RETURN NUMBER
-114  	 DETERMINISTIC
-115  	 PARALLEL_ENABLE
-116    IS
-117    BEGIN
-118  	 RETURN sosl_constants.NUM_NO;
-119    END get_num_no;
-120  
-121    FUNCTION get_num_error
-122  	 RETURN NUMBER
-123  	 DETERMINISTIC
-124  	 PARALLEL_ENABLE
-125    IS
-126    BEGIN
-127  	 RETURN sosl_constants.NUM_ERROR;
-128    END get_num_error;
-129  
-130    FUNCTION get_num_success
-131  	 RETURN NUMBER
-132  	 DETERMINISTIC
-133  	 PARALLEL_ENABLE
-134    IS
-135    BEGIN
-136  	 RETURN sosl_constants.NUM_SUCCESS;
-137    END get_num_success;
-138  
-139    FUNCTION get_run_state_waiting
-140  	 RETURN NUMBER
-141  	 DETERMINISTIC
-142  	 PARALLEL_ENABLE
-143    IS
-144    BEGIN
-145  	 RETURN sosl_constants.RUN_STATE_WAITING;
-146    END get_run_state_waiting;
-147  
-148    FUNCTION get_run_state_enqueued
-149  	 RETURN NUMBER
-150  	 DETERMINISTIC
-151  	 PARALLEL_ENABLE
-152    IS
-153    BEGIN
-154  	 RETURN sosl_constants.RUN_STATE_ENQUEUED;
-155    END get_run_state_enqueued;
-156  
-157    FUNCTION get_run_state_started
-158  	 RETURN NUMBER
-159  	 DETERMINISTIC
-160  	 PARALLEL_ENABLE
-161    IS
-162    BEGIN
-163  	 RETURN sosl_constants.RUN_STATE_STARTED;
-164    END get_run_state_started;
-165  
-166    FUNCTION get_run_state_running
-167  	 RETURN NUMBER
-168  	 DETERMINISTIC
-169  	 PARALLEL_ENABLE
-170    IS
-171    BEGIN
-172  	 RETURN sosl_constants.RUN_STATE_RUNNING;
-173    END get_run_state_running;
-174  
-175    FUNCTION get_run_state_finished
-176  	 RETURN NUMBER
-177  	 DETERMINISTIC
-178  	 PARALLEL_ENABLE
-179    IS
-180    BEGIN
-181  	 RETURN sosl_constants.RUN_STATE_FINISHED;
-182    END get_run_state_finished;
-183  
-184    FUNCTION get_run_state_error
-185  	 RETURN NUMBER
-186  	 DETERMINISTIC
-187  	 PARALLEL_ENABLE
-188    IS
-189    BEGIN
-190  	 RETURN sosl_constants.RUN_STATE_ERROR;
-191    END get_run_state_error;
-192  
-193  END;
-194  /
+  4  
+  5    FUNCTION run_state_text(p_run_state IN NUMBER)
+  6  	 RETURN VARCHAR2
+  7  	 DETERMINISTIC
+  8  	 PARALLEL_ENABLE
+  9    IS
+ 10  	 l_return VARCHAR2(30);
+ 11    BEGIN
+ 12  	 l_return := CASE p_run_state
+ 13  		       WHEN sosl_constants.RUN_STATE_WAITING
+ 14  		       THEN 'Waiting'
+ 15  		       WHEN sosl_constants.RUN_STATE_ENQUEUED
+ 16  		       THEN 'Enqueued'
+ 17  		       WHEN sosl_constants.RUN_STATE_STARTED
+ 18  		       THEN 'Started'
+ 19  		       WHEN sosl_constants.RUN_STATE_RUNNING
+ 20  		       THEN 'Running'
+ 21  		       WHEN sosl_constants.RUN_STATE_FINISHED
+ 22  		       THEN 'Finished'
+ 23  		       WHEN sosl_constants.RUN_STATE_ERROR
+ 24  		       THEN 'ERROR'
+ 25  		       ELSE sosl_constants.GEN_NA_TYPE
+ 26  		     END;
+ 27  	 RETURN l_return;
+ 28    EXCEPTION
+ 29  	 WHEN OTHERS THEN
+ 30  	   RETURN sosl_constants.GEN_NA_TYPE;
+ 31    END run_state_text;
+ 32  
+ 33    FUNCTION get_log_error_type
+ 34  	 RETURN VARCHAR2
+ 35  	 DETERMINISTIC
+ 36  	 PARALLEL_ENABLE
+ 37    IS
+ 38    BEGIN
+ 39  	 RETURN sosl_constants.LOG_ERROR_TYPE;
+ 40    END get_log_error_type;
+ 41  
+ 42    FUNCTION get_log_warning_type
+ 43  	 RETURN VARCHAR2
+ 44  	 DETERMINISTIC
+ 45  	 PARALLEL_ENABLE
+ 46    IS
+ 47    BEGIN
+ 48  	 RETURN sosl_constants.LOG_WARNING_TYPE;
+ 49    END get_log_warning_type;
+ 50  
+ 51    FUNCTION get_log_fatal_type
+ 52  	 RETURN VARCHAR2
+ 53  	 DETERMINISTIC
+ 54  	 PARALLEL_ENABLE
+ 55    IS
+ 56    BEGIN
+ 57  	 RETURN sosl_constants.LOG_FATAL_TYPE;
+ 58    END get_log_fatal_type;
+ 59  
+ 60    FUNCTION get_log_info_type
+ 61  	 RETURN VARCHAR2
+ 62  	 DETERMINISTIC
+ 63  	 PARALLEL_ENABLE
+ 64    IS
+ 65    BEGIN
+ 66  	 RETURN sosl_constants.LOG_INFO_TYPE;
+ 67    END get_log_info_type;
+ 68  
+ 69    FUNCTION get_log_success_type
+ 70  	 RETURN VARCHAR2
+ 71  	 DETERMINISTIC
+ 72  	 PARALLEL_ENABLE
+ 73    IS
+ 74    BEGIN
+ 75  	 RETURN sosl_constants.LOG_SUCCESS_TYPE;
+ 76    END get_log_success_type;
+ 77  
+ 78    FUNCTION get_gen_na_type
+ 79  	 RETURN VARCHAR2
+ 80  	 DETERMINISTIC
+ 81  	 PARALLEL_ENABLE
+ 82    IS
+ 83    BEGIN
+ 84  	 RETURN sosl_constants.GEN_NA_TYPE;
+ 85    END get_gen_na_type;
+ 86  
+ 87    FUNCTION get_gen_na_date_type
+ 88  	 RETURN DATE
+ 89  	 DETERMINISTIC
+ 90  	 PARALLEL_ENABLE
+ 91    IS
+ 92    BEGIN
+ 93  	 RETURN sosl_constants.GEN_NA_DATE_TYPE;
+ 94    END get_gen_na_date_type;
+ 95  
+ 96    FUNCTION get_gen_na_timestamp_type
+ 97  	 RETURN DATE
+ 98  	 DETERMINISTIC
+ 99  	 PARALLEL_ENABLE
+100    IS
+101    BEGIN
+102  	 RETURN sosl_constants.GEN_NA_TIMESTAMP_TYPE;
+103    END get_gen_na_timestamp_type;
+104  
+105    FUNCTION get_gen_date_format
+106  	 RETURN VARCHAR2
+107  	 DETERMINISTIC
+108  	 PARALLEL_ENABLE
+109    IS
+110    BEGIN
+111  	 RETURN sosl_constants.GEN_DATE_FORMAT;
+112    END get_gen_date_format;
+113  
+114    FUNCTION get_gen_timestamp_format
+115  	 RETURN VARCHAR2
+116  	 DETERMINISTIC
+117  	 PARALLEL_ENABLE
+118    IS
+119    BEGIN
+120  	 RETURN sosl_constants.GEN_TIMESTAMP_FORMAT;
+121    END get_gen_timestamp_format;
+122  
+123    FUNCTION get_gen_null_text
+124  	 RETURN VARCHAR2
+125  	 DETERMINISTIC
+126  	 PARALLEL_ENABLE
+127    IS
+128    BEGIN
+129  	 RETURN sosl_constants.GEN_NULL_TEXT;
+130    END get_gen_null_text;
+131  
+132    FUNCTION get_num_yes
+133  	 RETURN NUMBER
+134  	 DETERMINISTIC
+135  	 PARALLEL_ENABLE
+136    IS
+137    BEGIN
+138  	 RETURN sosl_constants.NUM_YES;
+139    END get_num_yes;
+140  
+141    FUNCTION get_num_no
+142  	 RETURN NUMBER
+143  	 DETERMINISTIC
+144  	 PARALLEL_ENABLE
+145    IS
+146    BEGIN
+147  	 RETURN sosl_constants.NUM_NO;
+148    END get_num_no;
+149  
+150    FUNCTION get_num_error
+151  	 RETURN NUMBER
+152  	 DETERMINISTIC
+153  	 PARALLEL_ENABLE
+154    IS
+155    BEGIN
+156  	 RETURN sosl_constants.NUM_ERROR;
+157    END get_num_error;
+158  
+159    FUNCTION get_num_success
+160  	 RETURN NUMBER
+161  	 DETERMINISTIC
+162  	 PARALLEL_ENABLE
+163    IS
+164    BEGIN
+165  	 RETURN sosl_constants.NUM_SUCCESS;
+166    END get_num_success;
+167  
+168    FUNCTION get_run_state_waiting
+169  	 RETURN NUMBER
+170  	 DETERMINISTIC
+171  	 PARALLEL_ENABLE
+172    IS
+173    BEGIN
+174  	 RETURN sosl_constants.RUN_STATE_WAITING;
+175    END get_run_state_waiting;
+176  
+177    FUNCTION get_run_state_enqueued
+178  	 RETURN NUMBER
+179  	 DETERMINISTIC
+180  	 PARALLEL_ENABLE
+181    IS
+182    BEGIN
+183  	 RETURN sosl_constants.RUN_STATE_ENQUEUED;
+184    END get_run_state_enqueued;
+185  
+186    FUNCTION get_run_state_started
+187  	 RETURN NUMBER
+188  	 DETERMINISTIC
+189  	 PARALLEL_ENABLE
+190    IS
+191    BEGIN
+192  	 RETURN sosl_constants.RUN_STATE_STARTED;
+193    END get_run_state_started;
+194  
+195    FUNCTION get_run_state_running
+196  	 RETURN NUMBER
+197  	 DETERMINISTIC
+198  	 PARALLEL_ENABLE
+199    IS
+200    BEGIN
+201  	 RETURN sosl_constants.RUN_STATE_RUNNING;
+202    END get_run_state_running;
+203  
+204    FUNCTION get_run_state_finished
+205  	 RETURN NUMBER
+206  	 DETERMINISTIC
+207  	 PARALLEL_ENABLE
+208    IS
+209    BEGIN
+210  	 RETURN sosl_constants.RUN_STATE_FINISHED;
+211    END get_run_state_finished;
+212  
+213    FUNCTION get_run_state_error
+214  	 RETURN NUMBER
+215  	 DETERMINISTIC
+216  	 PARALLEL_ENABLE
+217    IS
+218    BEGIN
+219  	 RETURN sosl_constants.RUN_STATE_ERROR;
+220    END get_run_state_error;
+221  
+222    FUNCTION get_lf
+223  	 RETURN VARCHAR2
+224  	 DETERMINISTIC
+225  	 PARALLEL_ENABLE
+226    IS
+227    BEGIN
+228  	 RETURN sosl_constants.LF;
+229    END get_lf;
+230  
+231    FUNCTION get_cr
+232  	 RETURN VARCHAR2
+233  	 DETERMINISTIC
+234  	 PARALLEL_ENABLE
+235    IS
+236    BEGIN
+237  	 RETURN sosl_constants.CR;
+238    END get_cr;
+239  
+240    FUNCTION get_crlf
+241  	 RETURN VARCHAR2
+242  	 DETERMINISTIC
+243  	 PARALLEL_ENABLE
+244    IS
+245    BEGIN
+246  	 RETURN sosl_constants.CRLF;
+247    END get_crlf;
+248  
+249  END;
+250  /
 
 Package body created.
 
@@ -1422,6 +1528,11 @@ SQL> CREATE OR REPLACE PACKAGE sosl_log
 288  /
 
 Package created.
+
+SQL> -- grants
+SQL> GRANT EXECUTE ON sosl_log TO sosl_executor;
+
+Grant succeeded.
 
 SQL> @@../sosl_ddl/packages/sosl_log.pkb
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
@@ -2629,47 +2740,34 @@ SQL> CREATE OR REPLACE PACKAGE sosl_util
 274  	 PARALLEL_ENABLE
 275    ;
 276  
-277    /* FUNCTION SOSL_UTIL.run_state_text
-278    * Returns the text interpretation (english) for the supported run states.
-279    *
-280    * @param p_run_state The numerical run state to express as text.
-281    *
-282    * @return The text equation for the given run state or sosl_constants.GEN_NA_TYPE on errors.
-283    */
-284    FUNCTION run_state_text(p_run_state IN NUMBER)
-285  	 RETURN VARCHAR2
-286  	 DETERMINISTIC
-287  	 PARALLEL_ENABLE
-288    ;
-289  
-290    /* FUNCTION SOSL_UTIL.OBJECT_DATE
-291    * Works only for objects in the current schema, using USER_OBJECTS. Will return the LAST_DDL_TIME or the NA date type
-292    * from SOSL_CONSTANTS if the object could not be found. Object type has to conform to object types used in USER_OBJECTS.
-293    *
-294    * @param p_object_name The name of the object, will be transformed to UPPERCASE as SOSL does not use mixed case.
-295    * @param p_object_type A valid object type for USER_OBJECTS, e.g. FUNCTION, PACKAGE, PACKAGE BODY, PROCEDURE.
+277    /* FUNCTION SOSL_UTIL.OBJECT_DATE
+278    * Works only for objects in the current schema, using USER_OBJECTS. Will return the LAST_DDL_TIME or the NA date type
+279    * from SOSL_CONSTANTS if the object could not be found. Object type has to conform to object types used in USER_OBJECTS.
+280    *
+281    * @param p_object_name The name of the object, will be transformed to UPPERCASE as SOSL does not use mixed case.
+282    * @param p_object_type A valid object type for USER_OBJECTS, e.g. FUNCTION, PACKAGE, PACKAGE BODY, PROCEDURE.
+283    *
+284    * @return The LAST_DDL_TIME as noted in USER_OBJECTS or SOSL_CONSTANTS.GEN_NA_DATE_TYPE on errors or not found.
+285    */
+286    FUNCTION object_date( p_object_name IN VARCHAR2
+287  			   , p_object_type IN VARCHAR2
+288  			   )
+289  	 RETURN DATE
+290    ;
+291  
+292    /* FUNCTION SOSL_UTIL.GET_VALID_RUN_STATE
+293    * Checks if given run state in valid and returns the valid run state or error state.
+294    *
+295    * @param The run state to check. See SOSL_CONSTANTS for defined run states.
 296    *
-297    * @return The LAST_DDL_TIME as noted in USER_OBJECTS or SOSL_CONSTANTS.GEN_NA_DATE_TYPE on errors or not found.
+297    * @return Either the given run state if valid or SOSL_CONSTANTS.RUN_STATE_ERROR.
 298    */
-299    FUNCTION object_date( p_object_name IN VARCHAR2
-300  			   , p_object_type IN VARCHAR2
-301  			   )
-302  	 RETURN DATE
-303    ;
-304  
-305    /* FUNCTION SOSL_UTIL.GET_VALID_RUN_STATE
-306    * Checks if given run state in valid and returns the valid run state or error state.
-307    *
-308    * @param The run state to check. See SOSL_CONSTANTS for defined run states.
-309    *
-310    * @return Either the given run state if valid or SOSL_CONSTANTS.RUN_STATE_ERROR.
-311    */
-312    FUNCTION get_valid_run_state(p_run_state IN NUMBER)
-313  	 RETURN NUMBER
-314    ;
-315  
-316  END;
-317  /
+299    FUNCTION get_valid_run_state(p_run_state IN NUMBER)
+300  	 RETURN NUMBER
+301    ;
+302  
+303  END;
+304  /
 
 Package created.
 
@@ -3153,92 +3251,63 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_util
 475  	   RETURN sosl_constants.GEN_NA_TYPE;
 476    END yes_no;
 477  
-478    FUNCTION run_state_text(p_run_state IN NUMBER)
-479  	 RETURN VARCHAR2
-480  	 DETERMINISTIC
-481  	 PARALLEL_ENABLE
+478    FUNCTION object_date( p_object_name IN VARCHAR2
+479  			   , p_object_type IN VARCHAR2
+480  			   )
+481  	 RETURN DATE
 482    IS
-483  	 l_return VARCHAR2(30);
-484    BEGIN
-485  	 l_return := CASE p_run_state
-486  		       WHEN sosl_constants.RUN_STATE_WAITING
-487  		       THEN 'Waiting'
-488  		       WHEN sosl_constants.RUN_STATE_ENQUEUED
-489  		       THEN 'Enqueued'
-490  		       WHEN sosl_constants.RUN_STATE_STARTED
-491  		       THEN 'Started'
-492  		       WHEN sosl_constants.RUN_STATE_RUNNING
-493  		       THEN 'Running'
-494  		       WHEN sosl_constants.RUN_STATE_FINISHED
-495  		       THEN 'Finished'
-496  		       WHEN sosl_constants.RUN_STATE_ERROR
-497  		       THEN 'ERROR'
-498  		       ELSE sosl_constants.GEN_NA_TYPE || ' run state unknown'
-499  		     END;
-500  	 RETURN l_return;
-501    EXCEPTION
-502  	 WHEN OTHERS THEN
-503  	   sosl_log.exception_log('sosl_util.run_state_text', 'SOSL_UTIL', SQLERRM);
-504  	   RETURN sosl_constants.GEN_NA_TYPE;
-505    END run_state_text;
-506  
-507    FUNCTION object_date( p_object_name IN VARCHAR2
-508  			   , p_object_type IN VARCHAR2
-509  			   )
-510  	 RETURN DATE
-511    IS
-512  	 l_has_object  NUMBER;
-513  	 l_return      DATE;
-514    BEGIN
-515  	 l_return := sosl_constants.GEN_NA_DATE_TYPE;
-516  	 SELECT COUNT(*)
-517  	   INTO l_has_object
-518  	   FROM user_objects
-519  	  WHERE object_name = TRIM(UPPER(p_object_name))
-520  	    AND object_type = TRIM(UPPER(p_object_type))
-521  	 ;
-522  	 -- only if we have exactly one object
-523  	 IF l_has_object = 1
-524  	 THEN
-525  	   SELECT last_ddl_time
-526  	     INTO l_return
-527  	     FROM user_objects
-528  	    WHERE object_name = TRIM(UPPER(p_object_name))
-529  	      AND object_type = TRIM(UPPER(p_object_type))
-530  	   ;
-531  	 END IF;
-532  	 RETURN l_return;
-533    EXCEPTION
-534  	 WHEN OTHERS THEN
-535  	   sosl_log.exception_log('sosl_util.object_date', 'SOSL_UTIL', SQLERRM);
-536  	   RETURN sosl_constants.GEN_NA_DATE_TYPE;
-537    END object_date;
-538  
-539    FUNCTION get_valid_run_state(p_run_state IN NUMBER)
-540  	 RETURN NUMBER
-541    IS
-542    BEGIN
-543  	 IF p_run_state IN ( sosl_constants.RUN_STATE_WAITING
-544  			   , sosl_constants.RUN_STATE_ENQUEUED
-545  			   , sosl_constants.RUN_STATE_STARTED
-546  			   , sosl_constants.RUN_STATE_RUNNING
-547  			   , sosl_constants.RUN_STATE_FINISHED
-548  			   , sosl_constants.RUN_STATE_ERROR
-549  			   )
-550  	 THEN
-551  	   RETURN p_run_state;
-552  	 ELSE
-553  	   sosl_log.minimal_error_log('sosl_util.get_valid_run_state', 'SOSL_UTIL', 'Run state ' || p_run_state || ' not supported.');
-554  	   RETURN sosl_constants.RUN_STATE_ERROR;
-555  	 END IF;
-556    EXCEPTION
-557  	 WHEN OTHERS THEN
-558  	   sosl_log.exception_log('sosl_util.get_valid_run_state', 'SOSL_UTIL', SQLERRM);
-559  	   RETURN -1;
-560    END get_valid_run_state;
-561  
-562  END;
-563  /
+483  	 l_has_object  NUMBER;
+484  	 l_return      DATE;
+485    BEGIN
+486  	 l_return := sosl_constants.GEN_NA_DATE_TYPE;
+487  	 SELECT COUNT(*)
+488  	   INTO l_has_object
+489  	   FROM user_objects
+490  	  WHERE object_name = TRIM(UPPER(p_object_name))
+491  	    AND object_type = TRIM(UPPER(p_object_type))
+492  	 ;
+493  	 -- only if we have exactly one object
+494  	 IF l_has_object = 1
+495  	 THEN
+496  	   SELECT last_ddl_time
+497  	     INTO l_return
+498  	     FROM user_objects
+499  	    WHERE object_name = TRIM(UPPER(p_object_name))
+500  	      AND object_type = TRIM(UPPER(p_object_type))
+501  	   ;
+502  	 END IF;
+503  	 RETURN l_return;
+504    EXCEPTION
+505  	 WHEN OTHERS THEN
+506  	   sosl_log.exception_log('sosl_util.object_date', 'SOSL_UTIL', SQLERRM);
+507  	   RETURN sosl_constants.GEN_NA_DATE_TYPE;
+508    END object_date;
+509  
+510    FUNCTION get_valid_run_state(p_run_state IN NUMBER)
+511  	 RETURN NUMBER
+512    IS
+513    BEGIN
+514  	 IF p_run_state IN ( sosl_constants.RUN_STATE_WAITING
+515  			   , sosl_constants.RUN_STATE_ENQUEUED
+516  			   , sosl_constants.RUN_STATE_STARTED
+517  			   , sosl_constants.RUN_STATE_RUNNING
+518  			   , sosl_constants.RUN_STATE_FINISHED
+519  			   , sosl_constants.RUN_STATE_ERROR
+520  			   )
+521  	 THEN
+522  	   RETURN p_run_state;
+523  	 ELSE
+524  	   sosl_log.minimal_error_log('sosl_util.get_valid_run_state', 'SOSL_UTIL', 'Run state ' || p_run_state || ' not supported.');
+525  	   RETURN sosl_constants.RUN_STATE_ERROR;
+526  	 END IF;
+527    EXCEPTION
+528  	 WHEN OTHERS THEN
+529  	   sosl_log.exception_log('sosl_util.get_valid_run_state', 'SOSL_UTIL', SQLERRM);
+530  	   RETURN -1;
+531    END get_valid_run_state;
+532  
+533  END;
+534  /
 
 Package body created.
 
@@ -4502,67 +4571,97 @@ SQL> CREATE OR REPLACE PACKAGE sosl_api
   4    * This package contains SOSL API functions and procedures to be used by executors.
   5    */
   6  
-  7    /** Function SOSL_API.SET_CONFIG
-  8    * Sets an existing configuration value for a given configuration name.
+  7    /* FUNCTION SOSL_API.GET_PAYLOAD
+  8    * Builds a SOSL_PAYLOAD object from the given run id. Wrapper for SOSL_SYS.
   9    *
- 10    * @return Exit code, either 0 = successful or -1 on error.
- 11    */
- 12    FUNCTION set_config( p_config_name  IN VARCHAR2
- 13  			  , p_config_value IN VARCHAR2
- 14  			  )
- 15  	 RETURN NUMBER
+ 10    * @param p_run_id The run id to get the SOSL_PAYLOAD object for.
+ 11    *
+ 12    * @return On success a valid SOSL_PAYLOAD object or NULL on errors.
+ 13    */
+ 14    FUNCTION get_payload(p_run_id IN NUMBER)
+ 15  	 RETURN SOSL_PAYLOAD
  16    ;
  17  
- 18    /** Function SOSL_API.GET_CONFIG
- 19    * Gets an existing configuration value for a given and existing case sensitive configuration name.
+ 18    /** Function SOSL_API.SET_CONFIG
+ 19    * Sets an existing configuration value for a given configuration name.
  20    *
- 21    * @return The configured value as VARCHAR2 or -1 string on error.
+ 21    * @return Exit code, either 0 = successful or -1 on error.
  22    */
- 23    FUNCTION get_config(p_config_name IN VARCHAR2)
- 24  	 RETURN VARCHAR2
- 25    ;
- 26  
- 27  
- 28    /** Function SOSL_API.BASE_PATH
- 29    * Returns the base path to use for the given run id. Used to switch the run base path for scripts
- 30    * running from a different directory.
+ 23    FUNCTION set_config( p_config_name  IN VARCHAR2
+ 24  			  , p_config_value IN VARCHAR2
+ 25  			  )
+ 26  	 RETURN NUMBER
+ 27    ;
+ 28  
+ 29    /** Function SOSL_API.GET_CONFIG
+ 30    * Gets an existing configuration value for a given and existing case sensitive configuration name.
  31    *
- 32    * @return The configured full base path or a simple point for current directory if nothing is configured.
+ 32    * @return The configured value as VARCHAR2 or -1 string on error.
  33    */
- 34    FUNCTION base_path(p_run_id IN NUMBER)
+ 34    FUNCTION get_config(p_config_name IN VARCHAR2)
  35  	 RETURN VARCHAR2
  36    ;
  37  
- 38    /** Function SOSL_API.CFG_PATH
- 39    * Returns the relative configuration path to use for the given run id. A sosl_login.cfg file is expected
- 40    * at the given location.
- 41    *
- 42    * @return The configured relative configuration path or the configured default set by the sosl server.
- 43    */
- 44    FUNCTION cfg_path(p_run_id IN NUMBER)
- 45  	 RETURN VARCHAR2
- 46    ;
- 47  
- 48    /** Function SOSL_API.TMP_PATH
- 49    * Returns the relative temporary path to use for the given run id.
- 50    *
- 51    * @return The configured relative temporary path or the configured default set by the sosl server.
- 52    */
- 53    FUNCTION tmp_path(p_run_id IN NUMBER)
- 54  	 RETURN VARCHAR2
- 55    ;
- 56  
- 57    /** Function SOSL_API.LOG_PATH
- 58    * Returns the relative log path to use for the given run id.
- 59    *
- 60    * @return The configured relative log path or the configured default set by the sosl server.
- 61    */
- 62    FUNCTION log_path(p_run_id IN NUMBER)
- 63  	 RETURN VARCHAR2
- 64    ;
- 65  
- 66  END;
- 67  /
+ 38  
+ 39    /** Function SOSL_API.BASE_PATH
+ 40    * Returns the base path to use for the given run id. Used to switch the run base path for scripts
+ 41    * running from a different directory.
+ 42    *
+ 43    * @return The configured full base path or a simple point for current directory if nothing is configured.
+ 44    */
+ 45    FUNCTION base_path(p_run_id IN NUMBER)
+ 46  	 RETURN VARCHAR2
+ 47    ;
+ 48  
+ 49    /** Function SOSL_API.CFG_PATH
+ 50    * Returns the relative configuration path to use for the given run id. A sosl_login.cfg file is expected
+ 51    * at the given location.
+ 52    *
+ 53    * @return The configured relative configuration path or the configured default set by the sosl server.
+ 54    */
+ 55    FUNCTION cfg_path(p_run_id IN NUMBER)
+ 56  	 RETURN VARCHAR2
+ 57    ;
+ 58  
+ 59    /** Function SOSL_API.TMP_PATH
+ 60    * Returns the relative temporary path to use for the given run id.
+ 61    *
+ 62    * @return The configured relative temporary path or the configured default set by the sosl server.
+ 63    */
+ 64    FUNCTION tmp_path(p_run_id IN NUMBER)
+ 65  	 RETURN VARCHAR2
+ 66    ;
+ 67  
+ 68    /** Function SOSL_API.LOG_PATH
+ 69    * Returns the relative log path to use for the given run id.
+ 70    *
+ 71    * @return The configured relative log path or the configured default set by the sosl server.
+ 72    */
+ 73    FUNCTION log_path(p_run_id IN NUMBER)
+ 74  	 RETURN VARCHAR2
+ 75    ;
+ 76  
+ 77    /* FUNCTION SOSL_API.DUMMY_MAIL
+ 78    * This is a testing function that will NOT send any mail. It will log the mail message created in SOSL_SERVER_LOG using
+ 79    * the field full_message, so output can be controlled.
+ 80    *
+ 81    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
+ 82    * @param p_recipients The semicolon separated list of mail recipient addresses.
+ 83    * @param p_subject A preferablly short subject for the mail.
+ 84    * @param p_message The correctly formatted mail message.
+ 85    *
+ 86    * @return Will return TRUE on success or FALSE on errors.
+ 87    */
+ 88    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
+ 89  			  , p_recipients  IN VARCHAR2
+ 90  			  , p_subject	  IN VARCHAR2
+ 91  			  , p_message	  IN VARCHAR2
+ 92  			  )
+ 93  	 RETURN BOOLEAN
+ 94    ;
+ 95  
+ 96  END;
+ 97  /
 
 Package created.
 
@@ -4572,55 +4671,95 @@ SQL> -- Not allowed to be used as AI training material without explicite permiss
 SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
   2  AS
   3    -- for description see header file
-  4  
-  5    FUNCTION set_config( p_config_name  IN VARCHAR2
-  6  			  , p_config_value IN VARCHAR2
-  7  			  )
-  8  	 RETURN NUMBER
-  9    IS
- 10    BEGIN
- 11  	 RETURN NULL;
- 12    END set_config;
- 13  
- 14    FUNCTION get_config(p_config_name IN VARCHAR2)
- 15  	 RETURN VARCHAR2
- 16    IS
- 17    BEGIN
- 18  	 RETURN NULL;
- 19    END get_config;
- 20  
- 21    FUNCTION base_path(p_run_id IN NUMBER)
- 22  	 RETURN VARCHAR2
+  4    FUNCTION get_payload(p_run_id IN NUMBER)
+  5  	 RETURN SOSL_PAYLOAD
+  6    IS
+  7  	 l_sosl_payload  SOSL_PAYLOAD;
+  8    BEGIN
+  9  	 l_sosl_payload := sosl_sys.get_payload(p_run_id);
+ 10  	 RETURN l_sosl_payload;
+ 11    EXCEPTION
+ 12  	 WHEN OTHERS THEN
+ 13  	   -- log the error instead of RAISE
+ 14  	   sosl_log.exception_log('sosl_api.get_payload', 'SOSL_API', SQLERRM);
+ 15  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+ 16  	   RETURN NULL;
+ 17    END get_payload;
+ 18  
+ 19    FUNCTION set_config( p_config_name  IN VARCHAR2
+ 20  			  , p_config_value IN VARCHAR2
+ 21  			  )
+ 22  	 RETURN NUMBER
  23    IS
  24    BEGIN
  25  	 RETURN NULL;
- 26    END base_path;
+ 26    END set_config;
  27  
- 28    FUNCTION cfg_path(p_run_id IN NUMBER)
+ 28    FUNCTION get_config(p_config_name IN VARCHAR2)
  29  	 RETURN VARCHAR2
  30    IS
  31    BEGIN
  32  	 RETURN NULL;
- 33    END cfg_path;
+ 33    END get_config;
  34  
- 35    FUNCTION tmp_path(p_run_id IN NUMBER)
+ 35    FUNCTION base_path(p_run_id IN NUMBER)
  36  	 RETURN VARCHAR2
  37    IS
  38    BEGIN
  39  	 RETURN NULL;
- 40    END tmp_path;
+ 40    END base_path;
  41  
- 42    FUNCTION log_path(p_run_id IN NUMBER)
+ 42    FUNCTION cfg_path(p_run_id IN NUMBER)
  43  	 RETURN VARCHAR2
  44    IS
  45    BEGIN
  46  	 RETURN NULL;
- 47    END log_path;
+ 47    END cfg_path;
  48  
- 49  END;
- 50  /
+ 49    FUNCTION tmp_path(p_run_id IN NUMBER)
+ 50  	 RETURN VARCHAR2
+ 51    IS
+ 52    BEGIN
+ 53  	 RETURN NULL;
+ 54    END tmp_path;
+ 55  
+ 56    FUNCTION log_path(p_run_id IN NUMBER)
+ 57  	 RETURN VARCHAR2
+ 58    IS
+ 59    BEGIN
+ 60  	 RETURN NULL;
+ 61    END log_path;
+ 62  
+ 63    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
+ 64  			  , p_recipients  IN VARCHAR2
+ 65  			  , p_subject	  IN VARCHAR2
+ 66  			  , p_message	  IN VARCHAR2
+ 67  			  )
+ 68  	 RETURN BOOLEAN
+ 69    IS
+ 70  	 l_result  NUMBER;
+ 71  	 l_return  BOOLEAN;
+ 72    BEGIN
+ 73  	 l_result  := sosl_util.dummy_mail(p_sender, p_recipients, p_subject, p_message);
+ 74  	 l_return  := (l_result = 0);
+ 75  	 RETURN l_return;
+ 76    EXCEPTION
+ 77  	 WHEN OTHERS THEN
+ 78  	   -- log the error instead of RAISE
+ 79  	   sosl_log.exception_log('sosl_api.dummy_mail', 'SOSL_API', SQLERRM);
+ 80  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+ 81  	   RETURN FALSE;
+ 82    END dummy_mail;
+ 83  
+ 84  END;
+ 85  /
 
 Package body created.
+
+SQL> -- grants
+SQL> GRANT EXECUTE ON sosl_api TO sosl_executor;
+
+Grant succeeded.
 
 SQL> @@../sosl_ddl/packages/sosl_if.pks
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
@@ -4654,42 +4793,34 @@ SQL> CREATE OR REPLACE PACKAGE sosl_if
  26    /** Function SOSL_IF.SET_SCRIPT_STATUS
  27    * Sets the status of a script. To be defined in SOSL_EXECUTOR.
  28    *
- 29    * @param p_reference The reference to the script to update as SOSL_PAYLOAD containing executor_id, ext_script_id and script_file.
- 30    * @param p_status The status for the script to set. Status: 0 WAITING, 1 PREPARING, 2 ENQUEUED, 3 RUNNING, 4 SUCCESS, 5 ERROR.
- 31    * @param p_status_msg An optional message related to current status change, like error messages. SOSL will provide the identifier of SOSLERRORLOG in case of errors.
- 32    *
- 33    * @return 0 on success, -1 on errors.
- 34    */
- 35    FUNCTION set_script_status( p_reference	 IN SOSL_PAYLOAD
- 36  				 , p_status	 IN NUMBER
- 37  				 , p_status_msg  IN VARCHAR2 DEFAULT NULL
- 38  				 )
- 39  	 RETURN NUMBER
- 40    ;
- 41  
- 42    /* FUNCTION SOSL_IF.SEND_MAIL
- 43    * This function is mainly used for testing. In the default setting, it will only send the mail message to
- 44    * SOSL_SERVER_LOG.
- 45    *
- 46    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
- 47    * @param p_recipients The semicolon separated list of mail recipient addresses.
- 48    * @param p_subject A preferablly short subject for the mail.
- 49    * @param p_message The correctly formatted mail message.
- 50    * @param p_test_mode The default is test mode, set to FALSE if mail should be used.
- 51    *
- 52    * @return Will return 0 on success or -1 on errors.
- 53    */
- 54    FUNCTION send_mail( p_sender	 IN VARCHAR2
- 55  			 , p_recipients  IN VARCHAR2
- 56  			 , p_subject	 IN VARCHAR2
- 57  			 , p_message	 IN VARCHAR2
- 58  			 , p_test_mode	 IN BOOLEAN  DEFAULT TRUE
- 59  			 )
- 60  	 RETURN NUMBER
- 61    ;
- 62  
- 63  END;
- 64  /
+ 29    * @param p_run_id The valid run id of the script that should change run state.
+ 30    * @param p_status A valid status as defined in SOSL_CONSTANTS for run states.
+ 31    *
+ 32    * @return Return 0 if successful executed otherwise -1.
+ 33    */
+ 34    FUNCTION set_script_status( p_run_id IN NUMBER
+ 35  				 , p_status IN NUMBER
+ 36  				 )
+ 37  	 RETURN NUMBER
+ 38    ;
+ 39  
+ 40    /* FUNCTION SOSL_IF.SEND_MAIL
+ 41    * This interface function is mainly used for testing. In the default setting, it will only send the mail message to
+ 42    * SOSL_SERVER_LOG. To be defined in SOSL_EXECUTOR. Will be called on every status change, if mail is activated.
+ 43    *
+ 44    * @param p_run_id The valid run id of the script that should change run state.
+ 45    * @param p_status A valid status as defined in SOSL_CONSTANTS for run states.
+ 46    *
+ 47    * @return Return 0 if successful executed otherwise -1.
+ 48    */
+ 49    FUNCTION send_mail( p_run_id IN NUMBER
+ 50  			 , p_status IN NUMBER
+ 51  			 )
+ 52  	 RETURN NUMBER
+ 53    ;
+ 54  
+ 55  END;
+ 56  /
 
 Package created.
 
@@ -4702,54 +4833,183 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_if
   4    FUNCTION has_scripts
   5  	 RETURN NUMBER
   6    IS
-  7  	 l_return	     NUMBER;
-  8  	 l_self_log_category sosl_server_log.log_category%TYPE	 := 'HAS_SCRIPTS';
-  9  	 l_self_caller	     sosl_server_log.caller%TYPE	 := 'sosl_if.has_scripts';
- 10    BEGIN
- 11  	 SELECT COUNT(*)
- 12  	   INTO l_return
- 13  	   FROM sosl_if_script
- 14  	 ;
- 15  	 RETURN -1;
- 16    EXCEPTION
- 17  	 WHEN OTHERS THEN
- 18  	   -- log the error instead of RAISE
- 19  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
- 20  	   RETURN -1;
- 21    END has_scripts;
- 22  
- 23    FUNCTION get_next_script
- 24  	 RETURN SOSL_PAYLOAD
- 25    IS
- 26    BEGIN
- 27  	 RETURN NULL;
- 28    END get_next_script;
- 29  
- 30    FUNCTION set_script_status( p_reference	 IN SOSL_PAYLOAD
- 31  				 , p_status	 IN NUMBER
- 32  				 , p_status_msg  IN VARCHAR2 DEFAULT NULL
- 33  				 )
- 34  	 RETURN NUMBER
- 35    IS
- 36    BEGIN
- 37  	 RETURN -1;
- 38    END set_script_status;
- 39  
- 40    FUNCTION send_mail( p_sender	 IN VARCHAR2
- 41  			 , p_recipients  IN VARCHAR2
- 42  			 , p_subject	 IN VARCHAR2
- 43  			 , p_message	 IN VARCHAR2
- 44  			 , p_test_mode	 IN BOOLEAN  DEFAULT TRUE
- 45  			 )
- 46  	 RETURN NUMBER
- 47    IS
- 48  	 l_return  NUMBER;
- 49    BEGIN
- 50  	 RETURN sosl_util.dummy_mail(p_sender, p_recipients, p_subject, p_message);
- 51    END send_mail;
- 52  
- 53  END;
- 54  /
+  7  	 l_return NUMBER;
+  8    BEGIN
+  9  	 SELECT COUNT(*)
+ 10  	   INTO l_return
+ 11  	   FROM sosl_if_script
+ 12  		-- internal conditions about scripts ready to execute
+ 13  	  WHERE script_active = sosl_constants.NUM_YES
+ 14  	    AND run_state     = sosl_constants.RUN_STATE_WAITING
+ 15  		-- we need an assigned executor for the payload
+ 16  	    AND executor_id   IS NOT NULL
+ 17  	 ;
+ 18  	 RETURN l_return;
+ 19    EXCEPTION
+ 20  	 WHEN OTHERS THEN
+ 21  	   -- log the error instead of RAISE
+ 22  	   sosl_log.exception_log('sosl_if.has_scripts', 'SOSL_IF', SQLERRM);
+ 23  	   RETURN -1;
+ 24    END has_scripts;
+ 25  
+ 26    FUNCTION get_next_script
+ 27  	 RETURN SOSL_PAYLOAD
+ 28    IS
+ 29  	 l_payload	 SOSL_PAYLOAD;
+ 30  	 l_executor_id	 NUMBER;
+ 31  	 l_ext_script_id VARCHAR2(4000);
+ 32  	 l_script_file	 VARCHAR2(4000);
+ 33  	 CURSOR cur_script_data
+ 34  	 IS
+ 35  	   SELECT executor_id
+ 36  		, TRIM(TO_CHAR(script_id)) AS ext_script_id
+ 37  		, script_name AS script_file
+ 38  	     FROM sosl_if_script
+ 39  		  -- internal conditions about scripts ready to execute
+ 40  	    WHERE script_active = sosl_constants.NUM_YES
+ 41  	      AND run_state	= sosl_constants.RUN_STATE_WAITING
+ 42  		  -- we need an assigned executor for the payload
+ 43  	      AND executor_id	IS NOT NULL
+ 44  		  -- adjust the order in which scripts get delivered
+ 45  	    ORDER BY run_group
+ 46  		   , run_order
+ 47  	 ;
+ 48    BEGIN
+ 49  	 l_payload := NULL;
+ 50  	 -- check if we have scripts
+ 51  	 IF sosl_if.has_scripts > 0
+ 52  	 THEN
+ 53  	   -- fetch only the first record, statement apart from order is identical to has_scripts statement
+ 54  	   OPEN cur_script_data;
+ 55  	   FETCH cur_script_data INTO l_executor_id, l_ext_script_id, l_script_file;
+ 56  	   CLOSE cur_script_data;
+ 57  	   -- you may want to add checks for the payload data before building the SOSL_PAYLOAD
+ 58  	   l_payload := SOSL_PAYLOAD(l_executor_id, l_ext_script_id, l_script_file);
+ 59  	 ELSE
+ 60  	   -- log error information
+ 61  	   sosl_log.minimal_error_log('sosl_if.get_next_script', 'SOSL_IF', 'get_next_script called without having scripts to run');
+ 62  	   l_payload := NULL;
+ 63  	 END IF;
+ 64  	 RETURN l_payload;
+ 65    EXCEPTION
+ 66  	 WHEN OTHERS THEN
+ 67  	   -- log the error instead of RAISE
+ 68  	   sosl_log.exception_log('sosl_if.get_next_script', 'SOSL_IF', SQLERRM);
+ 69  	   RETURN NULL;
+ 70    END get_next_script;
+ 71  
+ 72    FUNCTION set_script_status( p_run_id IN NUMBER
+ 73  				 , p_status IN NUMBER
+ 74  				 )
+ 75  	 RETURN NUMBER
+ 76    IS
+ 77  	 PRAGMA AUTONOMOUS_TRANSACTION;
+ 78  	 l_return      NUMBER;
+ 79  	 l_script_id   NUMBER;
+ 80  	 l_executor_id NUMBER;
+ 81  	 l_payload     SOSL_PAYLOAD;
+ 82    BEGIN
+ 83  	 l_return := -1;
+ 84  	 -- get payload for own identifiers as send by get_next_script
+ 85  	 l_payload := sosl_api.get_payload(p_run_id);
+ 86  	 IF l_payload IS NOT NULL
+ 87  	 THEN
+ 88  	   -- transform to internal type
+ 89  	   l_script_id	 := TRIM(TO_NUMBER(l_payload.ext_script_id));
+ 90  	   l_executor_id := l_payload.executor_id;
+ 91  	   -- update internal script table
+ 92  	   UPDATE sosl_if_script
+ 93  	      SET run_state = p_status
+ 94  	    WHERE script_id    = l_script_id
+ 95  	      AND executor_id  = l_executor_id
+ 96  	   ;
+ 97  	   COMMIT;
+ 98  	   l_return := 0;
+ 99  	 ELSE
+100  	   -- log error information
+101  	   sosl_log.minimal_error_log('sosl_if.set_script_status', 'SOSL_IF', 'Invalid SOSL_PAYLOAD for run_id: ' || p_run_id || ' and run state ' || p_status);
+102  	   l_return := -1;
+103  	 END IF;
+104  	 RETURN l_return;
+105    EXCEPTION
+106  	 WHEN OTHERS THEN
+107  	   -- log the error instead of RAISE
+108  	   sosl_log.exception_log('sosl_if.set_script_status', 'SOSL_IF', SQLERRM);
+109  	   RETURN -1;
+110    END set_script_status;
+111  
+112    FUNCTION send_mail( p_run_id IN NUMBER
+113  			 , p_status IN NUMBER
+114  			 )
+115  	 RETURN NUMBER
+116    IS
+117  	 l_return	 NUMBER;
+118  	 l_mail_subject  VARCHAR2(256);
+119  	 l_mail_body	 VARCHAR2(32767);
+120  	 l_sender	 VARCHAR2(128);
+121  	 l_recipients	 VARCHAR2(1024);
+122  	 l_payload	 SOSL_PAYLOAD;
+123    BEGIN
+124  	 l_return := -1;
+125  	 -- define basic objects
+126  	 l_mail_subject  := 'SOSL ' || sosl_constants.run_state_text(p_status) || ' ';
+127  	 l_sender	 := 'fake_sender@fake_domain.com';
+128  	 l_recipients	 := 'fake_recipient_group@fake_domain.com; fake_recipient_special@fake_domain.com';
+129  	 -- get payload for own identifiers as send by get_next_script
+130  	 l_payload := sosl_api.get_payload(p_run_id);
+131  	 IF l_payload IS NOT NULL
+132  	 THEN
+133  	   -- prepare mail
+134  	   l_mail_subject  := l_mail_subject || 'Script: ' || TRIM(l_payload.script_file);
+135  	   -- format mail body RFC conform, use LF, CR is also valid, but NOT CRLF
+136  	   l_mail_body	   := 'Dear SOSL user' || sosl_constants.LF || sosl_constants.LF ||
+137  			      CASE
+138  				WHEN p_status = sosl_constants.RUN_STATE_ERROR
+139  				THEN 'An ERROR happened during script execution.'
+140  				ELSE 'The state of the script execution has changed to ' || sosl_constants.run_state_text(p_status)
+141  			      END || sosl_constants.LF ||
+142  			      'Script: ' || l_payload.script_file || sosl_constants.LF ||
+143  			      'Executor ID: ' || l_payload.executor_id || sosl_constants.LF ||
+144  			      'Script ID: ' || l_payload.ext_script_id || sosl_constants.LF ||
+145  			      'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || sosl_constants.LF ||
+146  			      sosl_constants.LF ||
+147  			      'Best regards' || sosl_constants.LF ||
+148  			      'Your SOSL team'|| sosl_constants.LF ||
+149  			      sosl_constants.LF ||
+150  			      'Contact fake_admin@fake_domain.com for more information.'
+151  	   ;
+152  	 ELSE
+153  	   -- we still have data for the mail
+154  	   l_mail_subject := l_mail_subject || 'RUN_ID: ' || p_run_id;
+155  	   l_mail_body	   := 'Dear SOSL user' || sosl_constants.LF || sosl_constants.LF ||
+156  			      'An SEVERE ERROR happened during script execution.' || sosl_constants.LF ||
+157  			      'Script cannot be identified or SOSL_API.GET_PAYLOAD has failed.' || sosl_constants.LF ||
+158  			      'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || sosl_constants.LF ||
+159  			      'Intended state change to: ' || sosl_constants.run_state_text(p_status) || sosl_constants.LF ||
+160  			      sosl_constants.LF ||
+161  			      'Best regards' || sosl_constants.LF ||
+162  			      'Your SOSL team'|| sosl_constants.LF ||
+163  			      sosl_constants.LF ||
+164  			      'Contact fake_admin@fake_domain.com for more information.'
+165  	   ;
+166  	 END IF;
+167  	 IF sosl_api.dummy_mail(l_sender, l_recipients, l_mail_subject, l_mail_body)
+168  	 THEN
+169  	   l_return := 0;
+170  	 ELSE
+171  	   sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'Could not send fake mail to log.');
+172  	   l_return := -1;
+173  	 END IF;
+174  	 RETURN l_return;
+175    EXCEPTION
+176  	 WHEN OTHERS THEN
+177  	   -- log the error instead of RAISE
+178  	   sosl_log.exception_log('sosl_if.send_mail', 'SOSL_IF', SQLERRM);
+179  	   RETURN -1;
+180    END send_mail;
+181  
+182  END;
+183  /
 
 Package body created.
 
@@ -4927,18 +5187,19 @@ SQL> CREATE OR REPLACE TRIGGER sosl_config_del_trg
  17  			      , 'SOSL_DEFAULT_WAIT'
  18  			      , 'SOSL_NOJOB_WAIT'
  19  			      , 'SOSL_PAUSE_WAIT'
- 20  			      )
- 21    THEN
- 22  	 sosl_log.minimal_error_log( 'sosl_config_del_trg'
- 23  				   , 'SOSL_CONFIG'
- 24  				   , '-20004 The given system config_name "' || :OLD.config_name || '" cannot be deleted.'
- 25  				   , 'Forbidden delete of config name for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
- 26  				   )
- 27  	 ;
- 28  	 RAISE_APPLICATION_ERROR(-20004, 'The given system config_name "' || :OLD.config_name || '" cannot be deleted.');
- 29    END IF;
- 30  END;
- 31  /
+ 20  			      , 'SOSL_SERVER_STATE'
+ 21  			      )
+ 22    THEN
+ 23  	 sosl_log.minimal_error_log( 'sosl_config_del_trg'
+ 24  				   , 'SOSL_CONFIG'
+ 25  				   , '-20004 The given system config_name "' || :OLD.config_name || '" cannot be deleted.'
+ 26  				   , 'Forbidden delete of config name for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+ 27  				   )
+ 28  	 ;
+ 29  	 RAISE_APPLICATION_ERROR(-20004, 'The given system config_name "' || :OLD.config_name || '" cannot be deleted.');
+ 30    END IF;
+ 31  END;
+ 32  /
 
 Trigger created.
 
@@ -5291,7 +5552,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_run_queue_upd_trg
  33  	      AND :NEW.run_state != sosl_constants.RUN_STATE_WAITING
  34  	   THEN
  35  	     -- log it
- 36  	     sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Wrong state transition: ' || sosl_util.run_state_text(:OLD.run_state) || ' not allowed to change to ' || sosl_util.run_state_text(:NEW.run_state) || '. State set to ERROR.');
+ 36  	     sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Wrong state transition: ' || sosl_constants.run_state_text(:OLD.run_state) || ' not allowed to change to ' || sosl_constants.run_state_text(:NEW.run_state) || '. State set to ERROR.');
  37  	     -- ignore invalid run state, set state to error
  38  	     :NEW.run_state := sosl_constants.RUN_STATE_ERROR;
  39  	   ELSE
@@ -5299,7 +5560,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_run_queue_upd_trg
  41  	     IF :NEW.run_state != (:OLD.run_state + 1)
  42  	     THEN
  43  	       -- log it
- 44  	       sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Wrong state transition: ' || sosl_util.run_state_text(:OLD.run_state) || ' not allowed to change to ' || sosl_util.run_state_text(:NEW.run_state) || '. State set to ERROR.');
+ 44  	       sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Wrong state transition: ' || sosl_constants.run_state_text(:OLD.run_state) || ' not allowed to change to ' || sosl_constants.run_state_text(:NEW.run_state) || '. State set to ERROR.');
  45  	       -- ignore invalid run state, set state to error
  46  	       :NEW.run_state := sosl_constants.RUN_STATE_ERROR;
  47  	     END IF;
@@ -5487,7 +5748,14 @@ SQL> INSERT INTO sosl_config
 
 1 row created.
 
-SQL> 
+SQL> INSERT INTO sosl_config
+  2    (config_name, config_value, config_description)
+  3    VALUES
+  4    ('SOSL_SERVER_STATE', 'INACTIVE', 'Information only. SOSL server sets this flag to ACTIVE if started, INACTIVE if stopped and PAUSE if waiting. If server is broken, the state is probably not reflecting the real server state.')
+  5  ;
+
+1 row created.
+
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_max_length, config_description)
   3    VALUES

@@ -289,3 +289,5 @@ AS
 
 END;
 /
+-- grants
+GRANT EXECUTE ON sosl_log TO sosl_executor;

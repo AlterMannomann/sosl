@@ -27,7 +27,11 @@ INSERT INTO sosl_config
   VALUES
   ('SOSL_PAUSE_WAIT', '3600', 'NUMBER', 'Determines the sleep time in seconds the sosl server has between calls if run mode is set to wait.')
 ;
-
+INSERT INTO sosl_config
+  (config_name, config_value, config_description)
+  VALUES
+  ('SOSL_SERVER_STATE', 'INACTIVE', 'Information only. SOSL server sets this flag to ACTIVE if started, INACTIVE if stopped and PAUSE if waiting. If server is broken, the state is probably not reflecting the real server state.')
+;
 INSERT INTO sosl_config
   (config_name, config_value, config_max_length, config_description)
   VALUES

@@ -29,36 +29,28 @@ AS
   /** Function SOSL_IF.SET_SCRIPT_STATUS
   * Sets the status of a script. To be defined in SOSL_EXECUTOR.
   *
-  * @param p_reference The reference to the script to update as SOSL_PAYLOAD containing executor_id, ext_script_id and script_file.
-  * @param p_status The status for the script to set. Status: 0 WAITING, 1 PREPARING, 2 ENQUEUED, 3 RUNNING, 4 SUCCESS, 5 ERROR.
-  * @param p_status_msg An optional message related to current status change, like error messages. SOSL will provide the identifier of SOSLERRORLOG in case of errors.
+  * @param p_run_id The valid run id of the script that should change run state.
+  * @param p_status A valid status as defined in SOSL_CONSTANTS for run states.
   *
-  * @return 0 on success, -1 on errors.
+  * @return Return 0 if successful executed otherwise -1.
   */
-  FUNCTION set_script_status( p_reference   IN SOSL_PAYLOAD
-                            , p_status      IN NUMBER
-                            , p_status_msg  IN VARCHAR2 DEFAULT NULL
+  FUNCTION set_script_status( p_run_id IN NUMBER
+                            , p_status IN NUMBER
                             )
     RETURN NUMBER
   ;
 
   /* FUNCTION SOSL_IF.SEND_MAIL
-  * This function is mainly used for testing. In the default setting, it will only send the mail message to
-  * SOSL_SERVER_LOG.
+  * This interface function is mainly used for testing. In the default setting, it will only send the mail message to
+  * SOSL_SERVER_LOG. To be defined in SOSL_EXECUTOR. Will be called on every status change, if mail is activated.
   *
-  * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
-  * @param p_recipients The semicolon separated list of mail recipient addresses.
-  * @param p_subject A preferablly short subject for the mail.
-  * @param p_message The correctly formatted mail message.
-  * @param p_test_mode The default is test mode, set to FALSE if mail should be used.
+  * @param p_run_id The valid run id of the script that should change run state.
+  * @param p_status A valid status as defined in SOSL_CONSTANTS for run states.
   *
-  * @return Will return 0 on success or -1 on errors.
+  * @return Return 0 if successful executed otherwise -1.
   */
-  FUNCTION send_mail( p_sender      IN VARCHAR2
-                    , p_recipients  IN VARCHAR2
-                    , p_subject     IN VARCHAR2
-                    , p_message     IN VARCHAR2
-                    , p_test_mode   IN BOOLEAN  DEFAULT TRUE
+  FUNCTION send_mail( p_run_id IN NUMBER
+                    , p_status IN NUMBER
                     )
     RETURN NUMBER
   ;

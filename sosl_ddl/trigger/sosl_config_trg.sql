@@ -87,6 +87,7 @@ BEGIN
                          , 'SOSL_DEFAULT_WAIT'
                          , 'SOSL_NOJOB_WAIT'
                          , 'SOSL_PAUSE_WAIT'
+                         , 'SOSL_SERVER_STATE'
                          )
   THEN
     sosl_log.minimal_error_log( 'sosl_config_del_trg'

@@ -12,7 +12,7 @@ CREATE TABLE sosl_executor
   , fn_set_script_status  VARCHAR2(520)                                             NOT NULL
   , cfg_file              VARCHAR2(4000)                                            NOT NULL
   , use_mail              NUMBER(1, 0)    DEFAULT 0                                 NOT NULL
-  , fn_send_db_mail       VARCHAR2(520)   DEFAULT 'sosl_log.dummy_mail'             NOT NULL
+  , fn_send_db_mail       VARCHAR2(520)   DEFAULT 'yourpackage.yourfunction'        NOT NULL
   , executor_active       NUMBER(1, 0)    DEFAULT 0                                 NOT NULL
   , executor_reviewed     NUMBER(1, 0)    DEFAULT 0                                 NOT NULL
   , created               DATE            DEFAULT SYSDATE                           NOT NULL

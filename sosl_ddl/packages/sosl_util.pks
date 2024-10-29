@@ -277,19 +277,6 @@ AS
     PARALLEL_ENABLE
   ;
 
-  /* FUNCTION SOSL_UTIL.run_state_text
-  * Returns the text interpretation (english) for the supported run states.
-  *
-  * @param p_run_state The numerical run state to express as text.
-  *
-  * @return The text equation for the given run state or sosl_constants.GEN_NA_TYPE on errors.
-  */
-  FUNCTION run_state_text(p_run_state IN NUMBER)
-    RETURN VARCHAR2
-    DETERMINISTIC
-    PARALLEL_ENABLE
-  ;
-
   /* FUNCTION SOSL_UTIL.OBJECT_DATE
   * Works only for objects in the current schema, using USER_OBJECTS. Will return the LAST_DDL_TIME or the NA date type
   * from SOSL_CONSTANTS if the object could not be found. Object type has to conform to object types used in USER_OBJECTS.

@@ -3,6 +3,35 @@
 CREATE OR REPLACE PACKAGE BODY sosl_constants
 AS
   -- for description see header file
+
+  FUNCTION run_state_text(p_run_state IN NUMBER)
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  IS
+    l_return VARCHAR2(30);
+  BEGIN
+    l_return := CASE p_run_state
+                  WHEN sosl_constants.RUN_STATE_WAITING
+                  THEN 'Waiting'
+                  WHEN sosl_constants.RUN_STATE_ENQUEUED
+                  THEN 'Enqueued'
+                  WHEN sosl_constants.RUN_STATE_STARTED
+                  THEN 'Started'
+                  WHEN sosl_constants.RUN_STATE_RUNNING
+                  THEN 'Running'
+                  WHEN sosl_constants.RUN_STATE_FINISHED
+                  THEN 'Finished'
+                  WHEN sosl_constants.RUN_STATE_ERROR
+                  THEN 'ERROR'
+                  ELSE sosl_constants.GEN_NA_TYPE
+                END;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      RETURN sosl_constants.GEN_NA_TYPE;
+  END run_state_text;
+
   FUNCTION get_log_error_type
     RETURN VARCHAR2
     DETERMINISTIC
@@ -191,6 +220,33 @@ AS
   BEGIN
     RETURN sosl_constants.RUN_STATE_ERROR;
   END get_run_state_error;
+
+  FUNCTION get_lf
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  IS
+  BEGIN
+    RETURN sosl_constants.LF;
+  END get_lf;
+
+  FUNCTION get_cr
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  IS
+  BEGIN
+    RETURN sosl_constants.CR;
+  END get_cr;
+
+  FUNCTION get_crlf
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  IS
+  BEGIN
+    RETURN sosl_constants.CRLF;
+  END get_crlf;
 
 END;
 /

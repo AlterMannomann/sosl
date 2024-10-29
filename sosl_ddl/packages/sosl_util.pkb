@@ -477,35 +477,6 @@ AS
       RETURN sosl_constants.GEN_NA_TYPE;
   END yes_no;
 
-  FUNCTION run_state_text(p_run_state IN NUMBER)
-    RETURN VARCHAR2
-    DETERMINISTIC
-    PARALLEL_ENABLE
-  IS
-    l_return VARCHAR2(30);
-  BEGIN
-    l_return := CASE p_run_state
-                  WHEN sosl_constants.RUN_STATE_WAITING
-                  THEN 'Waiting'
-                  WHEN sosl_constants.RUN_STATE_ENQUEUED
-                  THEN 'Enqueued'
-                  WHEN sosl_constants.RUN_STATE_STARTED
-                  THEN 'Started'
-                  WHEN sosl_constants.RUN_STATE_RUNNING
-                  THEN 'Running'
-                  WHEN sosl_constants.RUN_STATE_FINISHED
-                  THEN 'Finished'
-                  WHEN sosl_constants.RUN_STATE_ERROR
-                  THEN 'ERROR'
-                  ELSE sosl_constants.GEN_NA_TYPE || ' run state unknown'
-                END;
-    RETURN l_return;
-  EXCEPTION
-    WHEN OTHERS THEN
-      sosl_log.exception_log('sosl_util.run_state_text', 'SOSL_UTIL', SQLERRM);
-      RETURN sosl_constants.GEN_NA_TYPE;
-  END run_state_text;
-
   FUNCTION object_date( p_object_name IN VARCHAR2
                       , p_object_type IN VARCHAR2
                       )
