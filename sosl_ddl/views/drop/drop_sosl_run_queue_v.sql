@@ -1,0 +1,1 @@
+DROP VIEW sosl_run_queue_v;

@@ -22,7 +22,7 @@ SPOOL logs/sosl_setup.log
 @@../sosl_ddl/tables/sosl_server_log.sql
 -- SOSL objects basic objects
 @@../sosl_ddl/tables/sosl_config.sql
-@@../sosl_ddl/tables/sosl_executor.sql
+@@../sosl_ddl/tables/sosl_executor_definition.sql
 @@../sosl_ddl/tables/sosl_run_queue.sql
 -- internal interface objects using the API
 @@../sosl_ddl/tables/sosl_if_script.sql
@@ -45,11 +45,14 @@ SPOOL logs/sosl_setup.log
 -- table trigger using packages and tables defined
 @@../sosl_ddl/trigger/sosl_server_log_trg.sql
 @@../sosl_ddl/trigger/sosl_config_trg.sql
-@@../sosl_ddl/trigger/sosl_executor_trg.sql
+@@../sosl_ddl/trigger/sosl_executor_definition_trg.sql
 @@../sosl_ddl/trigger/sosl_run_queue_trg.sql
 @@../sosl_ddl/trigger/sosl_if_script_trg.sql
 -- wrapper functions
 @@../sosl_ddl/functions/has_scripts.sql
+-- views
+@@../sosl_ddl/views/sosl_run_queue_v.sql
+-- load basic config data
 @@sosl_config_defaults.sql
 -- ==============INSTALL done==============
 @@../sosl_sql/util/log_silent.sql

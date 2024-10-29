@@ -1,3 +1,9 @@
+SQL> -- view objects
+SQL> @@../sosl_ddl/views/drop/drop_sosl_run_queue_v.sql
+SQL> DROP VIEW sosl_run_queue_v;
+
+View dropped.
+
 SQL> -- packages and functions
 SQL> @@../sosl_ddl/functions/drop/drop_has_scripts.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
@@ -104,7 +110,6 @@ SQL> DROP PACKAGE sosl_constants;
 
 Package dropped.
 
-SQL> -- view objects
 SQL> -- table objects including associated table trigger
 SQL> @@../sosl_ddl/tables/drop/drop_sosl_if_script.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
@@ -120,10 +125,10 @@ SQL> DROP TABLE sosl_run_queue PURGE;
 
 Table dropped.
 
-SQL> @@../sosl_ddl/tables/drop/drop_sosl_executor.sql
+SQL> @@../sosl_ddl/tables/drop/drop_sosl_executor_definition.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> DROP TABLE sosl_executor PURGE;
+SQL> DROP TABLE sosl_executor_definition PURGE;
 
 Table dropped.
 

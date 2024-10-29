@@ -188,7 +188,7 @@ AS
   ;
 
   /* FUNCTION SOSL_SYS.IS_EXECUTOR
-  * Checks if the given executor id exists in SOSL_EXECUTOR. Errors will be logged.
+  * Checks if the given executor id exists in SOSL_EXECUTOR_DEFINITION. Errors will be logged.
   *
   * @param p_executor_id The id of the executor to check.
   *
@@ -200,7 +200,7 @@ AS
 
   /**
   * This package contains the main functions and procedures used by the Simple Oracle Script Loader to handle executors and scripts.
-  * It is not allowed to use this package for function assignments in SOSL_EXECUTOR.
+  * It is not allowed to use this package for function assignments in SOSL_EXECUTOR_DEFINITION.
   */
 
   /*FUNCTION SOSL_SYS.HAS_VALID_EXECUTORS

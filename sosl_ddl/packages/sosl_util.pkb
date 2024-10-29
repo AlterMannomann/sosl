@@ -72,7 +72,12 @@ AS
        AND owner                      = UPPER(p_owner)
        AND NVL(package_name, 'N/A')   = NVL(UPPER(l_package), 'N/A')    -- may not contain a package name
        AND object_name                = UPPER(l_function)
-       AND package_name              != 'SOSL'                          -- exclude base package should never be referenced
+       AND package_name               NOT IN ( 'SOSL_SYS'               -- exclude internal packages that should never be referenced
+                                             , 'SOSL_UTIL'
+                                             , 'SOSL_LOG'
+                                             , 'SOSL_CONSTANTS'
+                                             , 'SOSL_API'
+                                             )
     ;
     IF l_has_function != 0
     THEN

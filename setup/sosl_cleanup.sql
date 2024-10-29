@@ -12,6 +12,8 @@ SET ERRORLOGGING ON
 SET ERRORLOGGING ON IDENTIFIER &IDENT
 -- ==============UNINSTALL start==============
 SPOOL logs/sosl_cleanup.log
+-- view objects
+@@../sosl_ddl/views/drop/drop_sosl_run_queue_v.sql
 -- packages and functions
 @@../sosl_ddl/functions/drop/drop_has_scripts.sql
 @@../sosl_ddl/packages/drop/drop_sosl_if_pkb.sql
@@ -26,11 +28,10 @@ SPOOL logs/sosl_cleanup.log
 @@../sosl_ddl/packages/drop/drop_sosl_log_pks.sql
 @@../sosl_ddl/packages/drop/drop_sosl_constants_pkb.sql
 @@../sosl_ddl/packages/drop/drop_sosl_constants_pks.sql
--- view objects
 -- table objects including associated table trigger
 @@../sosl_ddl/tables/drop/drop_sosl_if_script.sql
 @@../sosl_ddl/tables/drop/drop_sosl_run_queue.sql
-@@../sosl_ddl/tables/drop/drop_sosl_executor.sql
+@@../sosl_ddl/tables/drop/drop_sosl_executor_definition.sql
 @@../sosl_ddl/tables/drop/drop_sosl_config.sql
 @@../sosl_ddl/tables/drop/drop_sosl_server_log.sql
 @@../sosl_ddl/tables/drop/drop_soslerrorlog.sql

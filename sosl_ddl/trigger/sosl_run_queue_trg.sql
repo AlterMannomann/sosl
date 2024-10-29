@@ -42,7 +42,7 @@ BEGIN
   :NEW.started        := NULL;
   :NEW.started_by     := NULL;
   :NEW.started_by_os  := NULL;
-  :NEW.running        := NULL;
+  :NEW.running_since  := NULL;
   :NEW.running_by     := NULL;
   :NEW.running_by_os  := NULL;
   -- log the insert
@@ -126,7 +126,7 @@ BEGIN
         :NEW.started_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
         :NEW.started_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
       WHEN sosl_constants.RUN_STATE_RUNNING THEN
-        :NEW.running        := SYSTIMESTAMP;
+        :NEW.running_since  := SYSTIMESTAMP;
         :NEW.running_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
         :NEW.running_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
       WHEN sosl_constants.RUN_STATE_FINISHED THEN
@@ -151,7 +151,7 @@ BEGIN
     :NEW.started        := :OLD.started;
     :NEW.started_by     := :OLD.started_by;
     :NEW.started_by_os  := :OLD.started_by_os;
-    :NEW.running        := :OLD.running;
+    :NEW.running_since  := :OLD.running_since;
     :NEW.running_by     := :OLD.running_by;
     :NEW.running_by_os  := :OLD.running_by_os;
     :NEW.finished       := :OLD.finished;

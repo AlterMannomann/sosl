@@ -158,6 +158,8 @@ On database level several roles are available: SOSL_ADMIN, SOSL_EXECUTOR, SOSL_R
 
 The application manages necessary role grants for configured function owners. Only reviewed executors will get roles granted, otherwise
 roles, if exist, get revoked.
+
+Grant any privilege needed to the role SOSL_EXECUTOR instead of granting it directly to SOSL schema.
 ## Disclaimer
 Use this software at your own risk. No liabilities or warranties are given, no support is guaranteed. Any result of executing this software is under the responsibility of the legal entity using this software. For details see license.
 
