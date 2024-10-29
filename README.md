@@ -90,14 +90,14 @@ The defined function is used by SOSL and must return a valid SOSL_PAYLOAD object
     Interface Definition: FUNCTION get_next_script RETURN SOSL.SOSL_PAYLOAD;
 
 ### set_script_status
-Task: Provide details to the interface provider about the current script status. On success should return 0 otherwise -1. If script status cannot be set, the related executor is deactivated. With run id the current details of the script run can be fetched from SOSL_RUN_QUEUE. The function will get the intended state. The current state in SOSL_RUN_QUEUE may differ, if errors happened. Corrent state handling is up to the function provider.
+Task: Provide details to the interface provider about the current script status. On success should return 0 otherwise -1. If script status cannot be set, the related executor is deactivated. With run id the current details of the script run can be fetched from SOSL_RUN_QUEUE. The function will get the intended state. The current state in SOSL_RUN_QUEUE may differ, if errors happened. Current state handling is up to the function provider.
 
     Wrapper FUNCTION set_script_status( p_run_id  IN NUMBER
                                       , p_status  IN NUMBER
                                       )
               RETURN NUMBER;
 
-### Send Mail
+### send_db_mail
 Task: Provide details to the interface provider about the current script status. On success should return 0 otherwise -1. Building and sending the mail is up to the interface function.
 
 If mail is activated, the defined function is called on every state change. The function will get the intended state. The current state in SOSL_RUN_QUEUE may differ, if errors happened.
