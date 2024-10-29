@@ -2,7 +2,7 @@
 -- Not allowed to be used as AI training material without explicite permission.
 
 -- default executor
-INSERT INTO sosl_executor
+INSERT INTO sosl_executor_definition
   ( executor_name
   , db_user
   , function_owner
@@ -25,25 +25,25 @@ INSERT INTO sosl_executor
          )
 ;
 COMMIT;
-INSERT INTO sosl_if_script 
+INSERT INTO sosl_if_script
   ( script_name
   , script_active
-  , executor_id 
+  , executor_id
   )
   SELECT '..\sosl_tests\sosl_sql\sosl_hello_world.sql' AS script_name
        , 1 AS script_active
        , executor_id
-    FROM sosl_executor 
+    FROM sosl_executor_definition
    WHERE executor_name = 'SOSL'
 ;
 COMMIT;
 
-UPDATE sosl_executor 
+UPDATE sosl_executor_definition
    SET fn_send_db_mail = 'sosl_if.send_mail'
- WHERE executor_name = 'SOSL'  
+ WHERE executor_name = 'SOSL'
 ;
 COMMIT;
-UPDATE sosl_executor
+UPDATE sosl_executor_definition
    SET executor_active = 1
      , executor_reviewed = 1
      , use_mail = 1

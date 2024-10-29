@@ -20,7 +20,7 @@ CREATE TABLE sosl_if_script
   )
 ;
 -- description
-COMMENT ON TABLE sosl_if_script IS 'Internal interface table that holds the script file names that should be executed by SOSL. Used for tests and simple batch script setups. No logic control in triggers apart from insert and update dates and users. Will use the alias scrt.';
+COMMENT ON TABLE sosl_if_script IS 'Internal interface table that holds the script file names that should be executed by SOSL. Used for tests and simple batch script setups. No logic control in triggers apart from insert and update dates and users. Will use the alias sis.';
 COMMENT ON COLUMN sosl_if_script.script_id IS 'The generated unique id of the script file.';
 COMMENT ON COLUMN sosl_if_script.executor_id IS 'The optional related executor id of the script file. If defined, must match an existing executor. If not defined, script is ignored.';
 COMMENT ON COLUMN sosl_if_script.script_name IS 'The name of the script file including full or relative path. Use relative path (relative to batch_base_path or repository location) to ensure running scripts from different machines.';
@@ -54,7 +54,7 @@ ALTER TABLE sosl_if_script
 ALTER TABLE sosl_if_script
   ADD CONSTRAINT sosl_if_script_fk
   FOREIGN KEY (executor_id)
-  REFERENCES sosl_executor (executor_id)
+  REFERENCES sosl_executor_definition (executor_id)
   ON DELETE SET NULL
   ENABLE
 ;

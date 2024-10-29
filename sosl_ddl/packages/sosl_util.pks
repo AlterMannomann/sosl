@@ -33,8 +33,8 @@ AS
   ;
 
   /* FUNCTION SOSL_UTIL.HAS_FUNCTION
-  * Checks if a given function or package function name is visible for SOSL by checking ALL_ATTRIBUTES. The package SOSL_API is
-  * excluded from the search to avoid references in SOSL_EXECUTOR.
+  * Checks if a given function or package function name is visible for SOSL by checking ALL_ATTRIBUTES. Internal SOSL packages,
+  * apart from SOSL_IF% packages, are excluded from the search to avoid self references.
   *
   * @param p_owner The owner of the function or package function name to check.
   * @param p_function_name The function or package function name to check. Package functions must be qualified with the package name, e.g. my_package.my_function.

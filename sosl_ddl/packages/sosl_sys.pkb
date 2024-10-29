@@ -10,7 +10,7 @@ AS
   BEGIN
     SELECT COUNT(*)
       INTO l_return
-      FROM sosl_executor
+      FROM sosl_executor_definition
      WHERE executor_active   = sosl_constants.NUM_YES
        AND executor_reviewed = sosl_constants.NUM_YES
     ;
@@ -78,7 +78,7 @@ AS
     IS
       SELECT executor_id
            , function_owner
-        FROM sosl_executor
+        FROM sosl_executor_definition
        WHERE function_owner = cp_function_owner
          AND fn_has_scripts = cp_function_name
     ;
@@ -88,7 +88,7 @@ AS
     FOR rec IN cur_deactivate(p_function_owner, p_fn_has_scripts)
     LOOP
       -- disable executor
-      UPDATE sosl_executor
+      UPDATE sosl_executor_definition
          SET executor_active    = sosl_constants.NUM_NO
            , executor_reviewed  = sosl_constants.NUM_NO
        WHERE executor_id = rec.executor_id
@@ -126,7 +126,7 @@ AS
     IS
       SELECT executor_id
            , function_owner
-        FROM sosl_executor
+        FROM sosl_executor_definition
        WHERE function_owner     = cp_function_owner
          AND fn_get_next_script = cp_function_name
     ;
@@ -136,7 +136,7 @@ AS
     FOR rec IN cur_deactivate(p_function_owner, p_fn_get_next_script)
     LOOP
       -- disable executor
-      UPDATE sosl_executor
+      UPDATE sosl_executor_definition
          SET executor_active    = sosl_constants.NUM_NO
            , executor_reviewed  = sosl_constants.NUM_NO
        WHERE executor_id = rec.executor_id
@@ -174,7 +174,7 @@ AS
     IS
       SELECT executor_id
            , function_owner
-        FROM sosl_executor
+        FROM sosl_executor_definition
        WHERE function_owner       = cp_function_owner
          AND fn_set_script_status = cp_function_name
     ;
@@ -184,7 +184,7 @@ AS
     FOR rec IN cur_deactivate(p_function_owner, p_fn_set_script_status)
     LOOP
       -- disable executor
-      UPDATE sosl_executor
+      UPDATE sosl_executor_definition
          SET executor_active    = sosl_constants.NUM_NO
            , executor_reviewed  = sosl_constants.NUM_NO
        WHERE executor_id = rec.executor_id
@@ -222,7 +222,7 @@ AS
     IS
       SELECT executor_id
            , function_owner
-        FROM sosl_executor
+        FROM sosl_executor_definition
        WHERE function_owner  = cp_function_owner
          AND fn_send_db_mail = cp_function_name
     ;
@@ -232,7 +232,7 @@ AS
     FOR rec IN cur_deactivate(p_function_owner, p_fn_send_db_mail)
     LOOP
       -- disable executor
-      UPDATE sosl_executor
+      UPDATE sosl_executor_definition
          SET executor_active    = sosl_constants.NUM_NO
            , executor_reviewed  = sosl_constants.NUM_NO
        WHERE executor_id = rec.executor_id
@@ -317,7 +317,7 @@ AS
     IS
       SELECT function_owner
            , fn_has_scripts
-        FROM sosl_executor
+        FROM sosl_executor_definition
        WHERE executor_active   = sosl_constants.NUM_YES
          AND executor_reviewed = sosl_constants.NUM_YES
        GROUP BY function_owner
@@ -377,7 +377,7 @@ AS
     l_return := FALSE;
     SELECT COUNT(*)
       INTO l_valid_count
-      FROM sosl_executor
+      FROM sosl_executor_definition
      WHERE executor_id        = p_executor_id
        AND executor_active    = sosl_constants.NUM_YES
        AND executor_reviewed  = sosl_constants.NUM_YES
@@ -399,7 +399,7 @@ AS
     l_return := FALSE;
     SELECT COUNT(*)
       INTO l_valid_count
-      FROM sosl_executor
+      FROM sosl_executor_definition
      WHERE executor_id        = p_executor_id
     ;
     l_return := (l_valid_count != 0);
@@ -553,10 +553,10 @@ AS
   IS
     l_return                BOOLEAN;
     l_num_result            NUMBER;
-    l_function_owner        sosl_executor.function_owner%TYPE;
-    l_fn_set_script_status  sosl_executor.fn_set_script_status%TYPE;
-    l_fn_send_db_mail       sosl_executor.fn_send_db_mail%TYPE;
-    l_use_mail              sosl_executor.use_mail%TYPE;
+    l_function_owner        sosl_executor_definition.function_owner%TYPE;
+    l_fn_set_script_status  sosl_executor_definition.fn_set_script_status%TYPE;
+    l_fn_send_db_mail       sosl_executor_definition.fn_send_db_mail%TYPE;
+    l_use_mail              sosl_executor_definition.use_mail%TYPE;
     l_statement             VARCHAR2(4000);
     l_self_log_category     sosl_server_log.log_category%TYPE := 'SOSL_SYS';
     l_self_caller           sosl_server_log.caller%TYPE       := 'sosl_sys.signal_status_change';
@@ -565,17 +565,17 @@ AS
     IF sosl_sys.has_run_id(p_run_id)
     THEN
       -- get the defined function to signal the status change
-      SELECT sexe.function_owner
-           , sexe.fn_set_script_status
-           , sexe.fn_send_db_mail
-           , sexe.use_mail
+      SELECT sed.function_owner
+           , sed.fn_set_script_status
+           , sed.fn_send_db_mail
+           , sed.use_mail
         INTO l_function_owner
            , l_fn_set_script_status
            , l_fn_send_db_mail
            , l_use_mail
         FROM sosl_run_queue srqu
-       INNER JOIN sosl_executor sexe
-          ON srqu.executor_id = sexe.executor_id
+       INNER JOIN sosl_executor_definition sed
+          ON srqu.executor_id = sed.executor_id
        WHERE srqu.run_id = p_run_id
       ;
       l_statement := sosl_sys.build_signal_call(l_function_owner, l_fn_set_script_status, p_run_id, p_status);
@@ -769,7 +769,7 @@ AS
     IS
       SELECT function_owner
            , fn_get_next_script
-        FROM sosl_executor
+        FROM sosl_executor_definition
        WHERE executor_active   = sosl_constants.NUM_YES
          AND executor_reviewed = sosl_constants.NUM_YES
        GROUP BY function_owner

@@ -10,7 +10,7 @@ CREATE TABLE sosl_run_queue
   , waiting         TIMESTAMP
   , enqueued        TIMESTAMP
   , started         TIMESTAMP
-  , running         TIMESTAMP
+  , running_since   TIMESTAMP
   , finished        TIMESTAMP
   , created_by      VARCHAR2(256)   DEFAULT USER                              NOT NULL
   , created_by_os   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
@@ -26,7 +26,7 @@ CREATE TABLE sosl_run_queue
   , finished_by_os  VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
   )
 ;
-COMMENT ON TABLE sosl_run_queue IS 'This table hold old and new runs of batch plans and the execution run state of each script. Granularity is single script. This is not a message queue. Will use the alias srqu.';
+COMMENT ON TABLE sosl_run_queue IS 'This table hold old and new runs of batch plans and the execution run state of each script. Granularity is single script. This is not a message queue. Will use the alias srq.';
 COMMENT ON COLUMN sosl_run_queue.run_id IS 'Generated unique id for a batch run script.';
 COMMENT ON COLUMN sosl_run_queue.run_state IS 'Holds the run state: 0 Waiting, 1 Enqueued, 2 Started, 3 Running, 4 Finished, -1 Error. To rerun a job, set run_state to 1. Will not be accepted if executor is not active and reviewed. Script dependencies are not checked. Can only be 0 or -1 on insert, managed by trigger';
 COMMENT ON COLUMN sosl_run_queue.executor_id IS 'The valid executor id as returned from API (NUMBER). No updates allowed, surpressed by trigger.';
@@ -36,7 +36,7 @@ COMMENT ON COLUMN sosl_run_queue.created IS 'The date of record creation. No upd
 COMMENT ON COLUMN sosl_run_queue.waiting IS 'The last date of setting the script run state to waiting (0). On insert this is the default managed by trigger.';
 COMMENT ON COLUMN sosl_run_queue.enqueued IS 'The last date of setting the script run state to enqueued (1).';
 COMMENT ON COLUMN sosl_run_queue.started IS 'The last date of setting the script run state to started (2).';
-COMMENT ON COLUMN sosl_run_queue.running IS 'The last date of setting the script run state to running (3).';
+COMMENT ON COLUMN sosl_run_queue.running_since IS 'The last date of setting the script run state to running (3).';
 COMMENT ON COLUMN sosl_run_queue.finished IS 'The last date of setting the script run state to finished or error (4, -1).';
 COMMENT ON COLUMN sosl_run_queue.created_by IS 'DB user who created the record, managed by default and trigger.';
 COMMENT ON COLUMN sosl_run_queue.created_by_os IS 'OS user who created the record, managed by default and trigger.';
@@ -65,6 +65,6 @@ ALTER TABLE sosl_run_queue
 ALTER TABLE sosl_run_queue
   ADD CONSTRAINT sosl_run_queue_executor_id_fk
   FOREIGN KEY (executor_id)
-  REFERENCES sosl_executor (executor_id)
+  REFERENCES sosl_executor_definition (executor_id)
   ON DELETE SET NULL
 ;

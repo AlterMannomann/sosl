@@ -9,7 +9,7 @@ AS
   */
 
   /** Function SOSL_IF.HAS_SCRIPTS
-  * Determines if script ids are available to be executed. To be defined in SOSL_EXECUTOR.
+  * Determines if script ids are available to be executed. To be defined in SOSL_EXECUTOR_DEFINITION.
   *
   * @return The number of script ids waiting for execution.
   */
@@ -18,7 +18,7 @@ AS
   ;
 
   /** Function SOSL_IF.GET_NEXT_SCRIPT
-  * Returns the next script id to execute. To be defined in SOSL_EXECUTOR.
+  * Returns the next script id to execute. To be defined in SOSL_EXECUTOR_DEFINITION.
   *
   * @return The id of the next script to execute.
   */
@@ -27,7 +27,7 @@ AS
   ;
 
   /** Function SOSL_IF.SET_SCRIPT_STATUS
-  * Sets the status of a script. To be defined in SOSL_EXECUTOR.
+  * Sets the status of a script. To be defined in SOSL_EXECUTOR_DEFINITION.
   *
   * @param p_run_id The valid run id of the script that should change run state.
   * @param p_status A valid status as defined in SOSL_CONSTANTS for run states.
@@ -42,7 +42,7 @@ AS
 
   /* FUNCTION SOSL_IF.SEND_MAIL
   * This interface function is mainly used for testing. In the default setting, it will only send the mail message to
-  * SOSL_SERVER_LOG. To be defined in SOSL_EXECUTOR. Will be called on every status change, if mail is activated.
+  * SOSL_SERVER_LOG. To be defined in SOSL_EXECUTOR_DEFINITION. Will be called on every status change, if mail is activated.
   *
   * @param p_run_id The valid run id of the script that should change run state.
   * @param p_status A valid status as defined in SOSL_CONSTANTS for run states.

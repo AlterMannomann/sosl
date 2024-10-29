@@ -13,7 +13,7 @@ CREATE OR REPLACE TYPE sosl_payload
     *   l_sosl_payload := sosl_payload(1, 'My script ID', '../../mydir/scriptfile.sql');
     * END;
     */
-    ( executor_id    NUMBER(38, 0)  -- the executor_id from SOSL_EXECUTOR responsible for the script
+    ( executor_id    NUMBER(38, 0)  -- the executor_id from SOSL_EXECUTOR_DEFINITION responsible for the script
     , ext_script_id  VARCHAR2(4000) -- the external script id managed by the executor
     , script_file    VARCHAR2(4000) -- the script file name with full or relative path on the server where SOSL is running locally
     )
