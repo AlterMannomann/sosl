@@ -477,35 +477,6 @@ AS
       RETURN sosl_constants.GEN_NA_TYPE;
   END yes_no;
 
-  FUNCTION run_state_text(p_run_state IN NUMBER)
-    RETURN VARCHAR2
-    DETERMINISTIC
-    PARALLEL_ENABLE
-  IS
-    l_return VARCHAR2(30);
-  BEGIN
-    l_return := CASE p_run_state
-                  WHEN sosl_constants.RUN_STATE_WAITING
-                  THEN 'Waiting'
-                  WHEN sosl_constants.RUN_STATE_ENQUEUED
-                  THEN 'Enqueued'
-                  WHEN sosl_constants.RUN_STATE_STARTED
-                  THEN 'Started'
-                  WHEN sosl_constants.RUN_STATE_RUNNING
-                  THEN 'Running'
-                  WHEN sosl_constants.RUN_STATE_FINISHED
-                  THEN 'Finished'
-                  WHEN sosl_constants.RUN_STATE_ERROR
-                  THEN 'ERROR'
-                  ELSE sosl_constants.GEN_NA_TYPE || ' run state unknown'
-                END;
-    RETURN l_return;
-  EXCEPTION
-    WHEN OTHERS THEN
-      sosl_log.exception_log('sosl_util.run_state_text', 'SOSL_UTIL', SQLERRM);
-      RETURN sosl_constants.GEN_NA_TYPE;
-  END run_state_text;
-
   FUNCTION object_date( p_object_name IN VARCHAR2
                       , p_object_type IN VARCHAR2
                       )
@@ -537,6 +508,29 @@ AS
       sosl_log.exception_log('sosl_util.object_date', 'SOSL_UTIL', SQLERRM);
       RETURN sosl_constants.GEN_NA_DATE_TYPE;
   END object_date;
+
+  FUNCTION get_valid_run_state(p_run_state IN NUMBER)
+    RETURN NUMBER
+  IS
+  BEGIN
+    IF p_run_state IN ( sosl_constants.RUN_STATE_WAITING
+                      , sosl_constants.RUN_STATE_ENQUEUED
+                      , sosl_constants.RUN_STATE_STARTED
+                      , sosl_constants.RUN_STATE_RUNNING
+                      , sosl_constants.RUN_STATE_FINISHED
+                      , sosl_constants.RUN_STATE_ERROR
+                      )
+    THEN
+      RETURN p_run_state;
+    ELSE
+      sosl_log.minimal_error_log('sosl_util.get_valid_run_state', 'SOSL_UTIL', 'Run state ' || p_run_state || ' not supported.');
+      RETURN sosl_constants.RUN_STATE_ERROR;
+    END IF;
+  EXCEPTION
+    WHEN OTHERS THEN
+      sosl_log.exception_log('sosl_util.get_valid_run_state', 'SOSL_UTIL', SQLERRM);
+      RETURN -1;
+  END get_valid_run_state;
 
 END;
 /

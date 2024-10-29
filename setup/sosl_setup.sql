@@ -25,7 +25,7 @@ SPOOL logs/sosl_setup.log
 @@../sosl_ddl/tables/sosl_executor.sql
 @@../sosl_ddl/tables/sosl_run_queue.sql
 -- internal interface objects using the API
-@@../sosl_ddl/tables/sosl_script.sql
+@@../sosl_ddl/tables/sosl_if_script.sql
 -- package with no dependency on SOSL objects
 @@../sosl_ddl/packages/sosl_constants.pks
 @@../sosl_ddl/packages/sosl_constants.pkb
@@ -47,9 +47,10 @@ SPOOL logs/sosl_setup.log
 @@../sosl_ddl/trigger/sosl_config_trg.sql
 @@../sosl_ddl/trigger/sosl_executor_trg.sql
 @@../sosl_ddl/trigger/sosl_run_queue_trg.sql
-@@../sosl_ddl/trigger/sosl_script_trg.sql
+@@../sosl_ddl/trigger/sosl_if_script_trg.sql
 -- wrapper functions
 @@../sosl_ddl/functions/has_scripts.sql
+@@sosl_config_defaults.sql
 -- ==============INSTALL done==============
 @@../sosl_sql/util/log_silent.sql
 -- check errors and display them, if so

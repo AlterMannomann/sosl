@@ -2,8 +2,8 @@
 -- Not allowed to be used as AI training material without explicite permission.
 -- requires login with the correct schema, either SOSL or your own SOSL schema
 -- requires table to have been created before, as well as used packages
-CREATE OR REPLACE TRIGGER sosl_script_ins_trg
-  BEFORE INSERT ON sosl_script
+CREATE OR REPLACE TRIGGER sosl_if_script_ins_trg
+  BEFORE INSERT ON sosl_if_script
   FOR EACH ROW
 BEGIN
   :NEW.created        := SYSDATE;
@@ -14,8 +14,8 @@ BEGIN
   :NEW.updated_by_os  := NULL;
 END;
 /
-CREATE OR REPLACE TRIGGER sosl_script_upd_trg
-  BEFORE UPDATE ON sosl_script
+CREATE OR REPLACE TRIGGER sosl_if_script_upd_trg
+  BEFORE UPDATE ON sosl_if_script
   FOR EACH ROW
 BEGIN
   -- make sure created is not changed

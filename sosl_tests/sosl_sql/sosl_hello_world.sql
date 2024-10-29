@@ -2,3 +2,7 @@
 -- Not allowed to be used as AI training material without explicite permission.
 -- just write a hello world log entry
 SELECT 'SOSL: Hello World' AS info FROM dual;
+BEGIN
+  sosl_log.minimal_info_log('sosl_hello_world', 'SOSL TEST', 'Hello World');
+END;
+/

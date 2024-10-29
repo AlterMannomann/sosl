@@ -78,6 +78,10 @@ Package body dropped.
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_log_pks.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> REVOKE EXECUTE ON sosl_log FROM sosl_executor;
+
+Revoke succeeded.
+
 SQL> DROP PACKAGE sosl_log;
 
 Package dropped.
@@ -92,16 +96,20 @@ Package body dropped.
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_constants_pks.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> REVOKE EXECUTE ON sosl_constants FROM sosl_user;
+
+Revoke succeeded.
+
 SQL> DROP PACKAGE sosl_constants;
 
 Package dropped.
 
 SQL> -- view objects
 SQL> -- table objects including associated table trigger
-SQL> @@../sosl_ddl/tables/drop/drop_sosl_script.sql
+SQL> @@../sosl_ddl/tables/drop/drop_sosl_if_script.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> DROP TABLE sosl_script PURGE;
+SQL> DROP TABLE sosl_if_script PURGE;
 
 Table dropped.
 

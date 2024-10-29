@@ -18,12 +18,12 @@ AS
   -- Generic n/a type. Should be different from table defaults like 'not set' as table triggers interpret their DDL default value as fallback
   -- to set default values using package variables, which is not supported in table DDL by Oracle using DEFAULT. Packages may use variables
   -- from other packages in DEFAULT declarations.
-  GEN_NA_TYPE           CONSTANT CHAR(3)  := 'n/a';
-  GEN_NA_DATE_TYPE      CONSTANT DATE     := TO_DATE('01.01.1900', 'DD.MM.YYYY');
-  GEN_NA_TIMESTAMP_TYPE CONSTANT DATE     := TO_TIMESTAMP('01.01.1900', 'DD.MM.YYYY');
-  GEN_DATE_FORMAT       CONSTANT CHAR(21) := 'YYYY-MM-DD HH24:MI:SS';
-  GEN_TIMESTAMP_FORMAT  CONSTANT CHAR(21) := 'YYYY-MM-DD HH24:MI:SS.FF';
-  GEN_NULL_TEXT         CONSTANT CHAR(4)  := 'NULL';
+  GEN_NA_TYPE           CONSTANT CHAR(3)    := 'n/a';
+  GEN_NA_DATE_TYPE      CONSTANT DATE       := TO_DATE('01.01.1900', 'DD.MM.YYYY');
+  GEN_NA_TIMESTAMP_TYPE CONSTANT TIMESTAMP  := TO_TIMESTAMP('01.01.1900', 'DD.MM.YYYY');
+  GEN_DATE_FORMAT       CONSTANT CHAR(21)   := 'YYYY-MM-DD HH24:MI:SS';
+  GEN_TIMESTAMP_FORMAT  CONSTANT CHAR(24)   := 'YYYY-MM-DD HH24:MI:SS.FF';
+  GEN_NULL_TEXT         CONSTANT CHAR(4)    := 'NULL';
   -- numerical equations to TRUE/YES and FALSE/NO
   NUM_YES               CONSTANT INTEGER  := 1;
   NUM_NO                CONSTANT INTEGER  := 0;
@@ -38,7 +38,25 @@ AS
   RUN_STATE_RUNNING     CONSTANT INTEGER  := 3;
   RUN_STATE_FINISHED    CONSTANT INTEGER  := 4;
   RUN_STATE_ERROR       CONSTANT INTEGER  := -1;
+  -- formatting
+  LF                    CONSTANT CHAR(1)  := CHR(10);
+  CR                    CONSTANT CHAR(1)  := CHR(13);
+  CRLF                  CONSTANT CHAR(2)  := CHR(13) || CHR(10);
   /*====================================== end package constants used by SOSL ======================================*/
+
+  /* FUNCTION SOSL_CONSTANTS.run_state_text
+  * Returns the text interpretation (english) for the supported run states.
+  *
+  * @param p_run_state The numerical run state to express as text.
+  *
+  * @return The text equation for the given run state or sosl_constants.GEN_NA_TYPE on errors.
+  */
+  FUNCTION run_state_text(p_run_state IN NUMBER)
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  ;
+
   -- All get_ functions only return the defined constant, no extra code. Constant name prefixed with GET_.
   FUNCTION get_log_error_type
     RETURN VARCHAR2
@@ -145,6 +163,23 @@ AS
     DETERMINISTIC
     PARALLEL_ENABLE
   ;
+  FUNCTION get_lf
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  ;
+  FUNCTION get_cr
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  ;
+  FUNCTION get_crlf
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  ;
 
 END;
 /
+-- grants
+GRANT EXECUTE ON sosl_constants TO sosl_user;
