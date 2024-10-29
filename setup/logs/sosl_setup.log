@@ -524,16 +524,16 @@ SQL> CREATE TABLE sosl_run_queue
  12    , finished	 TIMESTAMP
  13    , created_by	 VARCHAR2(256)	 DEFAULT USER				   NOT NULL
  14    , created_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 15    , waiting_by	 VARCHAR2(256)	 DEFAULT USER				   NOT NULL
- 16    , waiting_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 17    , enqueued_by	 VARCHAR2(256)	 DEFAULT USER				   NOT NULL
- 18    , enqueued_by_os  VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 19    , started_by	 VARCHAR2(256)	 DEFAULT USER				   NOT NULL
- 20    , started_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 21    , running_by	 VARCHAR2(256)	 DEFAULT USER				   NOT NULL
- 22    , running_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 23    , finished_by	 VARCHAR2(256)	 DEFAULT USER				   NOT NULL
- 24    , finished_by_os  VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 15    , waiting_by	 VARCHAR2(256)	 DEFAULT USER
+ 16    , waiting_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
+ 17    , enqueued_by	 VARCHAR2(256)	 DEFAULT USER
+ 18    , enqueued_by_os  VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
+ 19    , started_by	 VARCHAR2(256)	 DEFAULT USER
+ 20    , started_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
+ 21    , running_by	 VARCHAR2(256)	 DEFAULT USER
+ 22    , running_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
+ 23    , finished_by	 VARCHAR2(256)	 DEFAULT USER
+ 24    , finished_by_os  VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
  25    )
  26  ;
 
@@ -3434,13 +3434,13 @@ SQL> CREATE OR REPLACE PACKAGE sosl_sys
 116    * Oracle would search with SOSL.myfunction not a function in the SOSL schema, it would search
 117    * myfunction in the package SOSL if executed dynamically.
 118    *
-119    * @param p_function_name The name of the function or package function.
-120    * @param p_function_owner If set, the function owner of the function. Will prefix the call.
+119    * @param p_function_owner If set, the function owner of the function. Will prefix the call.
+120    * @param p_function_name The name of the function or package function.
 121    *
 122    * @return A statement to retrieve the function call e.g. SELECT owner.function FROM dual.
 123    */
-124    FUNCTION build_script_call( p_function_name   IN VARCHAR2
-125  				 , p_function_owner  IN VARCHAR2 DEFAULT NULL
+124    FUNCTION build_script_call( p_function_owner  IN VARCHAR2
+125  				 , p_function_name   IN VARCHAR2
 126  				 )
 127  	 RETURN VARCHAR2
 128    ;
@@ -3458,15 +3458,15 @@ SQL> CREATE OR REPLACE PACKAGE sosl_sys
 140    * Oracle would search with SOSL.myfunction not a function in the SOSL schema, it would search
 141    * myfunction in the package SOSL if executed dynamically.
 142    *
-143    * @param p_function_name The name of the function or package function.
-144    * @param p_function_owner If set, the function owner of the function. Will prefix the call.
+143    * @param p_function_owner If set, the function owner of the function. Will prefix the call.
+144    * @param p_function_name The name of the function or package function.
 145    * @param p_run_id The first function parameter representing the run id.
 146    * @param p_status The second function parameter representing the status that should be set.
 147    *
 148    * @return A statement to retrieve the function call e.g. SELECT owner.function(1, 0) FROM dual.
 149    */
-150    FUNCTION build_signal_call( p_function_name   IN VARCHAR2
-151  				 , p_function_owner  IN VARCHAR2
+150    FUNCTION build_signal_call( p_function_owner  IN VARCHAR2
+151  				 , p_function_name   IN VARCHAR2
 152  				 , p_run_id	     IN NUMBER
 153  				 , p_status	     IN NUMBER
 154  				 )
@@ -3936,8 +3936,8 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_sys
 252  	   RETURN FALSE;
 253    END deactivate_by_fn_send_db_mail;
 254  
-255    FUNCTION build_script_call( p_function_name   IN VARCHAR2
-256  				 , p_function_owner  IN VARCHAR2 DEFAULT NULL
+255    FUNCTION build_script_call( p_function_owner  IN VARCHAR2
+256  				 , p_function_name   IN VARCHAR2
 257  				 )
 258  	 RETURN VARCHAR2
 259    IS
@@ -3957,8 +3957,8 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_sys
 273  	   RETURN 'SELECT -1 FROM dual';
 274    END build_script_call;
 275  
-276    FUNCTION build_signal_call( p_function_name   IN VARCHAR2
-277  				 , p_function_owner  IN VARCHAR2
+276    FUNCTION build_signal_call( p_function_owner  IN VARCHAR2
+277  				 , p_function_name   IN VARCHAR2
 278  				 , p_run_id	     IN NUMBER
 279  				 , p_status	     IN NUMBER
 280  				 )
@@ -4013,7 +4013,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_sys
 329  	 -- loop through functions
 330  	 FOR rec IN cur_fn_has_scripts
 331  	 LOOP
-332  	   l_statement := sosl_sys.build_script_call(rec.fn_has_scripts, rec.function_owner);
+332  	   l_statement := sosl_sys.build_script_call(rec.function_owner, rec.fn_has_scripts);
 333  	   BEGIN
 334  	     EXECUTE IMMEDIATE l_statement INTO l_count;
 335  	   EXCEPTION
@@ -4260,7 +4260,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_sys
 576  	       ON srqu.executor_id = sexe.executor_id
 577  	    WHERE srqu.run_id = p_run_id
 578  	   ;
-579  	   l_statement := sosl_sys.build_signal_call(l_fn_set_script_status, l_function_owner, p_run_id, p_status);
+579  	   l_statement := sosl_sys.build_signal_call(l_function_owner, l_fn_set_script_status, p_run_id, p_status);
 580  	   BEGIN
 581  	     EXECUTE IMMEDIATE l_statement INTO l_num_result;
 582  	     IF l_num_result = sosl_constants.NUM_SUCCESS
@@ -4276,7 +4276,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_sys
 592  	     -- if mail activated execute also the defined mail function
 593  	     IF l_use_mail = sosl_constants.NUM_YES
 594  	     THEN
-595  	       l_statement := sosl_sys.build_signal_call(l_fn_send_db_mail, l_function_owner, p_run_id, p_status);
+595  	       l_statement := sosl_sys.build_signal_call(l_function_owner, l_fn_send_db_mail, p_run_id, p_status);
 596  	       BEGIN
 597  		 EXECUTE IMMEDIATE l_statement INTO l_num_result;
 598  	       EXCEPTION
@@ -4385,7 +4385,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_sys
 701  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_sys.register_next_script';
 702    BEGIN
 703  	 l_return := FALSE;
-704  	 l_statement := sosl_sys.build_script_call(p_function_name, p_function_owner);
+704  	 l_statement := sosl_sys.build_script_call(p_function_owner, p_function_name);
 705  	 BEGIN
 706  	   EXECUTE IMMEDIATE l_statement INTO l_payload;
 707  	   IF	   sosl_sys.is_executor_valid(l_payload.executor_id)
@@ -4462,7 +4462,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_sys
 778  	 l_success := FALSE;
 779  	 FOR rec IN cur_fn_get_next_script
 780  	 LOOP
-781  	   IF sosl_sys.register_next_script(rec.function_owner, rec.fn_get_next_script)
+781  	   IF sosl_sys.register_next_script(rec.fn_get_next_script, rec.function_owner)
 782  	   THEN
 783  	     l_success := TRUE;
 784  	   END IF;
@@ -5350,7 +5350,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_ins_trg
  89    -- log the insert
  90    sosl_log.minimal_info_log( l_self_caller
  91  				, l_self_log_category
- 92  				, 'A new executor has been defined for DB user: ' || :NEW.db_user || ' with function owner: ' || :NEW.function_owner || ' created by OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+ 92  				, 'A new executor named ' || :NEW.executor_name || ' has been defined for DB user: ' || :NEW.db_user || ' with function owner: ' || :NEW.function_owner || '.'
  93  				)
  94    ;
  95  EXCEPTION
@@ -5378,128 +5378,129 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_upd_trg
   9    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
  10    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
  11    -- no overwrite for this values, log changes
- 12    sosl_log.log_column_change(:NEW.created, :OLD.created, 'SOSL_EXECUTOR.CREATED', l_self_caller);
+ 12    sosl_log.log_column_change(:OLD.created, :NEW.created, 'SOSL_EXECUTOR.CREATED', l_self_caller);
  13    :NEW.created := :OLD.created;
- 14    sosl_log.log_column_change(:NEW.created_by, :OLD.created_by, 'SOSL_EXECUTOR.CREATED_BY', l_self_caller);
+ 14    sosl_log.log_column_change(:OLD.created_by, :NEW.created_by, 'SOSL_EXECUTOR.CREATED_BY', l_self_caller);
  15    :NEW.created_by := :OLD.created_by;
- 16    sosl_log.log_column_change(:NEW.created_by_os, :OLD.created_by_os, 'SOSL_EXECUTOR.CREATED_BY_OS', l_self_caller);
+ 16    sosl_log.log_column_change(:OLD.created_by_os, :NEW.created_by_os, 'SOSL_EXECUTOR.CREATED_BY_OS', l_self_caller);
  17    :NEW.created_by_os := :OLD.created_by_os;
- 18    sosl_log.log_column_change(:NEW.function_owner, :OLD.function_owner, 'SOSL_EXECUTOR.FUNCTION_OWNER', l_self_caller);
+ 18    sosl_log.log_column_change(:OLD.function_owner, :NEW.function_owner, 'SOSL_EXECUTOR.FUNCTION_OWNER', l_self_caller);
  19    :NEW.function_owner := :OLD.function_owner;
- 20    sosl_log.log_column_change(:NEW.db_user, :OLD.db_user, 'SOSL_EXECUTOR.DB_USER', l_self_caller);
+ 20    sosl_log.log_column_change(:OLD.db_user, :NEW.db_user, 'SOSL_EXECUTOR.DB_USER', l_self_caller);
  21    :NEW.db_user := :OLD.db_user;
  22    -- prepare possibly modified values
- 23    sosl_log.log_column_change(:NEW.executor_active, :OLD.executor_active, 'SOSL_EXECUTOR.EXECUTOR_ACTIVE', l_self_caller, FALSE);
- 24    sosl_log.log_column_change(:NEW.executor_reviewed, :OLD.executor_reviewed, 'SOSL_EXECUTOR.EXECUTOR_REVIEWED', l_self_caller, FALSE);
- 25    sosl_log.log_column_change(:NEW.fn_has_scripts, :OLD.fn_has_scripts, 'SOSL_EXECUTOR.FN_HAS_SCRIPTS', l_self_caller, FALSE);
- 26    :NEW.fn_has_scripts := UPPER(:NEW.fn_has_scripts);
- 27    sosl_log.log_column_change(:NEW.fn_get_next_script, :OLD.fn_get_next_script, 'SOSL_EXECUTOR.FN_GET_NEXT_SCRIPT', l_self_caller, FALSE);
- 28    :NEW.fn_get_next_script := UPPER(:NEW.fn_get_next_script);
- 29    sosl_log.log_column_change(:NEW.fn_set_script_status, :OLD.fn_set_script_status, 'SOSL_EXECUTOR.FN_SET_SCRIPT_STATUS', l_self_caller, FALSE);
- 30    :NEW.fn_set_script_status := UPPER(:NEW.fn_set_script_status);
- 31    sosl_log.log_column_change(:NEW.fn_send_db_mail, :OLD.fn_send_db_mail, 'SOSL_EXECUTOR.FN_SEND_DB_MAIL', l_self_caller, FALSE);
- 32    :NEW.fn_send_db_mail := UPPER(:NEW.fn_send_db_mail);
- 33    -- do all checks again including user
- 34    -- check user
- 35    IF NOT sosl_util.has_db_user(:NEW.db_user)
- 36    THEN
- 37  	 sosl_log.minimal_error_log( l_self_caller
- 38  				   , l_self_log_category
- 39  				   , '-20005 The given database user "' || NVL(:NEW.db_user, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
- 40  				   , 'Wrong database user for SOSL_EXECUTOR table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
- 41  				   )
- 42  	 ;
- 43  	 RAISE_APPLICATION_ERROR(-20005, 'The given database user "' || NVL(:NEW.db_user, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
- 44    END IF;
- 45    IF NOT sosl_util.has_db_user(:NEW.function_owner)
- 46    THEN
- 47  	 sosl_log.minimal_error_log( l_self_caller
- 48  				   , l_self_log_category
- 49  				   , '-20006 The given function owner database user "' || NVL(:NEW.function_owner, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
- 50  				   , 'Wrong function owner for SOSL_EXECUTOR table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
- 51  				   )
- 52  	 ;
- 53  	 RAISE_APPLICATION_ERROR(-20006, 'The given function owner database user "' || NVL(:NEW.function_owner, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
- 54    END IF;
- 55    -- check configured functions
- 56    IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_has_scripts, 'NUMBER')
- 57    THEN
- 58  	 sosl_log.minimal_error_log( l_self_caller
- 59  				   , l_self_log_category
- 60  				   , '-20007 The given function "' || NVL(:NEW.fn_has_scripts, sosl_constants.GEN_NULL_TEXT) || '" for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
- 61  				   , 'Wrong function has_scripts for SOSL_EXECUTOR table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
- 62  				   )
- 63  	 ;
- 64  	 RAISE_APPLICATION_ERROR(-20007, 'The given function "' || NVL(:NEW.fn_has_scripts, sosl_constants.GEN_NULL_TEXT) || '" for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
- 65    END IF;
- 66    IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_get_next_script, 'OBJECT')
- 67    THEN
- 68  	 sosl_log.minimal_error_log( l_self_caller
- 69  				   , l_self_log_category
- 70  				   , '-20008 The given function "' || NVL(:NEW.fn_get_next_script, sosl_constants.GEN_NULL_TEXT) || '" for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to SOSL.'
- 71  				   , 'Wrong function get_next_script for SOSL_EXECUTOR table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
- 72  				   )
- 73  	 ;
- 74  	 RAISE_APPLICATION_ERROR(-20008, 'The given function "' || NVL(:NEW.fn_get_next_script, sosl_constants.GEN_NULL_TEXT) || '" for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to SOSL.');
- 75    END IF;
- 76    IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_set_script_status, 'NUMBER')
- 77    THEN
- 78  	 sosl_log.minimal_error_log( l_self_caller
- 79  				   , l_self_log_category
- 80  				   , '-20009 The given function "' || NVL(:NEW.fn_set_script_status, sosl_constants.GEN_NULL_TEXT) || '" for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
- 81  				   , 'Wrong function set_script_status for SOSL_EXECUTOR table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
- 82  				   )
- 83  	 ;
- 84  	 RAISE_APPLICATION_ERROR(-20009, 'The given function "' || NVL(:NEW.fn_set_script_status, sosl_constants.GEN_NULL_TEXT) || '" for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
- 85    END IF;
- 86    -- check mail
- 87    IF :NEW.use_mail = 1
- 88    THEN
- 89  	 IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_send_db_mail, 'NUMBER')
- 90  	 THEN
- 91  	   sosl_log.minimal_error_log( l_self_caller
- 92  				     , l_self_log_category
- 93  				     , '-20010 The given function "' || NVL(:NEW.fn_send_db_mail, sosl_constants.GEN_NULL_TEXT) || '" for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
- 94  				     , 'Wrong function send_db_mail for SOSL_EXECUTOR table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
- 95  				     )
- 96  	   ;
- 97  	   RAISE_APPLICATION_ERROR(-20010, 'The given function "' || NVL(:NEW.fn_send_db_mail, sosl_constants.GEN_NULL_TEXT) || '" for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
- 98  	 END IF;
- 99    END IF;
-100    -- check grants if active and reviewed
-101    IF      :NEW.executor_active    = sosl_constants.NUM_YES
-102  	  AND  :NEW.executor_reviewed  = sosl_constants.NUM_YES
-103    THEN
-104  	 IF    NOT sosl_util.grant_role(:NEW.db_user, 'SOSL_USER')
-105  	    OR NOT sosl_util.grant_role(:NEW.function_owner, 'SOSL_EXECUTOR')
-106  	 THEN
-107  	   -- could not check or grant role to database user or function owner
-108  	   sosl_log.minimal_error_log( l_self_caller
-109  				     , l_self_log_category
-110  				     , '-20012 Error granting necessary roles to db user (SOSL_USER) or function owner (SOSL_EXECUTOR). Check setup and roles. Probably grant the roles manually before trying update again.'
-111  				     , 'Failed granting necessary roles for SOSL_EXECUTOR table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
-112  				     )
-113  	   ;
-114  	   RAISE_APPLICATION_ERROR(-20011, 'Error granting necessary roles to db user (SOSL_USER) or function owner (SOSL_EXECUTOR). Check setup and roles. Probably grant the roles manually before trying update again.');
-115  	 END IF;
-116    END IF;
-117    -- log the update
-118    sosl_log.minimal_info_log( l_self_caller
-119  				, l_self_log_category
-120  				, 'The configuration for executor ID: ' || :OLD.executor_id || ' has been updated by OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER') || ' see full_message for details.'
-121  				)
-122    ;
-123  EXCEPTION
-124    WHEN OTHERS THEN
-125  	 -- catch and log all undefined exceptions
-126  	 IF SQLCODE NOT IN (-20005, -20006, -20007, -20008, -20009, -20010, -20011)
-127  	 THEN
-128  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-129  	 END IF;
-130  	 -- raise all errors
-131  	 RAISE;
-132  END;
-133  /
+ 23    sosl_log.log_column_change(:OLD.executor_active, :NEW.executor_active, 'SOSL_EXECUTOR.EXECUTOR_ACTIVE', l_self_caller, FALSE);
+ 24    sosl_log.log_column_change(:OLD.executor_reviewed, :NEW.executor_reviewed, 'SOSL_EXECUTOR.EXECUTOR_REVIEWED', l_self_caller, FALSE);
+ 25    sosl_log.log_column_change(:OLD.use_mail, :NEW.use_mail, 'SOSL_EXECUTOR.USE_MAIL', l_self_caller, FALSE);
+ 26    sosl_log.log_column_change(:OLD.fn_has_scripts, :NEW.fn_has_scripts, 'SOSL_EXECUTOR.FN_HAS_SCRIPTS', l_self_caller, FALSE);
+ 27    :NEW.fn_has_scripts := UPPER(:NEW.fn_has_scripts);
+ 28    sosl_log.log_column_change(:OLD.fn_get_next_script, :NEW.fn_get_next_script, 'SOSL_EXECUTOR.FN_GET_NEXT_SCRIPT', l_self_caller, FALSE);
+ 29    :NEW.fn_get_next_script := UPPER(:NEW.fn_get_next_script);
+ 30    sosl_log.log_column_change(:OLD.fn_set_script_status, :NEW.fn_set_script_status, 'SOSL_EXECUTOR.FN_SET_SCRIPT_STATUS', l_self_caller, FALSE);
+ 31    :NEW.fn_set_script_status := UPPER(:NEW.fn_set_script_status);
+ 32    sosl_log.log_column_change(:OLD.fn_send_db_mail, :NEW.fn_send_db_mail, 'SOSL_EXECUTOR.FN_SEND_DB_MAIL', l_self_caller, FALSE);
+ 33    :NEW.fn_send_db_mail := UPPER(:NEW.fn_send_db_mail);
+ 34    -- do all checks again including user
+ 35    -- check user
+ 36    IF NOT sosl_util.has_db_user(:NEW.db_user)
+ 37    THEN
+ 38  	 sosl_log.minimal_error_log( l_self_caller
+ 39  				   , l_self_log_category
+ 40  				   , '-20005 The given database user "' || NVL(:NEW.db_user, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
+ 41  				   , 'Wrong database user for SOSL_EXECUTOR table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+ 42  				   )
+ 43  	 ;
+ 44  	 RAISE_APPLICATION_ERROR(-20005, 'The given database user "' || NVL(:NEW.db_user, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
+ 45    END IF;
+ 46    IF NOT sosl_util.has_db_user(:NEW.function_owner)
+ 47    THEN
+ 48  	 sosl_log.minimal_error_log( l_self_caller
+ 49  				   , l_self_log_category
+ 50  				   , '-20006 The given function owner database user "' || NVL(:NEW.function_owner, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
+ 51  				   , 'Wrong function owner for SOSL_EXECUTOR table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+ 52  				   )
+ 53  	 ;
+ 54  	 RAISE_APPLICATION_ERROR(-20006, 'The given function owner database user "' || NVL(:NEW.function_owner, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
+ 55    END IF;
+ 56    -- check configured functions
+ 57    IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_has_scripts, 'NUMBER')
+ 58    THEN
+ 59  	 sosl_log.minimal_error_log( l_self_caller
+ 60  				   , l_self_log_category
+ 61  				   , '-20007 The given function "' || NVL(:NEW.fn_has_scripts, sosl_constants.GEN_NULL_TEXT) || '" for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+ 62  				   , 'Wrong function has_scripts for SOSL_EXECUTOR table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+ 63  				   )
+ 64  	 ;
+ 65  	 RAISE_APPLICATION_ERROR(-20007, 'The given function "' || NVL(:NEW.fn_has_scripts, sosl_constants.GEN_NULL_TEXT) || '" for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+ 66    END IF;
+ 67    IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_get_next_script, 'OBJECT')
+ 68    THEN
+ 69  	 sosl_log.minimal_error_log( l_self_caller
+ 70  				   , l_self_log_category
+ 71  				   , '-20008 The given function "' || NVL(:NEW.fn_get_next_script, sosl_constants.GEN_NULL_TEXT) || '" for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to SOSL.'
+ 72  				   , 'Wrong function get_next_script for SOSL_EXECUTOR table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+ 73  				   )
+ 74  	 ;
+ 75  	 RAISE_APPLICATION_ERROR(-20008, 'The given function "' || NVL(:NEW.fn_get_next_script, sosl_constants.GEN_NULL_TEXT) || '" for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to SOSL.');
+ 76    END IF;
+ 77    IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_set_script_status, 'NUMBER')
+ 78    THEN
+ 79  	 sosl_log.minimal_error_log( l_self_caller
+ 80  				   , l_self_log_category
+ 81  				   , '-20009 The given function "' || NVL(:NEW.fn_set_script_status, sosl_constants.GEN_NULL_TEXT) || '" for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+ 82  				   , 'Wrong function set_script_status for SOSL_EXECUTOR table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+ 83  				   )
+ 84  	 ;
+ 85  	 RAISE_APPLICATION_ERROR(-20009, 'The given function "' || NVL(:NEW.fn_set_script_status, sosl_constants.GEN_NULL_TEXT) || '" for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+ 86    END IF;
+ 87    -- check mail
+ 88    IF :NEW.use_mail = 1
+ 89    THEN
+ 90  	 IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_send_db_mail, 'NUMBER')
+ 91  	 THEN
+ 92  	   sosl_log.minimal_error_log( l_self_caller
+ 93  				     , l_self_log_category
+ 94  				     , '-20010 The given function "' || NVL(:NEW.fn_send_db_mail, sosl_constants.GEN_NULL_TEXT) || '" for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.'
+ 95  				     , 'Wrong function send_db_mail for SOSL_EXECUTOR table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+ 96  				     )
+ 97  	   ;
+ 98  	   RAISE_APPLICATION_ERROR(-20010, 'The given function "' || NVL(:NEW.fn_send_db_mail, sosl_constants.GEN_NULL_TEXT) || '" for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to SOSL.');
+ 99  	 END IF;
+100    END IF;
+101    -- check grants if active and reviewed
+102    IF      :NEW.executor_active    = sosl_constants.NUM_YES
+103  	  AND  :NEW.executor_reviewed  = sosl_constants.NUM_YES
+104    THEN
+105  	 IF    NOT sosl_util.grant_role(:NEW.db_user, 'SOSL_USER')
+106  	    OR NOT sosl_util.grant_role(:NEW.function_owner, 'SOSL_EXECUTOR')
+107  	 THEN
+108  	   -- could not check or grant role to database user or function owner
+109  	   sosl_log.minimal_error_log( l_self_caller
+110  				     , l_self_log_category
+111  				     , '-20012 Error granting necessary roles to db user (SOSL_USER) or function owner (SOSL_EXECUTOR). Check setup and roles. Probably grant the roles manually before trying update again.'
+112  				     , 'Failed granting necessary roles for SOSL_EXECUTOR table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+113  				     )
+114  	   ;
+115  	   RAISE_APPLICATION_ERROR(-20011, 'Error granting necessary roles to db user (SOSL_USER) or function owner (SOSL_EXECUTOR). Check setup and roles. Probably grant the roles manually before trying update again.');
+116  	 END IF;
+117    END IF;
+118    -- log the update
+119    sosl_log.minimal_info_log( l_self_caller
+120  				, l_self_log_category
+121  				, 'The configuration for executor ID: ' || :OLD.executor_id || ' named ' || :OLD.executor_name || ' has been updated.'
+122  				)
+123    ;
+124  EXCEPTION
+125    WHEN OTHERS THEN
+126  	 -- catch and log all undefined exceptions
+127  	 IF SQLCODE NOT IN (-20005, -20006, -20007, -20008, -20009, -20010, -20011)
+128  	 THEN
+129  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+130  	 END IF;
+131  	 -- raise all errors
+132  	 RAISE;
+133  END;
+134  /
 
 Trigger created.
 

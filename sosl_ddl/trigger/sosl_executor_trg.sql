@@ -93,7 +93,7 @@ BEGIN
   -- log the insert
   sosl_log.minimal_info_log( l_self_caller
                            , l_self_log_category
-                           , 'A new executor has been defined for DB user: ' || :NEW.db_user || ' with function owner: ' || :NEW.function_owner || ' created by OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                           , 'A new executor named ' || :NEW.executor_name || ' has been defined for DB user: ' || :NEW.db_user || ' with function owner: ' || :NEW.function_owner || '.'
                            )
   ;
 EXCEPTION
@@ -118,26 +118,27 @@ BEGIN
   :NEW.updated_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
   :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
   -- no overwrite for this values, log changes
-  sosl_log.log_column_change(:NEW.created, :OLD.created, 'SOSL_EXECUTOR.CREATED', l_self_caller);
+  sosl_log.log_column_change(:OLD.created, :NEW.created, 'SOSL_EXECUTOR.CREATED', l_self_caller);
   :NEW.created := :OLD.created;
-  sosl_log.log_column_change(:NEW.created_by, :OLD.created_by, 'SOSL_EXECUTOR.CREATED_BY', l_self_caller);
+  sosl_log.log_column_change(:OLD.created_by, :NEW.created_by, 'SOSL_EXECUTOR.CREATED_BY', l_self_caller);
   :NEW.created_by := :OLD.created_by;
-  sosl_log.log_column_change(:NEW.created_by_os, :OLD.created_by_os, 'SOSL_EXECUTOR.CREATED_BY_OS', l_self_caller);
+  sosl_log.log_column_change(:OLD.created_by_os, :NEW.created_by_os, 'SOSL_EXECUTOR.CREATED_BY_OS', l_self_caller);
   :NEW.created_by_os := :OLD.created_by_os;
-  sosl_log.log_column_change(:NEW.function_owner, :OLD.function_owner, 'SOSL_EXECUTOR.FUNCTION_OWNER', l_self_caller);
+  sosl_log.log_column_change(:OLD.function_owner, :NEW.function_owner, 'SOSL_EXECUTOR.FUNCTION_OWNER', l_self_caller);
   :NEW.function_owner := :OLD.function_owner;
-  sosl_log.log_column_change(:NEW.db_user, :OLD.db_user, 'SOSL_EXECUTOR.DB_USER', l_self_caller);
+  sosl_log.log_column_change(:OLD.db_user, :NEW.db_user, 'SOSL_EXECUTOR.DB_USER', l_self_caller);
   :NEW.db_user := :OLD.db_user;
   -- prepare possibly modified values
-  sosl_log.log_column_change(:NEW.executor_active, :OLD.executor_active, 'SOSL_EXECUTOR.EXECUTOR_ACTIVE', l_self_caller, FALSE);
-  sosl_log.log_column_change(:NEW.executor_reviewed, :OLD.executor_reviewed, 'SOSL_EXECUTOR.EXECUTOR_REVIEWED', l_self_caller, FALSE);
-  sosl_log.log_column_change(:NEW.fn_has_scripts, :OLD.fn_has_scripts, 'SOSL_EXECUTOR.FN_HAS_SCRIPTS', l_self_caller, FALSE);
+  sosl_log.log_column_change(:OLD.executor_active, :NEW.executor_active, 'SOSL_EXECUTOR.EXECUTOR_ACTIVE', l_self_caller, FALSE);
+  sosl_log.log_column_change(:OLD.executor_reviewed, :NEW.executor_reviewed, 'SOSL_EXECUTOR.EXECUTOR_REVIEWED', l_self_caller, FALSE);
+  sosl_log.log_column_change(:OLD.use_mail, :NEW.use_mail, 'SOSL_EXECUTOR.USE_MAIL', l_self_caller, FALSE);
+  sosl_log.log_column_change(:OLD.fn_has_scripts, :NEW.fn_has_scripts, 'SOSL_EXECUTOR.FN_HAS_SCRIPTS', l_self_caller, FALSE);
   :NEW.fn_has_scripts := UPPER(:NEW.fn_has_scripts);
-  sosl_log.log_column_change(:NEW.fn_get_next_script, :OLD.fn_get_next_script, 'SOSL_EXECUTOR.FN_GET_NEXT_SCRIPT', l_self_caller, FALSE);
+  sosl_log.log_column_change(:OLD.fn_get_next_script, :NEW.fn_get_next_script, 'SOSL_EXECUTOR.FN_GET_NEXT_SCRIPT', l_self_caller, FALSE);
   :NEW.fn_get_next_script := UPPER(:NEW.fn_get_next_script);
-  sosl_log.log_column_change(:NEW.fn_set_script_status, :OLD.fn_set_script_status, 'SOSL_EXECUTOR.FN_SET_SCRIPT_STATUS', l_self_caller, FALSE);
+  sosl_log.log_column_change(:OLD.fn_set_script_status, :NEW.fn_set_script_status, 'SOSL_EXECUTOR.FN_SET_SCRIPT_STATUS', l_self_caller, FALSE);
   :NEW.fn_set_script_status := UPPER(:NEW.fn_set_script_status);
-  sosl_log.log_column_change(:NEW.fn_send_db_mail, :OLD.fn_send_db_mail, 'SOSL_EXECUTOR.FN_SEND_DB_MAIL', l_self_caller, FALSE);
+  sosl_log.log_column_change(:OLD.fn_send_db_mail, :NEW.fn_send_db_mail, 'SOSL_EXECUTOR.FN_SEND_DB_MAIL', l_self_caller, FALSE);
   :NEW.fn_send_db_mail := UPPER(:NEW.fn_send_db_mail);
   -- do all checks again including user
   -- check user
@@ -226,7 +227,7 @@ BEGIN
   -- log the update
   sosl_log.minimal_info_log( l_self_caller
                            , l_self_log_category
-                           , 'The configuration for executor ID: ' || :OLD.executor_id || ' has been updated by OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER') || ' see full_message for details.'
+                           , 'The configuration for executor ID: ' || :OLD.executor_id || ' named ' || :OLD.executor_name || ' has been updated.'
                            )
   ;
 EXCEPTION
