@@ -83,6 +83,21 @@ AS
       RETURN FALSE;
   END dummy_mail;
 
+  FUNCTION has_run_id(p_run_id IN NUMBER)
+    RETURN BOOLEAN
+  IS
+    l_return BOOLEAN;
+  BEGIN
+    l_return := sosl_sys.has_run_id(p_run_id);
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log('sosl_api.has_run_id', 'SOSL_API', SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN FALSE;
+  END has_run_id;
+
 END;
 /
 -- grants

@@ -4660,8 +4660,19 @@ SQL> CREATE OR REPLACE PACKAGE sosl_api
  93  	 RETURN BOOLEAN
  94    ;
  95  
- 96  END;
- 97  /
+ 96    /* FUNCTION SOSL_API.HAS_RUN_ID
+ 97    * Checks if a given run id exists. Errors get logged.
+ 98    *
+ 99    * @param p_run_id The run id to verify.
+100    *
+101    * @return TRUE if run id exists otherwise FALSE.
+102    */
+103    FUNCTION has_run_id(p_run_id IN NUMBER)
+104  	 RETURN BOOLEAN
+105    ;
+106  
+107  END;
+108  /
 
 Package created.
 
@@ -4751,8 +4762,23 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
  81  	   RETURN FALSE;
  82    END dummy_mail;
  83  
- 84  END;
- 85  /
+ 84    FUNCTION has_run_id(p_run_id IN NUMBER)
+ 85  	 RETURN BOOLEAN
+ 86    IS
+ 87  	 l_return BOOLEAN;
+ 88    BEGIN
+ 89  	 l_return := sosl_sys.has_run_id(p_run_id);
+ 90  	 RETURN l_return;
+ 91    EXCEPTION
+ 92  	 WHEN OTHERS THEN
+ 93  	   -- log the error instead of RAISE
+ 94  	   sosl_log.exception_log('sosl_api.has_run_id', 'SOSL_API', SQLERRM);
+ 95  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+ 96  	   RETURN FALSE;
+ 97    END has_run_id;
+ 98  
+ 99  END;
+100  /
 
 Package body created.
 
@@ -4955,61 +4981,85 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_if
 126  	 l_mail_subject  := 'SOSL ' || sosl_constants.run_state_text(p_status) || ' ';
 127  	 l_sender	 := 'fake_sender@fake_domain.com';
 128  	 l_recipients	 := 'fake_recipient_group@fake_domain.com; fake_recipient_special@fake_domain.com';
-129  	 -- get payload for own identifiers as send by get_next_script
-130  	 l_payload := sosl_api.get_payload(p_run_id);
-131  	 IF l_payload IS NOT NULL
-132  	 THEN
-133  	   -- prepare mail
-134  	   l_mail_subject  := l_mail_subject || 'Script: ' || TRIM(l_payload.script_file);
-135  	   -- format mail body RFC conform, use LF, CR is also valid, but NOT CRLF
-136  	   l_mail_body	   := 'Dear SOSL user' || sosl_constants.LF || sosl_constants.LF ||
-137  			      CASE
-138  				WHEN p_status = sosl_constants.RUN_STATE_ERROR
-139  				THEN 'An ERROR happened during script execution.'
-140  				ELSE 'The state of the script execution has changed to ' || sosl_constants.run_state_text(p_status)
-141  			      END || sosl_constants.LF ||
-142  			      'Script: ' || l_payload.script_file || sosl_constants.LF ||
-143  			      'Executor ID: ' || l_payload.executor_id || sosl_constants.LF ||
-144  			      'Script ID: ' || l_payload.ext_script_id || sosl_constants.LF ||
-145  			      'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || sosl_constants.LF ||
-146  			      sosl_constants.LF ||
-147  			      'Best regards' || sosl_constants.LF ||
-148  			      'Your SOSL team'|| sosl_constants.LF ||
-149  			      sosl_constants.LF ||
-150  			      'Contact fake_admin@fake_domain.com for more information.'
-151  	   ;
-152  	 ELSE
-153  	   -- we still have data for the mail
-154  	   l_mail_subject := l_mail_subject || 'RUN_ID: ' || p_run_id;
-155  	   l_mail_body	   := 'Dear SOSL user' || sosl_constants.LF || sosl_constants.LF ||
-156  			      'An SEVERE ERROR happened during script execution.' || sosl_constants.LF ||
-157  			      'Script cannot be identified or SOSL_API.GET_PAYLOAD has failed.' || sosl_constants.LF ||
-158  			      'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || sosl_constants.LF ||
-159  			      'Intended state change to: ' || sosl_constants.run_state_text(p_status) || sosl_constants.LF ||
-160  			      sosl_constants.LF ||
-161  			      'Best regards' || sosl_constants.LF ||
-162  			      'Your SOSL team'|| sosl_constants.LF ||
-163  			      sosl_constants.LF ||
-164  			      'Contact fake_admin@fake_domain.com for more information.'
-165  	   ;
-166  	 END IF;
-167  	 IF sosl_api.dummy_mail(l_sender, l_recipients, l_mail_subject, l_mail_body)
-168  	 THEN
-169  	   l_return := 0;
-170  	 ELSE
-171  	   sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'Could not send fake mail to log.');
-172  	   l_return := -1;
-173  	 END IF;
-174  	 RETURN l_return;
-175    EXCEPTION
-176  	 WHEN OTHERS THEN
-177  	   -- log the error instead of RAISE
-178  	   sosl_log.exception_log('sosl_if.send_mail', 'SOSL_IF', SQLERRM);
-179  	   RETURN -1;
-180    END send_mail;
-181  
-182  END;
-183  /
+129  	 IF sosl_api.has_run_id(p_run_id)
+130  	 THEN
+131  	   -- get payload for own identifiers as send by get_next_script
+132  	   l_payload := sosl_api.get_payload(p_run_id);
+133  	   IF l_payload IS NOT NULL
+134  	   THEN
+135  	     -- prepare mail
+136  	     l_mail_subject  := l_mail_subject || 'Script: ' || TRIM(l_payload.script_file);
+137  	     -- format mail body RFC conform, use LF, CR is also valid, but NOT CRLF
+138  	     l_mail_body     := 'Dear SOSL user' || sosl_constants.LF || sosl_constants.LF ||
+139  				CASE
+140  				  WHEN p_status = sosl_constants.RUN_STATE_ERROR
+141  				  THEN 'An ERROR happened during script execution.'
+142  				  ELSE 'The state of the script execution has changed to ' || sosl_constants.run_state_text(p_status)
+143  				END || sosl_constants.LF ||
+144  				'Script: ' || l_payload.script_file || sosl_constants.LF ||
+145  				'Executor ID: ' || l_payload.executor_id || sosl_constants.LF ||
+146  				'Script ID: ' || l_payload.ext_script_id || sosl_constants.LF ||
+147  				'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || sosl_constants.LF ||
+148  				sosl_constants.LF ||
+149  				'Best regards' || sosl_constants.LF ||
+150  				'Your SOSL team'|| sosl_constants.LF ||
+151  				sosl_constants.LF ||
+152  				'Contact fake_admin@fake_domain.com for more information.'
+153  	     ;
+154  	   ELSE
+155  	     -- we still have data for the mail
+156  	     l_mail_subject := l_mail_subject || 'RUN_ID: ' || p_run_id;
+157  	     l_mail_body     := 'Dear SOSL user' || sosl_constants.LF || sosl_constants.LF ||
+158  				'An SEVERE ERROR happened during script execution.' || sosl_constants.LF ||
+159  				'Script cannot be identified or SOSL_API.GET_PAYLOAD has failed.' || sosl_constants.LF ||
+160  				'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || sosl_constants.LF ||
+161  				'Intended state change to: ' || sosl_constants.run_state_text(p_status) || sosl_constants.LF ||
+162  				sosl_constants.LF ||
+163  				'Best regards' || sosl_constants.LF ||
+164  				'Your SOSL team'|| sosl_constants.LF ||
+165  				sosl_constants.LF ||
+166  				'Contact fake_admin@fake_domain.com for more information.'
+167  	     ;
+168  	   END IF;
+169  	   IF sosl_api.dummy_mail(l_sender, l_recipients, l_mail_subject, l_mail_body)
+170  	   THEN
+171  	     l_return := 0;
+172  	   ELSE
+173  	     sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'Could not send fake mail to log.');
+174  	     l_return := -1;
+175  	   END IF;
+176  	 ELSE
+177  	   sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'RUN_ID ' || p_run_id || ' does not exist.');
+178  	   l_mail_subject := l_mail_subject || 'Invalid RUN_ID: ' || p_run_id;
+179  	   l_mail_body	   := 'Dear SOSL user' || sosl_constants.LF || sosl_constants.LF ||
+180  			      'An SEVERE ERROR happened during script execution.' || sosl_constants.LF ||
+181  			      'Given RUN_ID does not exist in table SOSL_RUN_QUEUE.' || sosl_constants.LF ||
+182  			      'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || sosl_constants.LF ||
+183  			      'Intended state change to: ' || sosl_constants.run_state_text(p_status) || sosl_constants.LF ||
+184  			      sosl_constants.LF ||
+185  			      'Best regards' || sosl_constants.LF ||
+186  			      'Your SOSL team'|| sosl_constants.LF ||
+187  			      sosl_constants.LF ||
+188  			      'Contact fake_admin@fake_domain.com for more information.'
+189  	   ;
+190  	   IF sosl_api.dummy_mail(l_sender, l_recipients, l_mail_subject, l_mail_body)
+191  	   THEN
+192  	     l_return := 0;
+193  	   ELSE
+194  	     sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'Could not send fake mail to log.');
+195  	     l_return := -1;
+196  	   END IF;
+197  	 END IF;
+198  	 RETURN l_return;
+199    EXCEPTION
+200  	 WHEN OTHERS THEN
+201  	   -- log the error instead of RAISE
+202  	   sosl_log.exception_log('sosl_if.send_mail', 'SOSL_IF', SQLERRM);
+203  	   RETURN -1;
+204    END send_mail;
+205  
+206  END;
+207  /
 
 Package body created.
 

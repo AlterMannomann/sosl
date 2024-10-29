@@ -96,5 +96,16 @@ AS
     RETURN BOOLEAN
   ;
 
+  /* FUNCTION SOSL_API.HAS_RUN_ID
+  * Checks if a given run id exists. Errors get logged.
+  *
+  * @param p_run_id The run id to verify.
+  *
+  * @return TRUE if run id exists otherwise FALSE.
+  */
+  FUNCTION has_run_id(p_run_id IN NUMBER)
+    RETURN BOOLEAN
+  ;
+
 END;
 /

@@ -128,35 +128,59 @@ AS
     l_mail_subject  := 'SOSL ' || sosl_constants.run_state_text(p_status) || ' ';
     l_sender        := 'fake_sender@fake_domain.com';
     l_recipients    := 'fake_recipient_group@fake_domain.com; fake_recipient_special@fake_domain.com';
-    -- get payload for own identifiers as send by get_next_script
-    l_payload := sosl_api.get_payload(p_run_id);
-    IF l_payload IS NOT NULL
+    IF sosl_api.has_run_id(p_run_id)
     THEN
-      -- prepare mail
-      l_mail_subject  := l_mail_subject || 'Script: ' || TRIM(l_payload.script_file);
-      -- format mail body RFC conform, use LF, CR is also valid, but NOT CRLF
-      l_mail_body     := 'Dear SOSL user' || sosl_constants.LF || sosl_constants.LF ||
-                         CASE
-                           WHEN p_status = sosl_constants.RUN_STATE_ERROR
-                           THEN 'An ERROR happened during script execution.'
-                           ELSE 'The state of the script execution has changed to ' || sosl_constants.run_state_text(p_status)
-                         END || sosl_constants.LF ||
-                         'Script: ' || l_payload.script_file || sosl_constants.LF ||
-                         'Executor ID: ' || l_payload.executor_id || sosl_constants.LF ||
-                         'Script ID: ' || l_payload.ext_script_id || sosl_constants.LF ||
-                         'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || sosl_constants.LF ||
-                         sosl_constants.LF ||
-                         'Best regards' || sosl_constants.LF ||
-                         'Your SOSL team'|| sosl_constants.LF ||
-                         sosl_constants.LF ||
-                         'Contact fake_admin@fake_domain.com for more information.'
-      ;
+      -- get payload for own identifiers as send by get_next_script
+      l_payload := sosl_api.get_payload(p_run_id);
+      IF l_payload IS NOT NULL
+      THEN
+        -- prepare mail
+        l_mail_subject  := l_mail_subject || 'Script: ' || TRIM(l_payload.script_file);
+        -- format mail body RFC conform, use LF, CR is also valid, but NOT CRLF
+        l_mail_body     := 'Dear SOSL user' || sosl_constants.LF || sosl_constants.LF ||
+                           CASE
+                             WHEN p_status = sosl_constants.RUN_STATE_ERROR
+                             THEN 'An ERROR happened during script execution.'
+                             ELSE 'The state of the script execution has changed to ' || sosl_constants.run_state_text(p_status)
+                           END || sosl_constants.LF ||
+                           'Script: ' || l_payload.script_file || sosl_constants.LF ||
+                           'Executor ID: ' || l_payload.executor_id || sosl_constants.LF ||
+                           'Script ID: ' || l_payload.ext_script_id || sosl_constants.LF ||
+                           'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || sosl_constants.LF ||
+                           sosl_constants.LF ||
+                           'Best regards' || sosl_constants.LF ||
+                           'Your SOSL team'|| sosl_constants.LF ||
+                           sosl_constants.LF ||
+                           'Contact fake_admin@fake_domain.com for more information.'
+        ;
+      ELSE
+        -- we still have data for the mail
+        l_mail_subject := l_mail_subject || 'RUN_ID: ' || p_run_id;
+        l_mail_body     := 'Dear SOSL user' || sosl_constants.LF || sosl_constants.LF ||
+                           'An SEVERE ERROR happened during script execution.' || sosl_constants.LF ||
+                           'Script cannot be identified or SOSL_API.GET_PAYLOAD has failed.' || sosl_constants.LF ||
+                           'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || sosl_constants.LF ||
+                           'Intended state change to: ' || sosl_constants.run_state_text(p_status) || sosl_constants.LF ||
+                           sosl_constants.LF ||
+                           'Best regards' || sosl_constants.LF ||
+                           'Your SOSL team'|| sosl_constants.LF ||
+                           sosl_constants.LF ||
+                           'Contact fake_admin@fake_domain.com for more information.'
+        ;
+      END IF;
+      IF sosl_api.dummy_mail(l_sender, l_recipients, l_mail_subject, l_mail_body)
+      THEN
+        l_return := 0;
+      ELSE
+        sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'Could not send fake mail to log.');
+        l_return := -1;
+      END IF;
     ELSE
-      -- we still have data for the mail
-      l_mail_subject := l_mail_subject || 'RUN_ID: ' || p_run_id;
+      sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'RUN_ID ' || p_run_id || ' does not exist.');
+      l_mail_subject := l_mail_subject || 'Invalid RUN_ID: ' || p_run_id;
       l_mail_body     := 'Dear SOSL user' || sosl_constants.LF || sosl_constants.LF ||
                          'An SEVERE ERROR happened during script execution.' || sosl_constants.LF ||
-                         'Script cannot be identified or SOSL_API.GET_PAYLOAD has failed.' || sosl_constants.LF ||
+                         'Given RUN_ID does not exist in table SOSL_RUN_QUEUE.' || sosl_constants.LF ||
                          'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || sosl_constants.LF ||
                          'Intended state change to: ' || sosl_constants.run_state_text(p_status) || sosl_constants.LF ||
                          sosl_constants.LF ||
@@ -165,13 +189,13 @@ AS
                          sosl_constants.LF ||
                          'Contact fake_admin@fake_domain.com for more information.'
       ;
-    END IF;
-    IF sosl_api.dummy_mail(l_sender, l_recipients, l_mail_subject, l_mail_body)
-    THEN
-      l_return := 0;
-    ELSE
-      sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'Could not send fake mail to log.');
-      l_return := -1;
+      IF sosl_api.dummy_mail(l_sender, l_recipients, l_mail_subject, l_mail_body)
+      THEN
+        l_return := 0;
+      ELSE
+        sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'Could not send fake mail to log.');
+        l_return := -1;
+      END IF;
     END IF;
     RETURN l_return;
   EXCEPTION
