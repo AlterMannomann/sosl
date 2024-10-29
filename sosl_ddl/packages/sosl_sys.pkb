@@ -254,8 +254,8 @@ AS
       RETURN FALSE;
   END deactivate_by_fn_send_db_mail;
 
-  FUNCTION build_script_call( p_function_name   IN VARCHAR2
-                            , p_function_owner  IN VARCHAR2 DEFAULT NULL
+  FUNCTION build_script_call( p_function_owner  IN VARCHAR2
+                            , p_function_name   IN VARCHAR2
                             )
     RETURN VARCHAR2
   IS
@@ -275,8 +275,8 @@ AS
       RETURN 'SELECT -1 FROM dual';
   END build_script_call;
 
-  FUNCTION build_signal_call( p_function_name   IN VARCHAR2
-                            , p_function_owner  IN VARCHAR2
+  FUNCTION build_signal_call( p_function_owner  IN VARCHAR2
+                            , p_function_name   IN VARCHAR2
                             , p_run_id          IN NUMBER
                             , p_status          IN NUMBER
                             )
@@ -331,7 +331,7 @@ AS
     -- loop through functions
     FOR rec IN cur_fn_has_scripts
     LOOP
-      l_statement := sosl_sys.build_script_call(rec.fn_has_scripts, rec.function_owner);
+      l_statement := sosl_sys.build_script_call(rec.function_owner, rec.fn_has_scripts);
       BEGIN
         EXECUTE IMMEDIATE l_statement INTO l_count;
       EXCEPTION
@@ -578,7 +578,7 @@ AS
           ON srqu.executor_id = sexe.executor_id
        WHERE srqu.run_id = p_run_id
       ;
-      l_statement := sosl_sys.build_signal_call(l_fn_set_script_status, l_function_owner, p_run_id, p_status);
+      l_statement := sosl_sys.build_signal_call(l_function_owner, l_fn_set_script_status, p_run_id, p_status);
       BEGIN
         EXECUTE IMMEDIATE l_statement INTO l_num_result;
         IF l_num_result = sosl_constants.NUM_SUCCESS
@@ -594,7 +594,7 @@ AS
         -- if mail activated execute also the defined mail function
         IF l_use_mail = sosl_constants.NUM_YES
         THEN
-          l_statement := sosl_sys.build_signal_call(l_fn_send_db_mail, l_function_owner, p_run_id, p_status);
+          l_statement := sosl_sys.build_signal_call(l_function_owner, l_fn_send_db_mail, p_run_id, p_status);
           BEGIN
             EXECUTE IMMEDIATE l_statement INTO l_num_result;
           EXCEPTION
@@ -703,7 +703,7 @@ AS
     l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_sys.register_next_script';
   BEGIN
     l_return := FALSE;
-    l_statement := sosl_sys.build_script_call(p_function_name, p_function_owner);
+    l_statement := sosl_sys.build_script_call(p_function_owner, p_function_name);
     BEGIN
       EXECUTE IMMEDIATE l_statement INTO l_payload;
       IF      sosl_sys.is_executor_valid(l_payload.executor_id)
@@ -780,7 +780,7 @@ AS
     l_success := FALSE;
     FOR rec IN cur_fn_get_next_script
     LOOP
-      IF sosl_sys.register_next_script(rec.function_owner, rec.fn_get_next_script)
+      IF sosl_sys.register_next_script(rec.fn_get_next_script, rec.function_owner)
       THEN
         l_success := TRUE;
       END IF;

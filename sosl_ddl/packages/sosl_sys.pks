@@ -119,13 +119,13 @@ AS
   * Oracle would search with SOSL.myfunction not a function in the SOSL schema, it would search
   * myfunction in the package SOSL if executed dynamically.
   *
-  * @param p_function_name The name of the function or package function.
   * @param p_function_owner If set, the function owner of the function. Will prefix the call.
+  * @param p_function_name The name of the function or package function.
   *
   * @return A statement to retrieve the function call e.g. SELECT owner.function FROM dual.
   */
-  FUNCTION build_script_call( p_function_name   IN VARCHAR2
-                            , p_function_owner  IN VARCHAR2 DEFAULT NULL
+  FUNCTION build_script_call( p_function_owner  IN VARCHAR2
+                            , p_function_name   IN VARCHAR2
                             )
     RETURN VARCHAR2
   ;
@@ -143,15 +143,15 @@ AS
   * Oracle would search with SOSL.myfunction not a function in the SOSL schema, it would search
   * myfunction in the package SOSL if executed dynamically.
   *
-  * @param p_function_name The name of the function or package function.
   * @param p_function_owner If set, the function owner of the function. Will prefix the call.
+  * @param p_function_name The name of the function or package function.
   * @param p_run_id The first function parameter representing the run id.
   * @param p_status The second function parameter representing the status that should be set.
   *
   * @return A statement to retrieve the function call e.g. SELECT owner.function(1, 0) FROM dual.
   */
-  FUNCTION build_signal_call( p_function_name   IN VARCHAR2
-                            , p_function_owner  IN VARCHAR2
+  FUNCTION build_signal_call( p_function_owner  IN VARCHAR2
+                            , p_function_name   IN VARCHAR2
                             , p_run_id          IN NUMBER
                             , p_status          IN NUMBER
                             )

@@ -9,7 +9,6 @@ INSERT INTO sosl_executor
   , fn_has_scripts
   , fn_get_next_script
   , fn_set_script_status
-  , fn_send_db_mail
   , cfg_file
   , use_mail
   , executor_description
@@ -20,9 +19,8 @@ INSERT INTO sosl_executor
          , 'sosl_if.has_scripts'
          , 'sosl_if.get_next_script'
          , 'sosl_if.set_script_status'
-         , 'sosl_if.send_mail'
          , '..\sosl_templates\sosl_login.cfg'
-         , 1
+         , 0
          , 'Internal SOSL executor for testing and demonstration purposes. Only a simple set of ordered scripts supported.'
          )
 ;
@@ -39,4 +37,16 @@ INSERT INTO sosl_if_script
    WHERE executor_name = 'SOSL'
 ;
 COMMIT;
-       
+
+UPDATE sosl_executor 
+   SET fn_send_db_mail = 'sosl_if.send_mail'
+ WHERE executor_name = 'SOSL'  
+;
+COMMIT;
+UPDATE sosl_executor
+   SET executor_active = 1
+     , executor_reviewed = 1
+     , use_mail = 1
+ WHERE executor_name = 'SOSL'
+;
+COMMIT;

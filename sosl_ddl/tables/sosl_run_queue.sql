@@ -14,16 +14,16 @@ CREATE TABLE sosl_run_queue
   , finished        TIMESTAMP
   , created_by      VARCHAR2(256)   DEFAULT USER                              NOT NULL
   , created_by_os   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
-  , waiting_by      VARCHAR2(256)   DEFAULT USER                              NOT NULL
-  , waiting_by_os   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
-  , enqueued_by     VARCHAR2(256)   DEFAULT USER                              NOT NULL
-  , enqueued_by_os  VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
-  , started_by      VARCHAR2(256)   DEFAULT USER                              NOT NULL
-  , started_by_os   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
-  , running_by      VARCHAR2(256)   DEFAULT USER                              NOT NULL
-  , running_by_os   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
-  , finished_by     VARCHAR2(256)   DEFAULT USER                              NOT NULL
-  , finished_by_os  VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+  , waiting_by      VARCHAR2(256)   DEFAULT USER
+  , waiting_by_os   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
+  , enqueued_by     VARCHAR2(256)   DEFAULT USER
+  , enqueued_by_os  VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
+  , started_by      VARCHAR2(256)   DEFAULT USER
+  , started_by_os   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
+  , running_by      VARCHAR2(256)   DEFAULT USER
+  , running_by_os   VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
+  , finished_by     VARCHAR2(256)   DEFAULT USER
+  , finished_by_os  VARCHAR2(256)   DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
   )
 ;
 COMMENT ON TABLE sosl_run_queue IS 'This table hold old and new runs of batch plans and the execution run state of each script. Granularity is single script. This is not a message queue. Will use the alias srqu.';
