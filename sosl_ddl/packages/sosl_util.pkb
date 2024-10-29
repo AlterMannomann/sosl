@@ -396,7 +396,7 @@ AS
   IS
     l_message           VARCHAR2(32767);
     l_self_log_category sosl_server_log.log_category%TYPE   := 'MAIL DUMMY';
-    l_self_caller       sosl_server_log.caller%TYPE         := 'sosl_log.dummy_mail';
+    l_self_caller       sosl_server_log.caller%TYPE         := 'sosl_util.dummy_mail';
   BEGIN
     l_message := sosl_util.format_mail(p_sender, p_recipients, p_subject, p_message);
     sosl_log.minimal_info_log(l_self_caller, l_self_log_category, 'Fake mail with subject "' || p_subject || '" created in full_message. Check the results.', l_message);

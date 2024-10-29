@@ -26,9 +26,9 @@ AS
   END has_scripts;
 
   FUNCTION get_next_script
-    RETURN SOSL_PAYLOAD
+    RETURN SOSL.SOSL_PAYLOAD
   IS
-    l_payload       SOSL_PAYLOAD;
+    l_payload       SOSL.SOSL_PAYLOAD;
     l_executor_id   NUMBER;
     l_ext_script_id VARCHAR2(4000);
     l_script_file   VARCHAR2(4000);
@@ -57,7 +57,7 @@ AS
       FETCH cur_script_data INTO l_executor_id, l_ext_script_id, l_script_file;
       CLOSE cur_script_data;
       -- you may want to add checks for the payload data before building the SOSL_PAYLOAD
-      l_payload := SOSL_PAYLOAD(l_executor_id, l_ext_script_id, l_script_file);
+      l_payload := SOSL.SOSL_PAYLOAD(l_executor_id, l_ext_script_id, l_script_file);
     ELSE
       -- log error information
       sosl_log.minimal_error_log('sosl_if.get_next_script', 'SOSL_IF', 'get_next_script called without having scripts to run');
@@ -80,7 +80,7 @@ AS
     l_return      NUMBER;
     l_script_id   NUMBER;
     l_executor_id NUMBER;
-    l_payload     SOSL_PAYLOAD;
+    l_payload     SOSL.SOSL_PAYLOAD;
   BEGIN
     l_return := -1;
     -- get payload for own identifiers as send by get_next_script
@@ -121,7 +121,7 @@ AS
     l_mail_body     VARCHAR2(32767);
     l_sender        VARCHAR2(128);
     l_recipients    VARCHAR2(1024);
-    l_payload       SOSL_PAYLOAD;
+    l_payload       SOSL.SOSL_PAYLOAD;
   BEGIN
     l_return := -1;
     -- define basic objects

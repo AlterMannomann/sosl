@@ -23,7 +23,7 @@ AS
   * @return The id of the next script to execute.
   */
   FUNCTION get_next_script
-    RETURN SOSL_PAYLOAD
+    RETURN SOSL.SOSL_PAYLOAD
   ;
 
   /** Function SOSL_IF.SET_SCRIPT_STATUS
