@@ -87,7 +87,7 @@ Task: Return the next waiting script with the object type SOSL_PAYLOAD. The func
 
 The defined function is used by SOSL and must return a valid SOSL_PAYLOAD object to access script details.
 
-    Interface Definition: FUNCTION get_next_script RETURN SOSL_PAYLOAD;
+    Interface Definition: FUNCTION get_next_script RETURN SOSL.SOSL_PAYLOAD;
 
 ### set_script_status
 Task: Provide details to the interface provider about the current script status. On success should return 0 otherwise -1. If script status cannot be set, the related executor is deactivated. With run id the current details of the script run can be fetched from SOSL_RUN_QUEUE. The function will get the intended state. The current state in SOSL_RUN_QUEUE may differ, if errors happened. Corrent state handling is up to the function provider.

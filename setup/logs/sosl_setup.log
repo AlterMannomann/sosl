@@ -3170,7 +3170,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_util
 394    IS
 395  	 l_message	     VARCHAR2(32767);
 396  	 l_self_log_category sosl_server_log.log_category%TYPE	 := 'MAIL DUMMY';
-397  	 l_self_caller	     sosl_server_log.caller%TYPE	 := 'sosl_log.dummy_mail';
+397  	 l_self_caller	     sosl_server_log.caller%TYPE	 := 'sosl_util.dummy_mail';
 398    BEGIN
 399  	 l_message := sosl_util.format_mail(p_sender, p_recipients, p_subject, p_message);
 400  	 sosl_log.minimal_info_log(l_self_caller, l_self_log_category, 'Fake mail with subject "' || p_subject || '" created in full_message. Check the results.', l_message);
@@ -4813,7 +4813,7 @@ SQL> CREATE OR REPLACE PACKAGE sosl_if
  20    * @return The id of the next script to execute.
  21    */
  22    FUNCTION get_next_script
- 23  	 RETURN SOSL_PAYLOAD
+ 23  	 RETURN SOSL.SOSL_PAYLOAD
  24    ;
  25  
  26    /** Function SOSL_IF.SET_SCRIPT_STATUS
@@ -4879,9 +4879,9 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_if
  24    END has_scripts;
  25  
  26    FUNCTION get_next_script
- 27  	 RETURN SOSL_PAYLOAD
+ 27  	 RETURN SOSL.SOSL_PAYLOAD
  28    IS
- 29  	 l_payload	 SOSL_PAYLOAD;
+ 29  	 l_payload	 SOSL.SOSL_PAYLOAD;
  30  	 l_executor_id	 NUMBER;
  31  	 l_ext_script_id VARCHAR2(4000);
  32  	 l_script_file	 VARCHAR2(4000);
@@ -4910,7 +4910,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_if
  55  	   FETCH cur_script_data INTO l_executor_id, l_ext_script_id, l_script_file;
  56  	   CLOSE cur_script_data;
  57  	   -- you may want to add checks for the payload data before building the SOSL_PAYLOAD
- 58  	   l_payload := SOSL_PAYLOAD(l_executor_id, l_ext_script_id, l_script_file);
+ 58  	   l_payload := SOSL.SOSL_PAYLOAD(l_executor_id, l_ext_script_id, l_script_file);
  59  	 ELSE
  60  	   -- log error information
  61  	   sosl_log.minimal_error_log('sosl_if.get_next_script', 'SOSL_IF', 'get_next_script called without having scripts to run');
@@ -4933,7 +4933,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_if
  78  	 l_return      NUMBER;
  79  	 l_script_id   NUMBER;
  80  	 l_executor_id NUMBER;
- 81  	 l_payload     SOSL_PAYLOAD;
+ 81  	 l_payload     SOSL.SOSL_PAYLOAD;
  82    BEGIN
  83  	 l_return := -1;
  84  	 -- get payload for own identifiers as send by get_next_script
@@ -4974,7 +4974,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_if
 119  	 l_mail_body	 VARCHAR2(32767);
 120  	 l_sender	 VARCHAR2(128);
 121  	 l_recipients	 VARCHAR2(1024);
-122  	 l_payload	 SOSL_PAYLOAD;
+122  	 l_payload	 SOSL.SOSL_PAYLOAD;
 123    BEGIN
 124  	 l_return := -1;
 125  	 -- define basic objects
