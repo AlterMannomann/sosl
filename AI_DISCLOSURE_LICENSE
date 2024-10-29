@@ -1,7 +1,7 @@
              Generic AI Disclosure License (GAIDL)
                  Version 1.0, 29 October 2024
 
-Copyright (C) 2024 Michael Lindenau <https://toent.ch/>
+Copyright (C) 2024 Michael Lindenau <https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1>
  Everyone is permitted to copy and distribute verbatim copies
  of this license document, but changing it is not allowed.
 
@@ -61,8 +61,9 @@ the provided project content. This includes reading the content and analyze or
 use it for whatever purpose. As well as using humans to transfer the
 information to an AI component.
 
-  "System" refers to any framework or software under license conditions that
-may limit access or usage.
+  "System" refers to any content producing framework or software under license
+conditions that may limit access or usage. A programming language is a tool not
+a system, but compilers or code generators are systems.
 
   An interactive user interface displays "Appropriate Legal Notices"
 to the extent that it includes a convenient and prominently visible
@@ -75,18 +76,20 @@ menu, a prominent item in the list meets this criterion.
 
   1. Project.
 
-  AI usage is generally forbidden. The authors may grant permission
-explicitely. If not all authors agree, only identifiable project data of
-authors can be used, that agreed explicitely.
+  AI usage is generally forbidden. Authors may grant permission on their work
+parts explicitely. If not all authors agree, only unambiguous assignments to
+project data of that authors can be used, that agreed explicitely.
 
-  Any AI usage has to be announced before to all impacted authors and
-is only applicable to that parts, the authors gave explicite permission.
+  Any AI usage has to be permitted before by all impacted authors and is only
+applicable to that unambiguous assigned parts, the authors created and gave
+explicite permission for.
 
   2. Systems.
 
   If the author is using systems that explicitly allow content scanning
-for any published content this license does not apply, unless the author
-explicitely declared other rights.
+for any published content created by the system this license does not apply to
+the system created or generated content. But it still applies to any content
+that is the input for a system.
 
                      END OF TERMS AND CONDITIONS
 
@@ -94,8 +97,8 @@ explicitely declared other rights.
 
   If you develop a new program, and you want it to be of the greatest
 possible use to the public, the best way to achieve this is to make it
-free human software which everyone can redistribute and change under these
-terms.
+free human software which every human person can redistribute and change
+under these terms.
 
   To do so, attach the following notices to the program.  It is safest
 to attach them to the start of each source file to most effectively
