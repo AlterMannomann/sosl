@@ -70,7 +70,7 @@ The basic interface consist of views, packages and the table SOSLERRORLOG. You m
 ## API
 To use this application, interfaces exist, that must be configured in SOSL_EXECUTOR. Only one set of API can be generated per executor. Executors may share the same function owner and function. In this case the interface API functions must handle themselves the internal script states for the different executors running.
 
-Error logging apart from noticing the error are out of scope for SOSL, the provided API function must manage this on its own. All configured functions must be granted as executable to SOSL, and afterwards configured in SOSL_EXECUTOR. Functions must be visible for SOSL in ALL_OBJECTS and ALL_TAB_PRIVS.
+Error logging apart from noticing the error are out of scope for SOSL, the provided API function must manage this on its own. All configured functions must be granted as executable to SOSL, and afterwards configured in SOSL_EXECUTOR. Functions must be visible for SOSL in ALL_OBJECTS and ALL_TAB_PRIVS. Package functions must be visible in ALL_ATTRIBUTES for SOSL.
 
     GRANT EXECUTE ON your_api_function TO SOSL;
 
