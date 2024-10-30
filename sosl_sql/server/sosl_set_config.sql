@@ -16,7 +16,12 @@ UPDATE sosl_config
 COMMIT;
 -- write log file
 SPOOL &5 APPEND
-SELECT '&2. Set parameter &3. to value: &4.' AS info
+SELECT '&2. ' ||
+       sosl_server.info_log( '../sosl_sql/server/sosl_set_config.sql'
+                           , 'Set parameter &3. to value: &4.'
+                           , '&1'
+                           , '&5'
+                           ) AS info
   FROM dual;
 SPOOL OFF
 COLUMN EXITCODE NEW_VAL EXITCODE

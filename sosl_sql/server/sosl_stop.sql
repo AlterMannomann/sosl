@@ -9,11 +9,17 @@ SET ECHO OFF
 SET ERRORLOGGING ON TABLE soslerrorlog IDENTIFIER &1
 SPOOL &3 APPEND
 -- format output in log style, date format limited to possible OS format
-SELECT '&2. Simple Oracle Script Loader server started' ||
-       ' db name: ' || TRIM(SYS_CONTEXT('USERENV', 'DB_NAME')) ||
-       ' OS user: ' || TRIM(SYS_CONTEXT('USERENV', 'OS_USER')) ||
-       ' DB user: ' || TRIM(SYS_CONTEXT('USERENV', 'CURRENT_USER')) ||
-       ' schema: ' || TRIM(SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')) AS info
+-- exclude timestamp from being logged in the database
+SELECT '&2. ' ||
+       sosl_server.info_log( '../sosl_sql/server/sosl_stop.sql'
+                           , 'Simple Oracle Script Loader server stopped' ||
+                             ' db name: ' || TRIM(SYS_CONTEXT('USERENV', 'DB_NAME')) ||
+                             ' OS user: ' || TRIM(SYS_CONTEXT('USERENV', 'OS_USER')) ||
+                             ' DB user: ' || TRIM(SYS_CONTEXT('USERENV', 'CURRENT_USER')) ||
+                             ' schema: ' || TRIM(SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA'))
+                           , '&1'
+                           , '&3'
+                           ) AS info
   FROM dual
 ;
 SPOOL OFF

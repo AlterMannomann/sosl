@@ -18,15 +18,6 @@ AS
       RETURN NULL;
   END get_payload;
 
-  FUNCTION set_config( p_config_name  IN VARCHAR2
-                     , p_config_value IN VARCHAR2
-                     )
-    RETURN NUMBER
-  IS
-  BEGIN
-    RETURN NULL;
-  END set_config;
-
   FUNCTION get_config(p_config_name IN VARCHAR2)
     RETURN VARCHAR2
   IS

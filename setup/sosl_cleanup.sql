@@ -20,6 +20,8 @@ SPOOL logs/sosl_cleanup.log
 @@../sosl_ddl/packages/drop/drop_sosl_if_pks.sql
 @@../sosl_ddl/packages/drop/drop_sosl_api_pkb.sql
 @@../sosl_ddl/packages/drop/drop_sosl_api_pks.sql
+@@../sosl_ddl/packages/drop/drop_sosl_server_pkb.sql
+@@../sosl_ddl/packages/drop/drop_sosl_server_pks.sql
 @@../sosl_ddl/packages/drop/drop_sosl_sys_pkb.sql
 @@../sosl_ddl/packages/drop/drop_sosl_sys_pks.sql
 @@../sosl_ddl/packages/drop/drop_sosl_util_pkb.sql

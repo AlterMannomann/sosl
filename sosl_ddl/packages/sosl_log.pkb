@@ -103,6 +103,7 @@ AS
                      , p_sosl_identifier  IN VARCHAR2
                      , p_executor_id      IN NUMBER
                      , p_ext_script_id    IN VARCHAR2
+                     , p_script_file      IN VARCHAR2
                      , p_caller           IN VARCHAR2
                      , p_run_id           IN NUMBER
                      , p_full_message     IN CLOB
@@ -118,6 +119,7 @@ AS
       , sosl_identifier
       , executor_id
       , ext_script_id
+      , script_file
       , caller
       , run_id
       , full_message
@@ -130,6 +132,7 @@ AS
         , p_sosl_identifier
         , p_executor_id
         , p_ext_script_id
+        , p_script_file
         , p_caller
         , p_run_id
         , p_full_message
@@ -175,6 +178,7 @@ AS
                , p_sosl_identifier => NULL
                , p_executor_id => NULL
                , p_ext_script_id => NULL
+               , p_script_file => NULL
                , p_caller => l_self_caller
                , p_run_id => NULL
                  -- full details
@@ -218,6 +222,7 @@ AS
                , p_sosl_identifier => NULL
                , p_executor_id => NULL
                , p_ext_script_id => NULL
+               , p_script_file => NULL
                , p_caller => l_self_caller
                , p_run_id => NULL
                  -- full details
@@ -288,6 +293,7 @@ AS
              , p_sosl_identifier => NULL
              , p_executor_id => NULL
              , p_ext_script_id => NULL
+             , p_script_file => NULL
              , p_caller => l_self_caller
              , p_run_id => NULL
                -- full details
@@ -304,6 +310,7 @@ AS
                , p_sosl_identifier => NULL
                , p_executor_id => NULL
                , p_ext_script_id => NULL
+               , p_script_file => NULL
                , p_caller => l_self_caller
                , p_run_id => NULL
                  -- full details
@@ -321,6 +328,7 @@ AS
                     , p_sosl_identifier  IN VARCHAR2    DEFAULT NULL
                     , p_executor_id      IN NUMBER      DEFAULT NULL
                     , p_ext_script_id    IN VARCHAR2    DEFAULT NULL
+                    , p_script_file      IN VARCHAR2    DEFAULT NULL
                     , p_run_id           IN NUMBER      DEFAULT NULL
                     , p_full_message     IN CLOB        DEFAULT NULL
                     )
@@ -329,15 +337,18 @@ AS
     l_self_log_category sosl_server_log.log_category%TYPE     := 'SOSL_LOG';
     l_self_caller       sosl_server_log.caller%TYPE           := 'sosl_log.full_log';
     l_log_category      sosl_server_log.log_category%TYPE;
+    l_log_type          sosl_server_log.log_type%TYPE;
     l_caller            sosl_server_log.caller%TYPE;
     l_guid              sosl_server_log.guid%TYPE;
     l_sosl_identifier   sosl_server_log.sosl_identifier%TYPE;
     l_executor_id       sosl_server_log.executor_id%TYPE;
     l_ext_script_id     sosl_server_log.ext_script_id%TYPE;
+    l_script_file       sosl_server_log.script_file%TYPE;
     l_run_id            sosl_server_log.run_id%TYPE;
     l_col_length        INTEGER;
   BEGIN
     -- basic column checks message splitting is left to table triggers
+    l_log_type := sosl_log.get_valid_log_type(p_log_type);
     -- LOG_CATEGORY
     IF NVL(LENGTH(TRIM(p_log_category)), 0) > 256
     THEN
@@ -349,6 +360,7 @@ AS
                , p_sosl_identifier => NULL
                , p_executor_id => NULL
                , p_ext_script_id => NULL
+               , p_script_file => NULL
                , p_caller => l_self_caller
                , p_run_id => NULL
                  -- details and original message
@@ -370,6 +382,7 @@ AS
                , p_sosl_identifier => NULL
                , p_executor_id => NULL
                , p_ext_script_id => NULL
+               , p_script_file => NULL
                , p_caller => l_self_caller
                , p_run_id => NULL
                  -- details and original message
@@ -391,6 +404,7 @@ AS
                , p_sosl_identifier => NULL
                , p_executor_id => NULL
                , p_ext_script_id => NULL
+               , p_script_file => NULL
                , p_caller => l_self_caller
                , p_run_id => NULL
                  -- details and original message
@@ -412,6 +426,7 @@ AS
                , p_sosl_identifier => NULL
                , p_executor_id => NULL
                , p_ext_script_id => NULL
+               , p_script_file => NULL
                , p_caller => l_self_caller
                , p_run_id => NULL
                  -- details and original message
@@ -433,6 +448,7 @@ AS
                , p_sosl_identifier => NULL
                , p_executor_id => NULL
                , p_ext_script_id => NULL
+               , p_script_file => NULL
                , p_caller => l_self_caller
                , p_run_id => NULL
                  -- details and original message
@@ -443,17 +459,40 @@ AS
     ELSE
       l_ext_script_id := TRIM(p_ext_script_id);
     END IF;
+    -- SCRIPT_FILE
+    IF NVL(LENGTH(TRIM(p_script_file)), 0) > 4000
+    THEN
+      -- write extra log entry and cut original content to limit
+      log_event( p_message => l_self_caller || ': p_script_file length exceeds column length (4000) in SOSL_SERVER_LOG. See full message for message causing the error.'
+               , p_log_type => sosl_constants.LOG_FATAL_TYPE
+               , p_log_category => l_self_log_category
+               , p_guid => NULL
+               , p_sosl_identifier => NULL
+               , p_executor_id => NULL
+               , p_ext_script_id => NULL
+               , p_script_file => NULL
+               , p_caller => l_self_caller
+               , p_run_id => NULL
+                 -- details and original message
+               , p_full_message => ('SCRIPT_FILE: ' || TRIM(p_script_file) || ' length: ' || LENGTH(TRIM(p_script_file)) || ' msg: ' || p_message || ' - ' || p_full_message)
+               )
+      ;
+      l_script_file := SUBSTR(TRIM(p_script_file), 1, 4000);
+    ELSE
+      l_script_file := TRIM(p_script_file);
+    END IF;
     -- no check on numbers
     l_executor_id := p_executor_id;
     l_run_id := p_run_id;
     -- try to write the given data to SOSL_SERVER_LOG
     log_event( p_message => p_message
-             , p_log_type => p_log_type
+             , p_log_type => l_log_type
              , p_log_category => l_log_category
              , p_guid => l_guid
              , p_sosl_identifier => l_sosl_identifier
              , p_executor_id => l_executor_id
              , p_ext_script_id => l_ext_script_id
+             , p_script_file => l_script_file
              , p_caller => l_caller
              , p_run_id => l_run_id
              , p_full_message => p_full_message
@@ -468,6 +507,7 @@ AS
                , p_sosl_identifier => NULL
                , p_executor_id => NULL
                , p_ext_script_id => NULL
+               , p_script_file => NULL
                , p_caller => l_self_caller
                , p_run_id => NULL
                  -- full details and original message
@@ -495,6 +535,7 @@ AS
              , p_sosl_identifier => NULL
              , p_executor_id => NULL
              , p_ext_script_id => NULL
+             , p_script_file => NULL
              , p_caller => l_caller
              , p_run_id => NULL
                -- full details and original message
@@ -548,6 +589,7 @@ AS
              , p_sosl_identifier => NULL
              , p_executor_id => NULL
              , p_ext_script_id => NULL
+             , p_script_file => NULL
              , p_caller => l_caller
              , p_run_id => NULL
                -- full details and original message
@@ -619,6 +661,7 @@ AS
              , p_sosl_identifier => NULL
              , p_executor_id => NULL
              , p_ext_script_id => NULL
+             , p_script_file => NULL
              , p_caller => l_caller
              , p_run_id => NULL
                -- full details and original message
@@ -690,6 +733,7 @@ AS
              , p_sosl_identifier => NULL
              , p_executor_id => NULL
              , p_ext_script_id => NULL
+             , p_script_file => NULL
              , p_caller => l_caller
              , p_run_id => NULL
                -- full details and original message

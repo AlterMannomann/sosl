@@ -46,6 +46,24 @@ SQL> DROP PACKAGE sosl_api;
 
 Package dropped.
 
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_server_pkb.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> DROP PACKAGE BODY sosl_server;
+
+Package body dropped.
+
+SQL> @@../sosl_ddl/packages/drop/drop_sosl_server_pks.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> REVOKE EXECUTE ON sosl_server FROM sosl_executor;
+
+Revoke succeeded.
+
+SQL> DROP PACKAGE sosl_server;
+
+Package dropped.
+
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_sys_pkb.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.

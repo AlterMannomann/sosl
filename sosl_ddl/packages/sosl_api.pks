@@ -18,17 +18,6 @@ AS
     RETURN SOSL_PAYLOAD
   ;
 
-  /** Function SOSL_API.SET_CONFIG
-  * Sets an existing configuration value for a given configuration name.
-  *
-  * @return Exit code, either 0 = successful or -1 on error.
-  */
-  FUNCTION set_config( p_config_name  IN VARCHAR2
-                     , p_config_value IN VARCHAR2
-                     )
-    RETURN NUMBER
-  ;
-
   /** Function SOSL_API.GET_CONFIG
   * Gets an existing configuration value for a given and existing case sensitive configuration name.
   *

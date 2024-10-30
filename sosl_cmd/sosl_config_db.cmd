@@ -5,15 +5,29 @@ REM Set global variables valid in the script.
 SET TMP_FILE=%SOSL_PATH_TMP%conf.tmp
 REM *****************************************************************************************************
 REM Now we can start logging
+REM Set server state to active and inform about the basics
+SET IDENTIFIER=%SOSL_GUID%_set_active
 CALL sosl_timestamp.cmd
 IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_timestamp.cmd
   GOTO :SOSL_CFG_ERROR
 )
-CALL sosl_sql.cmd "@@..\sosl_sql\sosl_whoami.sql" "%SOSL_GUID%_whoami" "%SOSL_DATETIME%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
+CALL sosl_sql_cfg.cmd "@@..\sosl_sql\server\sosl_set_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_SERVER_STATE" "ACTIVE" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
 SET SOSL_EXITCODE=%ERRORLEVEL%
 IF NOT %SOSL_EXITCODE%==0 (
-  SET SOSL_ERRMSG=Error executing sosl_whoami.cmd
+  SET SOSL_ERRMSG=Error executing sosl_set_config.sql with SOSL_SERVER_STATE
+  GOTO :SOSL_CFG_ERROR
+)
+SET IDENTIFIER=%SOSL_GUID%_start
+CALL sosl_timestamp.cmd
+IF NOT %SOSL_EXITCODE%==0 (
+  SET SOSL_ERRMSG=Error executing sosl_timestamp.cmd
+  GOTO :SOSL_CFG_ERROR
+)
+CALL sosl_sql.cmd "@@..\sosl_sql\server\sosl_start.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
+SET SOSL_EXITCODE=%ERRORLEVEL%
+IF NOT %SOSL_EXITCODE%==0 (
+  SET SOSL_ERRMSG=Error executing sosl_start.sql
   GOTO :SOSL_CFG_ERROR
 )
 REM *****************************************************************************************************
@@ -26,10 +40,10 @@ IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_timestamp.cmd
   GOTO :SOSL_CFG_ERROR
 )
-CALL sosl_sql_cfg.cmd "@@..\sosl_sql\sosl_get_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_MAX_PARALLEL" "%TMP_FILE%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
+CALL sosl_sql_cfg.cmd "@@..\sosl_sql\server\sosl_get_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_MAX_PARALLEL" "%TMP_FILE%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
 SET SOSL_EXITCODE=%ERRORLEVEL%
 IF NOT %SOSL_EXITCODE%==0 (
-  SET SOSL_ERRMSG=Error executing sosl_get_config.cmd with SOSL_MAX_PARALLEL
+  SET SOSL_ERRMSG=Error executing sosl_get_config.sql with SOSL_MAX_PARALLEL
   GOTO :SOSL_CFG_ERROR
 )
 FOR /F %%c IN (%TMP_FILE%) DO SET SOSL_MAX_PARALLEL=%%c
@@ -42,7 +56,7 @@ IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_timestamp.cmd
   GOTO :SOSL_CFG_ERROR
 )
-CALL sosl_sql_cfg.cmd "@@..\sosl_sql\sosl_get_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_RUNMODE" "%TMP_FILE%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
+CALL sosl_sql_cfg.cmd "@@..\sosl_sql\server\sosl_get_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_RUNMODE" "%TMP_FILE%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
 SET SOSL_EXITCODE=%ERRORLEVEL%
 IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_get_config.cmd with SOSL_RUNMODE
@@ -60,7 +74,7 @@ IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_timestamp.cmd
   GOTO :SOSL_CFG_ERROR
 )
-CALL sosl_sql_cfg.cmd "@@..\sosl_sql\sosl_set_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_PATH_CFG" "%SOSL_PATH_CFG%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
+CALL sosl_sql_cfg.cmd "@@..\sosl_sql\server\sosl_set_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_PATH_CFG" "%SOSL_PATH_CFG%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
 SET SOSL_EXITCODE=%ERRORLEVEL%
 IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_set_config.cmd with SOSL_PATH_CFG
@@ -74,7 +88,7 @@ IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_timestamp.cmd
   GOTO :SOSL_CFG_ERROR
 )
-CALL sosl_sql_cfg.cmd "@@..\sosl_sql\sosl_set_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_PATH_TMP" "%SOSL_PATH_TMP%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
+CALL sosl_sql_cfg.cmd "@@..\sosl_sql\server\sosl_set_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_PATH_TMP" "%SOSL_PATH_TMP%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
 SET SOSL_EXITCODE=%ERRORLEVEL%
 IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_set_config.cmd with SOSL_PATH_TMP
@@ -88,7 +102,7 @@ IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_timestamp.cmd
   GOTO :SOSL_CFG_ERROR
 )
-CALL sosl_sql_cfg.cmd "@@..\sosl_sql\sosl_set_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_PATH_LOG" "%SOSL_PATH_LOG%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
+CALL sosl_sql_cfg.cmd "@@..\sosl_sql\server\sosl_set_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_PATH_LOG" "%SOSL_PATH_LOG%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
 SET SOSL_EXITCODE=%ERRORLEVEL%
 IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_set_config.cmd with SOSL_PATH_LOG
@@ -102,7 +116,7 @@ IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_timestamp.cmd
   GOTO :SOSL_CFG_ERROR
 )
-CALL sosl_sql_cfg.cmd "@@..\sosl_sql\sosl_set_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_EXT_LOG" "%SOSL_EXT_LOG%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
+CALL sosl_sql_cfg.cmd "@@..\sosl_sql\server\sosl_set_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_EXT_LOG" "%SOSL_EXT_LOG%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
 SET SOSL_EXITCODE=%ERRORLEVEL%
 IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_set_config.cmd with SOSL_EXT_LOG
@@ -116,7 +130,7 @@ IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_timestamp.cmd
   GOTO :SOSL_CFG_ERROR
 )
-CALL sosl_sql_cfg.cmd "@@..\sosl_sql\sosl_set_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_EXT_LOCK" "%SOSL_EXT_LOCK%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
+CALL sosl_sql_cfg.cmd "@@..\sosl_sql\server\sosl_set_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_EXT_LOCK" "%SOSL_EXT_LOCK%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
 SET SOSL_EXITCODE=%ERRORLEVEL%
 IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_set_config.cmd with SOSL_EXT_LOCK
@@ -130,7 +144,7 @@ IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_timestamp.cmd
   GOTO :SOSL_CFG_ERROR
 )
-CALL sosl_sql_cfg.cmd "@@..\sosl_sql\sosl_set_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_START_LOG" "%SOSL_START_LOG%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
+CALL sosl_sql_cfg.cmd "@@..\sosl_sql\server\sosl_set_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_START_LOG" "%SOSL_START_LOG%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
 SET SOSL_EXITCODE=%ERRORLEVEL%
 IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_set_config.cmd with SOSL_START_LOG
@@ -138,19 +152,18 @@ IF NOT %SOSL_EXITCODE%==0 (
 )
 REM *****************************************************************************************************
 REM Set SOSL_BASE_LOG
-SET IDENTIFIER=%SOSL_GUID%_set_cfg6
+SET IDENTIFIER=%SOSL_GUID%_set_cfg7
 CALL sosl_timestamp.cmd
 IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_timestamp.cmd
   GOTO :SOSL_CFG_ERROR
 )
-CALL sosl_sql_cfg.cmd "@@..\sosl_sql\sosl_set_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_BASE_LOG" "%SOSL_BASE_LOG%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
+CALL sosl_sql_cfg.cmd "@@..\sosl_sql\server\sosl_set_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_BASE_LOG" "%SOSL_BASE_LOG%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
 SET SOSL_EXITCODE=%ERRORLEVEL%
 IF NOT %SOSL_EXITCODE%==0 (
   SET SOSL_ERRMSG=Error executing sosl_set_config.cmd with SOSL_BASE_LOG
   GOTO :SOSL_CFG_ERROR
 )
-
 REM skip error handling
 GOTO :SOSL_CFG_END
 :SOSL_CFG_ERROR

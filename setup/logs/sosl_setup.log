@@ -516,26 +516,28 @@ SQL> CREATE TABLE sosl_run_queue
   4    , executor_id	 NUMBER(38, 0)						   NOT NULL
   5    , ext_script_id	 VARCHAR2(4000) 					   NOT NULL
   6    , script_file	 VARCHAR2(4000) 					   NOT NULL
-  7    , created	 TIMESTAMP						   NOT NULL
-  8    , waiting	 TIMESTAMP
-  9    , enqueued	 TIMESTAMP
- 10    , started	 TIMESTAMP
- 11    , running_since	 TIMESTAMP
- 12    , finished	 TIMESTAMP
- 13    , created_by	 VARCHAR2(256)	 DEFAULT USER				   NOT NULL
- 14    , created_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
- 15    , waiting_by	 VARCHAR2(256)	 DEFAULT USER
- 16    , waiting_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
- 17    , enqueued_by	 VARCHAR2(256)	 DEFAULT USER
- 18    , enqueued_by_os  VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
- 19    , started_by	 VARCHAR2(256)	 DEFAULT USER
- 20    , started_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
- 21    , running_by	 VARCHAR2(256)	 DEFAULT USER
- 22    , running_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
- 23    , finished_by	 VARCHAR2(256)	 DEFAULT USER
- 24    , finished_by_os  VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
- 25    )
- 26  ;
+  7    , script_guid	 VARCHAR2(64)	 DEFAULT 'n/a'				   NOT NULL
+  8    , sosl_identifier VARCHAR2(256)	 DEFAULT 'n/a'				   NOT NULL
+  9    , created	 TIMESTAMP	 DEFAULT SYSTIMESTAMP			   NOT NULL
+ 10    , waiting	 TIMESTAMP
+ 11    , enqueued	 TIMESTAMP
+ 12    , started	 TIMESTAMP
+ 13    , running_since	 TIMESTAMP
+ 14    , finished	 TIMESTAMP
+ 15    , created_by	 VARCHAR2(256)	 DEFAULT USER				   NOT NULL
+ 16    , created_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER') NOT NULL
+ 17    , waiting_by	 VARCHAR2(256)	 DEFAULT USER
+ 18    , waiting_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
+ 19    , enqueued_by	 VARCHAR2(256)	 DEFAULT USER
+ 20    , enqueued_by_os  VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
+ 21    , started_by	 VARCHAR2(256)	 DEFAULT USER
+ 22    , started_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
+ 23    , running_by	 VARCHAR2(256)	 DEFAULT USER
+ 24    , running_by_os	 VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
+ 25    , finished_by	 VARCHAR2(256)	 DEFAULT USER
+ 26    , finished_by_os  VARCHAR2(256)	 DEFAULT SYS_CONTEXT('USERENV', 'OS_USER')
+ 27    )
+ 28  ;
 
 Table created.
 
@@ -560,6 +562,14 @@ SQL> COMMENT ON COLUMN sosl_run_queue.ext_script_id IS 'The (external) identifie
 Comment created.
 
 SQL> COMMENT ON COLUMN sosl_run_queue.script_file IS 'The script file name including (relative) path from API (VARCHAR2). No updates allowed, surpressed by trigger.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_run_queue.script_guid IS 'The unique id of the SOSL server associated with the script execution. This is a generic reference to SOSLERRORLOG.IDENTIFIER and local server logs. Set by SOSL server.';
+
+Comment created.
+
+SQL> COMMENT ON COLUMN sosl_run_queue.sosl_identifier IS 'The unique SOSL identifier id of the SOSL server associated with the script execution. This is a unique reference to SOSLERRORLOG.IDENTIFIER and local server logs. Set by SOSL server.';
 
 Comment created.
 
@@ -1289,243 +1299,247 @@ SQL> CREATE OR REPLACE PACKAGE sosl_log
  49    * @param p_sosl_identifier The exact identifier for SOSLERRORLOG if available. Most likely used by CMD server.
  50    * @param p_executor_id The associated executor id if available. Used as well by CMD server and SOSL packages and functions.
  51    * @param p_ext_script_id The (external) script id if available. Used as well by CMD server and SOSL packages and functions.
- 52    * @param p_caller Caller identification if available, to distinguish database processes from SOSL CMD server processes or external usage.
- 53    * @param p_run_id The associated run id if available. Most likely used by SOSL packages and functions.
- 54    * @param p_full_message The full message as CLOB if the message size exceeds the PLSQL limit of 32767 bytes. Must be given if p_message is NULL.
- 55    */
- 56    PROCEDURE log_event( p_message	       IN VARCHAR2
- 57  			  , p_log_type	       IN VARCHAR2
- 58  			  , p_log_category     IN VARCHAR2
- 59  			  , p_guid	       IN VARCHAR2
- 60  			  , p_sosl_identifier  IN VARCHAR2
- 61  			  , p_executor_id      IN NUMBER
- 62  			  , p_ext_script_id    IN VARCHAR2
- 63  			  , p_caller	       IN VARCHAR2
- 64  			  , p_run_id	       IN NUMBER
- 65  			  , p_full_message     IN CLOB
- 66  			  )
- 67    ;
- 68  /*====================================== end internal functions made visible for testing ======================================*/
- 69  
- 70    /* FUNCTION SOSL_LOG.LOG_TYPE_VALID
- 71    * Central function to check the log type. Supports the log types defined in SOSL_CONSTANTS. If log types should get expanded
- 72    * adjust constants, this function, the table constraint on log_type and probably the default value for SOSL_SERVER_LOG in
- 73    * table definition and trigger.
- 74    *
- 75    * @param p_log_type The log type to check. Case insensitive.
+ 52    * @param p_script_file The script file name and path if available. Used as well by CMD server and SOSL packages and functions.
+ 53    * @param p_caller Caller identification if available, to distinguish database processes from SOSL CMD server processes or external usage.
+ 54    * @param p_run_id The associated run id if available. Most likely used by SOSL packages and functions.
+ 55    * @param p_full_message The full message as CLOB if the message size exceeds the PLSQL limit of 32767 bytes. Must be given if p_message is NULL.
+ 56    */
+ 57    PROCEDURE log_event( p_message	       IN VARCHAR2
+ 58  			  , p_log_type	       IN VARCHAR2
+ 59  			  , p_log_category     IN VARCHAR2
+ 60  			  , p_guid	       IN VARCHAR2
+ 61  			  , p_sosl_identifier  IN VARCHAR2
+ 62  			  , p_executor_id      IN NUMBER
+ 63  			  , p_ext_script_id    IN VARCHAR2
+ 64  			  , p_script_file      IN VARCHAR2
+ 65  			  , p_caller	       IN VARCHAR2
+ 66  			  , p_run_id	       IN NUMBER
+ 67  			  , p_full_message     IN CLOB
+ 68  			  )
+ 69    ;
+ 70  /*====================================== end internal functions made visible for testing ======================================*/
+ 71  
+ 72    /* FUNCTION SOSL_LOG.LOG_TYPE_VALID
+ 73    * Central function to check the log type. Supports the log types defined in SOSL_CONSTANTS. If log types should get expanded
+ 74    * adjust constants, this function, the table constraint on log_type and probably the default value for SOSL_SERVER_LOG in
+ 75    * table definition and trigger.
  76    *
- 77    *@return TRUE if the given log type is supported. FALSE if not. Exceptions and errors will lead also to FALSE.
- 78    */
- 79    FUNCTION log_type_valid(p_log_type IN VARCHAR2)
- 80  	 RETURN BOOLEAN
- 81  	 DETERMINISTIC
- 82  	 PARALLEL_ENABLE
- 83    ;
- 84  
- 85    /* FUNCTION SOSL_LOG.GET_VALID_LOG_TYPE
- 86    * Verifies an given log type, returns either the given log type as upper case or the defined error default.
- 87    *
- 88    * @param p_log_type The log type to verify and return. Case insensitive.
- 89    * @param p_error_default The alternative log type to return, if the log type is invalid. Must be a valid log type and not INFO or SUCCESS. If invalid, FATAL is returned.
- 90    *
- 91    * @return The valid log type as upper case on success. The valid error default if log type not supported. FATAL if the error default is invalid.
- 92    */
- 93    FUNCTION get_valid_log_type( p_log_type	     IN VARCHAR2
- 94  				  , p_error_default  IN VARCHAR2 DEFAULT sosl_constants.LOG_ERROR_TYPE
- 95  				  )
- 96  	 RETURN VARCHAR2
- 97  	 DETERMINISTIC
- 98  	 PARALLEL_ENABLE
- 99    ;
-100  
-101    /* FUNCTION SOSL_LOG.DISTRIBUTE
-102    * This functions distributes char data between a VARCHAR2 and a CLOB variable by the following rules:
-103    * p_string empty or NULL: Fill p_string to p_max_string_length - p_split_end length.
-104    * p_string length > p_max_string_length: Cut p_string to p_max_string_length, including p_split_end appended.
-105    *	  p_clob NOT EMPTY: add split_start, rest of p_string before p_clob content.
-106    *	  p_clob EMPTY: add split_start and rest of p_string.
-107    * p_string length > 0 and < p_max_string_length: no change of p_string and p_clob.
-108    * p_string and p_clob empty or NULL: leave unchanged, return FALSE otherwise always TRUE.
-109    * In case of exceptions will try to write SQLERRM to p_string as CLOBs tend to be more error prone.
-110    * Mainly used by SOSL_SERVER_LOG.
-111    *
-112    * @param p_string The string to distribute or check. In PLSQL strings can get 32767 chars long, whereas table columns are limited currently to 4000.
-113    * @param p_clob The CLOB to distribute or check. Uses NOCOPY to guarantee that CLOB full length is used as given.
-114    * @param p_max_string_length The maximum length p_string should have. If this size is exeeded the string gets distribute between p_string and p_clob.
-115    * @param p_split_end The split end characters to indicate that the string is continued in p_clob.
-116    * @param p_split_start The split start characters for the continuing string in the CLOB.
-117    * @param p_delimiter The delimiter between rest of string in CLOB and original CLOB content, if both have content and string must be splitted.
-118    *
-119    * @return FALSE if p_string and p_clob are empty/NULL or an exception had occurred, otherwise TRUE.
-120    */
-121    FUNCTION distribute( p_string		IN OUT	       VARCHAR2
-122  			  , p_clob		IN OUT NOCOPY  CLOB
-123  			  , p_max_string_length IN	       INTEGER	 DEFAULT 4000
-124  			  , p_split_end 	IN	       VARCHAR2  DEFAULT '...'
-125  			  , p_split_start	IN	       VARCHAR2  DEFAULT '...'
-126  			  , p_delimiter 	IN	       VARCHAR2  DEFAULT ' - '
-127  			  )
-128  	 RETURN BOOLEAN
-129    ;
-130  
-131    /* PROCEDURE SOSL_LOG.FULL_LOG
-132    * Procedure with all parameters for logging. Will check parameters before logging. You should at least set also p_log_category
-133    * and p_caller, to be able to assign the log entry to a specific event and object. On parameter errors a separate log entry is
-134    * created. Intention is to write a log in any case and not throw any exception. This still may happen on main system malfunctions
-135    * but is limited to this events.
-136    * To keep things as fast as possible, column length checks are hardcoded, no extra round trip to USER_TAB_COLUMNS. If table definition
-137    * changes, this package has to be adjusted.
-138    *
-139    * @param p_message The message to log. Limited to 4000 chars. If longer it is split and rest is stored in full_message CLOB by trigger. If NULL p_full_message must be provided.
-140    * @param p_log_type The log type is basically defined by SOSL_SYS. Currently: INFO, WARNING, ERROR, FATAL, SUCCESS. Will be set to ERROR if not valid.
-141    * @param p_log_category An optional logging category.
-142    * @param p_caller Caller identification if available, to distinguish database processes from SOSL CMD server processes or external usage.
-143    * @param p_guid The GUID the process is running with. Can be used as LIKE reference on SOSLERRORLOG. Most likely used by CMD server.
-144    * @param p_sosl_identifier The exact identifier for SOSLERRORLOG if available. Most likely used by CMD server.
-145    * @param p_executor_id The associated executor id if available. Used as well by CMD server and SOSL packages and functions.
-146    * @param p_ext_script_id The (external) script id if available. Used as well by CMD server and SOSL packages and functions.
-147    * @param p_run_id The associated run id if available. Most likely used by SOSL packages and functions.
-148    * @param p_full_message The full message as CLOB if the message size exceeds the PLSQL limit of 32767 bytes. Must be given if p_message is NULL.
-149    */
-150    PROCEDURE full_log( p_message	      IN VARCHAR2
-151  			 , p_log_type	      IN VARCHAR2    DEFAULT sosl_constants.LOG_INFO_TYPE
-152  			 , p_log_category     IN VARCHAR2    DEFAULT 'not set'
-153  			 , p_caller	      IN VARCHAR2    DEFAULT NULL
-154  			 , p_guid	      IN VARCHAR2    DEFAULT NULL
-155  			 , p_sosl_identifier  IN VARCHAR2    DEFAULT NULL
-156  			 , p_executor_id      IN NUMBER      DEFAULT NULL
-157  			 , p_ext_script_id    IN VARCHAR2    DEFAULT NULL
-158  			 , p_run_id	      IN NUMBER      DEFAULT NULL
-159  			 , p_full_message     IN CLOB	     DEFAULT NULL
-160  			 )
-161    ;
-162  
-163    /* PROCEDURE SOSL_LOG.EXCEPTION_LOG
-164    * Prepared and standardize logging for unhandled exceptions with reduced parameters. This procedure will not deal with extra exceptions.
-165    * It will try to log the exception and then return to the caller without raising any new exceptions or logging them. It is designed
-166    * for relative stability in case of exceptions. Will do a simple NVL check on parameters, nothing more before formatting and submitting
-167    * the log entry. Will set log type to SOSL_CONSTANTS.LOG_FATAL_TYPE.
-168    *
-169    * @param p_caller The full name of function, procedure or package that has caused the unhandled exception. Case sensitive.
-170    * @param p_category The log category for the function, procedure or package. Case sensitive.
-171    * @param p_sqlerrmsg The full error message, usually SQLERRM. Limited to VARCHAR2 limit 32767 chars.
-172    */
-173    PROCEDURE exception_log( p_caller     IN VARCHAR2
-174  			      , p_category   IN VARCHAR2
-175  			      , p_sqlerrmsg  IN VARCHAR2
-176  			      )
-177    ;
-178  
-179    /* PROCEDURE SOSL_LOG.MINIMAL_ERROR_LOG
-180    * Prepared and standardize logging for errors with reduced parameters. Will do a simple NVL check on parameters, nothing more
-181    * before formatting and submitting the log entry. Will log own exceptions but not raise those exceptions.
-182    * Will set log type to SOSL_CONSTANTS.LOG_ERROR_TYPE.
-183    *
-184    * @param p_caller The full name of function, procedure or package that has caused the error. Case sensitive.
-185    * @param p_category The log category for the function, procedure or package. Case sensitive.
-186    * @param p_short_msg The short error message, preferably smaller than 4000 chars. Will be formatted using p_caller.
-187    * @param p_full_msg The complete error message, with details on the error. Will not be formatted but may contain parts of p_short_msg, if message is longer than 4000 chars.
-188    */
-189    PROCEDURE minimal_error_log( p_caller	 IN VARCHAR2
-190  				  , p_category	 IN VARCHAR2
-191  				  , p_short_msg  IN VARCHAR2
-192  				  , p_full_msg	 IN CLOB     DEFAULT NULL
-193  				  )
-194    ;
-195    PROCEDURE minimal_error_log( p_caller	 IN VARCHAR2
-196  				  , p_category	 IN VARCHAR2
-197  				  , p_short_msg  IN VARCHAR2
-198  				  , p_full_msg	 IN VARCHAR2
-199  				  )
-200    ;
-201  
-202    /* PROCEDURE SOSL_LOG.MINIMAL_ERROR_LOG
-203    * Prepared and standardize logging for information with reduced parameters. Will do a simple NVL check on parameters, nothing more
-204    * before formatting and submitting the log entry. Will log own exceptions but not raise those exceptions.
-205    * Will set log type to SOSL_CONSTANTS.LOG_INFO_TYPE.
-206    *
-207    * @param p_caller The full name of function, procedure or package that should be logged. Case sensitive.
-208    * @param p_category The log category for the function, procedure or package. Case sensitive.
-209    * @param p_short_msg The short info message, preferably smaller than 4000 chars. Will be formatted using p_caller.
-210    * @param p_full_msg The complete info message, with details. Will not be formatted but may contain parts of p_short_msg, if message is longer than 4000 chars.
-211    */
-212    PROCEDURE minimal_info_log( p_caller	IN VARCHAR2
-213  				 , p_category	IN VARCHAR2
-214  				 , p_short_msg	IN VARCHAR2
-215  				 , p_full_msg	IN CLOB      DEFAULT NULL
-216  				 )
-217    ;
-218    PROCEDURE minimal_info_log( p_caller	IN VARCHAR2
-219  				 , p_category	IN VARCHAR2
-220  				 , p_short_msg	IN VARCHAR2
-221  				 , p_full_msg	IN VARCHAR2
-222  				 )
-223    ;
-224  
-225    /* PROCEDURE SOSL_LOG.MINIMAL_WARNING_LOG
-226    * Prepared and standardize logging for warning with reduced parameters. Will do a simple NVL check on parameters, nothing more
-227    * before formatting and submitting the log entry. Will log own exceptions but not raise those exceptions.
-228    * Will set log type to SOSL_CONSTANTS.LOG_WARNING_TYPE.
-229    *
-230    * @param p_caller The full name of function, procedure or package that should be logged. Case sensitive.
-231    * @param p_category The log category for the function, procedure or package. Case sensitive.
-232    * @param p_short_msg The short warning message, preferably smaller than 4000 chars. Will be formatted using p_caller.
-233    * @param p_full_msg The complete warning message, with details. Will not be formatted but may contain parts of p_short_msg, if message is longer than 4000 chars.
-234    */
-235    PROCEDURE minimal_warning_log( p_caller	   IN VARCHAR2
-236  				    , p_category   IN VARCHAR2
-237  				    , p_short_msg  IN VARCHAR2
-238  				    , p_full_msg   IN CLOB     DEFAULT NULL
-239  				    )
-240    ;
-241    PROCEDURE minimal_warning_log( p_caller	   IN VARCHAR2
-242  				    , p_category   IN VARCHAR2
-243  				    , p_short_msg  IN VARCHAR2
-244  				    , p_full_msg   IN VARCHAR2
-245  				    )
-246    ;
-247  
-248    /* PROCEDURE SOSL_LOG.LOG_COLUMN_CHANGE
-249    * Checks old and new values of a given column for differences and logs the difference. The log type will be WARNING if
-250    * forbidden is TRUE, otherwise INFO. Supported types: VARCHAR2, NUMBER, DATE and TIMESTAMP
-251    *
-252    * @param p_old_value The old column value.
-253    * @param p_new_value The new column value.
-254    * @param p_column_name The name of the table and column, e.g. table.column that is checked for changes. No checks, apart from NULL, only log info. Used as log category.
-255    * @param p_caller The name of the procedure, package, trigger or function that is calling this procedure. No checks, apart from NULL, only log info.
-256    * @param p_forbidden Influences the log type, if TRUE the log type is WARNING else the log type is INFO.
-257    */
-258    PROCEDURE log_column_change( p_old_value     IN VARCHAR2
-259  				  , p_new_value     IN VARCHAR2
-260  				  , p_column_name   IN VARCHAR2
-261  				  , p_caller	    IN VARCHAR2
-262  				  , p_forbidden     IN BOOLEAN	DEFAULT TRUE
-263  				  )
-264    ;
-265    PROCEDURE log_column_change( p_old_value     IN NUMBER
-266  				  , p_new_value     IN NUMBER
-267  				  , p_column_name   IN VARCHAR2
-268  				  , p_caller	    IN VARCHAR2
-269  				  , p_forbidden     IN BOOLEAN	DEFAULT TRUE
-270  				  )
-271    ;
-272    PROCEDURE log_column_change( p_old_value     IN DATE
-273  				  , p_new_value     IN DATE
-274  				  , p_column_name   IN VARCHAR2
-275  				  , p_caller	    IN VARCHAR2
-276  				  , p_forbidden     IN BOOLEAN	DEFAULT TRUE
-277  				  )
-278    ;
-279    PROCEDURE log_column_change( p_old_value     IN TIMESTAMP
-280  				  , p_new_value     IN TIMESTAMP
-281  				  , p_column_name   IN VARCHAR2
-282  				  , p_caller	    IN VARCHAR2
-283  				  , p_forbidden     IN BOOLEAN	DEFAULT TRUE
-284  				  )
-285    ;
-286  
-287  END;
-288  /
+ 77    * @param p_log_type The log type to check. Case insensitive.
+ 78    *
+ 79    *@return TRUE if the given log type is supported. FALSE if not. Exceptions and errors will lead also to FALSE.
+ 80    */
+ 81    FUNCTION log_type_valid(p_log_type IN VARCHAR2)
+ 82  	 RETURN BOOLEAN
+ 83  	 DETERMINISTIC
+ 84  	 PARALLEL_ENABLE
+ 85    ;
+ 86  
+ 87    /* FUNCTION SOSL_LOG.GET_VALID_LOG_TYPE
+ 88    * Verifies an given log type, returns either the given log type as upper case or the defined error default.
+ 89    *
+ 90    * @param p_log_type The log type to verify and return. Case insensitive.
+ 91    * @param p_error_default The alternative log type to return, if the log type is invalid. Must be a valid log type and not INFO or SUCCESS. If invalid, FATAL is returned.
+ 92    *
+ 93    * @return The valid log type as upper case on success. The valid error default if log type not supported. FATAL if the error default is invalid.
+ 94    */
+ 95    FUNCTION get_valid_log_type( p_log_type	     IN VARCHAR2
+ 96  				  , p_error_default  IN VARCHAR2 DEFAULT sosl_constants.LOG_ERROR_TYPE
+ 97  				  )
+ 98  	 RETURN VARCHAR2
+ 99  	 DETERMINISTIC
+100  	 PARALLEL_ENABLE
+101    ;
+102  
+103    /* FUNCTION SOSL_LOG.DISTRIBUTE
+104    * This functions distributes char data between a VARCHAR2 and a CLOB variable by the following rules:
+105    * p_string empty or NULL: Fill p_string to p_max_string_length - p_split_end length.
+106    * p_string length > p_max_string_length: Cut p_string to p_max_string_length, including p_split_end appended.
+107    *	  p_clob NOT EMPTY: add split_start, rest of p_string before p_clob content.
+108    *	  p_clob EMPTY: add split_start and rest of p_string.
+109    * p_string length > 0 and < p_max_string_length: no change of p_string and p_clob.
+110    * p_string and p_clob empty or NULL: leave unchanged, return FALSE otherwise always TRUE.
+111    * In case of exceptions will try to write SQLERRM to p_string as CLOBs tend to be more error prone.
+112    * Mainly used by SOSL_SERVER_LOG.
+113    *
+114    * @param p_string The string to distribute or check. In PLSQL strings can get 32767 chars long, whereas table columns are limited currently to 4000.
+115    * @param p_clob The CLOB to distribute or check. Uses NOCOPY to guarantee that CLOB full length is used as given.
+116    * @param p_max_string_length The maximum length p_string should have. If this size is exeeded the string gets distribute between p_string and p_clob.
+117    * @param p_split_end The split end characters to indicate that the string is continued in p_clob.
+118    * @param p_split_start The split start characters for the continuing string in the CLOB.
+119    * @param p_delimiter The delimiter between rest of string in CLOB and original CLOB content, if both have content and string must be splitted.
+120    *
+121    * @return FALSE if p_string and p_clob are empty/NULL or an exception had occurred, otherwise TRUE.
+122    */
+123    FUNCTION distribute( p_string		IN OUT	       VARCHAR2
+124  			  , p_clob		IN OUT NOCOPY  CLOB
+125  			  , p_max_string_length IN	       INTEGER	 DEFAULT 4000
+126  			  , p_split_end 	IN	       VARCHAR2  DEFAULT '...'
+127  			  , p_split_start	IN	       VARCHAR2  DEFAULT '...'
+128  			  , p_delimiter 	IN	       VARCHAR2  DEFAULT ' - '
+129  			  )
+130  	 RETURN BOOLEAN
+131    ;
+132  
+133    /* PROCEDURE SOSL_LOG.FULL_LOG
+134    * Procedure with all parameters for logging. Will check parameters before logging. You should at least set also p_log_category
+135    * and p_caller, to be able to assign the log entry to a specific event and object. On parameter errors a separate log entry is
+136    * created. Intention is to write a log in any case and not throw any exception. This still may happen on main system malfunctions
+137    * but is limited to this events.
+138    * To keep things as fast as possible, column length checks are hardcoded, no extra round trip to USER_TAB_COLUMNS. If table definition
+139    * changes, this package has to be adjusted.
+140    *
+141    * @param p_message The message to log. Limited to 4000 chars. If longer it is split and rest is stored in full_message CLOB by trigger. If NULL p_full_message must be provided.
+142    * @param p_log_type The log type is basically defined by SOSL_SYS. Currently: INFO, WARNING, ERROR, FATAL, SUCCESS. Will be set to ERROR if not valid.
+143    * @param p_log_category An optional logging category.
+144    * @param p_caller Caller identification if available, to distinguish database processes from SOSL CMD server processes or external usage.
+145    * @param p_guid The GUID the process is running with. Can be used as LIKE reference on SOSLERRORLOG. Most likely used by CMD server.
+146    * @param p_sosl_identifier The exact identifier for SOSLERRORLOG if available. Most likely used by CMD server.
+147    * @param p_executor_id The associated executor id if available. Used as well by CMD server and SOSL packages and functions.
+148    * @param p_ext_script_id The (external) script id if available. Used as well by CMD server and SOSL packages and functions.
+149    * @param p_script_file The script file name and path if available. Used as well by CMD server and SOSL packages and functions.
+150    * @param p_run_id The associated run id if available. Most likely used by SOSL packages and functions.
+151    * @param p_full_message The full message as CLOB if the message size exceeds the PLSQL limit of 32767 bytes. Must be given if p_message is NULL.
+152    */
+153    PROCEDURE full_log( p_message	      IN VARCHAR2
+154  			 , p_log_type	      IN VARCHAR2    DEFAULT sosl_constants.LOG_INFO_TYPE
+155  			 , p_log_category     IN VARCHAR2    DEFAULT 'not set'
+156  			 , p_caller	      IN VARCHAR2    DEFAULT NULL
+157  			 , p_guid	      IN VARCHAR2    DEFAULT NULL
+158  			 , p_sosl_identifier  IN VARCHAR2    DEFAULT NULL
+159  			 , p_executor_id      IN NUMBER      DEFAULT NULL
+160  			 , p_ext_script_id    IN VARCHAR2    DEFAULT NULL
+161  			 , p_script_file      IN VARCHAR2    DEFAULT NULL
+162  			 , p_run_id	      IN NUMBER      DEFAULT NULL
+163  			 , p_full_message     IN CLOB	     DEFAULT NULL
+164  			 )
+165    ;
+166  
+167    /* PROCEDURE SOSL_LOG.EXCEPTION_LOG
+168    * Prepared and standardize logging for unhandled exceptions with reduced parameters. This procedure will not deal with extra exceptions.
+169    * It will try to log the exception and then return to the caller without raising any new exceptions or logging them. It is designed
+170    * for relative stability in case of exceptions. Will do a simple NVL check on parameters, nothing more before formatting and submitting
+171    * the log entry. Will set log type to SOSL_CONSTANTS.LOG_FATAL_TYPE.
+172    *
+173    * @param p_caller The full name of function, procedure or package that has caused the unhandled exception. Case sensitive.
+174    * @param p_category The log category for the function, procedure or package. Case sensitive.
+175    * @param p_sqlerrmsg The full error message, usually SQLERRM. Limited to VARCHAR2 limit 32767 chars.
+176    */
+177    PROCEDURE exception_log( p_caller     IN VARCHAR2
+178  			      , p_category   IN VARCHAR2
+179  			      , p_sqlerrmsg  IN VARCHAR2
+180  			      )
+181    ;
+182  
+183    /* PROCEDURE SOSL_LOG.MINIMAL_ERROR_LOG
+184    * Prepared and standardize logging for errors with reduced parameters. Will do a simple NVL check on parameters, nothing more
+185    * before formatting and submitting the log entry. Will log own exceptions but not raise those exceptions.
+186    * Will set log type to SOSL_CONSTANTS.LOG_ERROR_TYPE.
+187    *
+188    * @param p_caller The full name of function, procedure or package that has caused the error. Case sensitive.
+189    * @param p_category The log category for the function, procedure or package. Case sensitive.
+190    * @param p_short_msg The short error message, preferably smaller than 4000 chars. Will be formatted using p_caller.
+191    * @param p_full_msg The complete error message, with details on the error. Will not be formatted but may contain parts of p_short_msg, if message is longer than 4000 chars.
+192    */
+193    PROCEDURE minimal_error_log( p_caller	 IN VARCHAR2
+194  				  , p_category	 IN VARCHAR2
+195  				  , p_short_msg  IN VARCHAR2
+196  				  , p_full_msg	 IN CLOB     DEFAULT NULL
+197  				  )
+198    ;
+199    PROCEDURE minimal_error_log( p_caller	 IN VARCHAR2
+200  				  , p_category	 IN VARCHAR2
+201  				  , p_short_msg  IN VARCHAR2
+202  				  , p_full_msg	 IN VARCHAR2
+203  				  )
+204    ;
+205  
+206    /* PROCEDURE SOSL_LOG.MINIMAL_ERROR_LOG
+207    * Prepared and standardize logging for information with reduced parameters. Will do a simple NVL check on parameters, nothing more
+208    * before formatting and submitting the log entry. Will log own exceptions but not raise those exceptions.
+209    * Will set log type to SOSL_CONSTANTS.LOG_INFO_TYPE.
+210    *
+211    * @param p_caller The full name of function, procedure or package that should be logged. Case sensitive.
+212    * @param p_category The log category for the function, procedure or package. Case sensitive.
+213    * @param p_short_msg The short info message, preferably smaller than 4000 chars. Will be formatted using p_caller.
+214    * @param p_full_msg The complete info message, with details. Will not be formatted but may contain parts of p_short_msg, if message is longer than 4000 chars.
+215    */
+216    PROCEDURE minimal_info_log( p_caller	IN VARCHAR2
+217  				 , p_category	IN VARCHAR2
+218  				 , p_short_msg	IN VARCHAR2
+219  				 , p_full_msg	IN CLOB      DEFAULT NULL
+220  				 )
+221    ;
+222    PROCEDURE minimal_info_log( p_caller	IN VARCHAR2
+223  				 , p_category	IN VARCHAR2
+224  				 , p_short_msg	IN VARCHAR2
+225  				 , p_full_msg	IN VARCHAR2
+226  				 )
+227    ;
+228  
+229    /* PROCEDURE SOSL_LOG.MINIMAL_WARNING_LOG
+230    * Prepared and standardize logging for warning with reduced parameters. Will do a simple NVL check on parameters, nothing more
+231    * before formatting and submitting the log entry. Will log own exceptions but not raise those exceptions.
+232    * Will set log type to SOSL_CONSTANTS.LOG_WARNING_TYPE.
+233    *
+234    * @param p_caller The full name of function, procedure or package that should be logged. Case sensitive.
+235    * @param p_category The log category for the function, procedure or package. Case sensitive.
+236    * @param p_short_msg The short warning message, preferably smaller than 4000 chars. Will be formatted using p_caller.
+237    * @param p_full_msg The complete warning message, with details. Will not be formatted but may contain parts of p_short_msg, if message is longer than 4000 chars.
+238    */
+239    PROCEDURE minimal_warning_log( p_caller	   IN VARCHAR2
+240  				    , p_category   IN VARCHAR2
+241  				    , p_short_msg  IN VARCHAR2
+242  				    , p_full_msg   IN CLOB     DEFAULT NULL
+243  				    )
+244    ;
+245    PROCEDURE minimal_warning_log( p_caller	   IN VARCHAR2
+246  				    , p_category   IN VARCHAR2
+247  				    , p_short_msg  IN VARCHAR2
+248  				    , p_full_msg   IN VARCHAR2
+249  				    )
+250    ;
+251  
+252    /* PROCEDURE SOSL_LOG.LOG_COLUMN_CHANGE
+253    * Checks old and new values of a given column for differences and logs the difference. The log type will be WARNING if
+254    * forbidden is TRUE, otherwise INFO. Supported types: VARCHAR2, NUMBER, DATE and TIMESTAMP
+255    *
+256    * @param p_old_value The old column value.
+257    * @param p_new_value The new column value.
+258    * @param p_column_name The name of the table and column, e.g. table.column that is checked for changes. No checks, apart from NULL, only log info. Used as log category.
+259    * @param p_caller The name of the procedure, package, trigger or function that is calling this procedure. No checks, apart from NULL, only log info.
+260    * @param p_forbidden Influences the log type, if TRUE the log type is WARNING else the log type is INFO.
+261    */
+262    PROCEDURE log_column_change( p_old_value     IN VARCHAR2
+263  				  , p_new_value     IN VARCHAR2
+264  				  , p_column_name   IN VARCHAR2
+265  				  , p_caller	    IN VARCHAR2
+266  				  , p_forbidden     IN BOOLEAN	DEFAULT TRUE
+267  				  )
+268    ;
+269    PROCEDURE log_column_change( p_old_value     IN NUMBER
+270  				  , p_new_value     IN NUMBER
+271  				  , p_column_name   IN VARCHAR2
+272  				  , p_caller	    IN VARCHAR2
+273  				  , p_forbidden     IN BOOLEAN	DEFAULT TRUE
+274  				  )
+275    ;
+276    PROCEDURE log_column_change( p_old_value     IN DATE
+277  				  , p_new_value     IN DATE
+278  				  , p_column_name   IN VARCHAR2
+279  				  , p_caller	    IN VARCHAR2
+280  				  , p_forbidden     IN BOOLEAN	DEFAULT TRUE
+281  				  )
+282    ;
+283    PROCEDURE log_column_change( p_old_value     IN TIMESTAMP
+284  				  , p_new_value     IN TIMESTAMP
+285  				  , p_column_name   IN VARCHAR2
+286  				  , p_caller	    IN VARCHAR2
+287  				  , p_forbidden     IN BOOLEAN	DEFAULT TRUE
+288  				  )
+289    ;
+290  
+291  END;
+292  /
 
 Package created.
 
@@ -1640,822 +1654,866 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_log
 101  			  , p_sosl_identifier  IN VARCHAR2
 102  			  , p_executor_id      IN NUMBER
 103  			  , p_ext_script_id    IN VARCHAR2
-104  			  , p_caller	       IN VARCHAR2
-105  			  , p_run_id	       IN NUMBER
-106  			  , p_full_message     IN CLOB
-107  			  )
-108    IS
-109  	 PRAGMA AUTONOMOUS_TRANSACTION;
-110    BEGIN
-111  	 INSERT INTO sosl_server_log
-112  	   ( message
-113  	   , log_type
-114  	   , log_category
-115  	   , guid
-116  	   , sosl_identifier
-117  	   , executor_id
-118  	   , ext_script_id
-119  	   , caller
-120  	   , run_id
-121  	   , full_message
-122  	   )
-123  	   VALUES
-124  	     ( p_message
-125  	     , p_log_type
-126  	     , p_log_category
-127  	     , p_guid
-128  	     , p_sosl_identifier
-129  	     , p_executor_id
-130  	     , p_ext_script_id
-131  	     , p_caller
-132  	     , p_run_id
-133  	     , p_full_message
-134  	     )
-135  	 ;
-136  	 COMMIT;
-137    EXCEPTION
-138  	 WHEN OTHERS THEN
-139  	   -- try fallback
-140  	   log_fallback('sosl_log.log_event', 'SOSL_LOG', SQLERRM);
-141  	   -- try ROLLBACK
-142  	   ROLLBACK;
-143  	   -- and raise the error again now
-144  	   RAISE;
-145    END log_event;
-146  
-147    FUNCTION log_type_valid(p_log_type IN VARCHAR2)
-148  	 RETURN BOOLEAN
-149  	 DETERMINISTIC
-150  	 PARALLEL_ENABLE
-151    IS
-152  	 l_return	     BOOLEAN;
-153  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
-154  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.log_type_valid';
-155    BEGIN
-156  	 l_return := FALSE;
-157  	 IF UPPER(p_log_type) IN ( sosl_constants.LOG_INFO_TYPE
-158  				 , sosl_constants.LOG_WARNING_TYPE
-159  				 , sosl_constants.LOG_ERROR_TYPE
-160  				 , sosl_constants.LOG_FATAL_TYPE
-161  				 , sosl_constants.LOG_SUCCESS_TYPE
-162  				 )
-163  	 THEN
-164  	   l_return := TRUE;
-165  	 END IF;
-166  	 RETURN l_return;
-167    EXCEPTION
-168  	 WHEN OTHERS THEN
-169  	   log_event( p_message => l_self_caller || ': Unhandled EXCEPTION = ' || TRIM(SUBSTR(SQLERRM, 1, 500)) || CASE WHEN LENGTH(SQLERRM) > 500 THEN ' ... see full_message for complete details.' END
-170  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
-171  		    , p_log_category => l_self_log_category
-172  		    , p_guid => NULL
-173  		    , p_sosl_identifier => NULL
-174  		    , p_executor_id => NULL
-175  		    , p_ext_script_id => NULL
-176  		    , p_caller => l_self_caller
-177  		    , p_run_id => NULL
-178  		      -- full details
-179  		    , p_full_message => SQLERRM
-180  		    )
-181  	   ;
-182  	   RETURN FALSE;
-183    END log_type_valid;
-184  
-185    FUNCTION get_valid_log_type( p_log_type	     IN VARCHAR2
-186  				  , p_error_default  IN VARCHAR2 DEFAULT sosl_constants.LOG_ERROR_TYPE
-187  				  )
-188  	 RETURN VARCHAR2
-189  	 DETERMINISTIC
-190  	 PARALLEL_ENABLE
-191    IS
-192  	 l_return	     VARCHAR2(30);
-193  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
-194  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.get_valid_log_type';
-195    BEGIN
-196  	 l_return := sosl_constants.LOG_FATAL_TYPE;
-197  	 IF log_type_valid(p_log_type)
-198  	 THEN
-199  	   l_return := UPPER(p_log_type);
-200  	 ELSE
-201  	   IF	   log_type_valid(p_error_default)
-202  	      AND  UPPER(p_error_default) NOT IN ( sosl_constants.LOG_INFO_TYPE
-203  						 , sosl_constants.LOG_SUCCESS_TYPE
-204  						 )
-205  	   THEN
-206  	     l_return := UPPER(p_error_default);
-207  	   END IF;
-208  	 END IF;
-209  	 RETURN l_return;
-210    EXCEPTION
-211  	 WHEN OTHERS THEN
-212  	   log_event( p_message => l_self_caller || ': Unhandled EXCEPTION = ' || TRIM(SUBSTR(SQLERRM, 1, 500)) || CASE WHEN LENGTH(SQLERRM) > 500 THEN ' ... see full_message for complete details.' END
-213  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
-214  		    , p_log_category => l_self_log_category
-215  		    , p_guid => NULL
-216  		    , p_sosl_identifier => NULL
-217  		    , p_executor_id => NULL
-218  		    , p_ext_script_id => NULL
-219  		    , p_caller => l_self_caller
-220  		    , p_run_id => NULL
-221  		      -- full details
-222  		    , p_full_message => SQLERRM
-223  		    )
-224  	   ;
-225  	   RETURN sosl_constants.LOG_FATAL_TYPE;
-226    END get_valid_log_type;
-227  
-228    FUNCTION distribute( p_string		IN OUT	       VARCHAR2
-229  			  , p_clob		IN OUT NOCOPY  CLOB
-230  			  , p_max_string_length IN	       INTEGER	 DEFAULT 4000
-231  			  , p_split_end 	IN	       VARCHAR2  DEFAULT '...'
-232  			  , p_split_start	IN	       VARCHAR2  DEFAULT '...'
-233  			  , p_delimiter 	IN	       VARCHAR2  DEFAULT ' - '
-234  			  )
-235  	 RETURN BOOLEAN
-236    IS
-237  	 l_string	     VARCHAR2(32767);
-238  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
-239  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.distribute';
-240    BEGIN
-241  	 IF	(p_string IS NULL OR NVL(LENGTH(TRIM(p_string)), 0) = 0)
-242  	    AND (p_clob   IS NULL OR NVL(LENGTH(TRIM(p_clob)), 0) = 0)
-243  	 THEN
-244  	   RETURN FALSE;
-245  	 END IF;
-246  	 IF	p_string IS NOT NULL AND NVL(LENGTH(TRIM(p_string)), 0) > 0
-247  	    AND p_clob	 IS NOT NULL AND NVL(LENGTH(TRIM(p_clob)), 0) > 0
+104  			  , p_script_file      IN VARCHAR2
+105  			  , p_caller	       IN VARCHAR2
+106  			  , p_run_id	       IN NUMBER
+107  			  , p_full_message     IN CLOB
+108  			  )
+109    IS
+110  	 PRAGMA AUTONOMOUS_TRANSACTION;
+111    BEGIN
+112  	 INSERT INTO sosl_server_log
+113  	   ( message
+114  	   , log_type
+115  	   , log_category
+116  	   , guid
+117  	   , sosl_identifier
+118  	   , executor_id
+119  	   , ext_script_id
+120  	   , script_file
+121  	   , caller
+122  	   , run_id
+123  	   , full_message
+124  	   )
+125  	   VALUES
+126  	     ( p_message
+127  	     , p_log_type
+128  	     , p_log_category
+129  	     , p_guid
+130  	     , p_sosl_identifier
+131  	     , p_executor_id
+132  	     , p_ext_script_id
+133  	     , p_script_file
+134  	     , p_caller
+135  	     , p_run_id
+136  	     , p_full_message
+137  	     )
+138  	 ;
+139  	 COMMIT;
+140    EXCEPTION
+141  	 WHEN OTHERS THEN
+142  	   -- try fallback
+143  	   log_fallback('sosl_log.log_event', 'SOSL_LOG', SQLERRM);
+144  	   -- try ROLLBACK
+145  	   ROLLBACK;
+146  	   -- and raise the error again now
+147  	   RAISE;
+148    END log_event;
+149  
+150    FUNCTION log_type_valid(p_log_type IN VARCHAR2)
+151  	 RETURN BOOLEAN
+152  	 DETERMINISTIC
+153  	 PARALLEL_ENABLE
+154    IS
+155  	 l_return	     BOOLEAN;
+156  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
+157  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.log_type_valid';
+158    BEGIN
+159  	 l_return := FALSE;
+160  	 IF UPPER(p_log_type) IN ( sosl_constants.LOG_INFO_TYPE
+161  				 , sosl_constants.LOG_WARNING_TYPE
+162  				 , sosl_constants.LOG_ERROR_TYPE
+163  				 , sosl_constants.LOG_FATAL_TYPE
+164  				 , sosl_constants.LOG_SUCCESS_TYPE
+165  				 )
+166  	 THEN
+167  	   l_return := TRUE;
+168  	 END IF;
+169  	 RETURN l_return;
+170    EXCEPTION
+171  	 WHEN OTHERS THEN
+172  	   log_event( p_message => l_self_caller || ': Unhandled EXCEPTION = ' || TRIM(SUBSTR(SQLERRM, 1, 500)) || CASE WHEN LENGTH(SQLERRM) > 500 THEN ' ... see full_message for complete details.' END
+173  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
+174  		    , p_log_category => l_self_log_category
+175  		    , p_guid => NULL
+176  		    , p_sosl_identifier => NULL
+177  		    , p_executor_id => NULL
+178  		    , p_ext_script_id => NULL
+179  		    , p_script_file => NULL
+180  		    , p_caller => l_self_caller
+181  		    , p_run_id => NULL
+182  		      -- full details
+183  		    , p_full_message => SQLERRM
+184  		    )
+185  	   ;
+186  	   RETURN FALSE;
+187    END log_type_valid;
+188  
+189    FUNCTION get_valid_log_type( p_log_type	     IN VARCHAR2
+190  				  , p_error_default  IN VARCHAR2 DEFAULT sosl_constants.LOG_ERROR_TYPE
+191  				  )
+192  	 RETURN VARCHAR2
+193  	 DETERMINISTIC
+194  	 PARALLEL_ENABLE
+195    IS
+196  	 l_return	     VARCHAR2(30);
+197  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
+198  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.get_valid_log_type';
+199    BEGIN
+200  	 l_return := sosl_constants.LOG_FATAL_TYPE;
+201  	 IF log_type_valid(p_log_type)
+202  	 THEN
+203  	   l_return := UPPER(p_log_type);
+204  	 ELSE
+205  	   IF	   log_type_valid(p_error_default)
+206  	      AND  UPPER(p_error_default) NOT IN ( sosl_constants.LOG_INFO_TYPE
+207  						 , sosl_constants.LOG_SUCCESS_TYPE
+208  						 )
+209  	   THEN
+210  	     l_return := UPPER(p_error_default);
+211  	   END IF;
+212  	 END IF;
+213  	 RETURN l_return;
+214    EXCEPTION
+215  	 WHEN OTHERS THEN
+216  	   log_event( p_message => l_self_caller || ': Unhandled EXCEPTION = ' || TRIM(SUBSTR(SQLERRM, 1, 500)) || CASE WHEN LENGTH(SQLERRM) > 500 THEN ' ... see full_message for complete details.' END
+217  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
+218  		    , p_log_category => l_self_log_category
+219  		    , p_guid => NULL
+220  		    , p_sosl_identifier => NULL
+221  		    , p_executor_id => NULL
+222  		    , p_ext_script_id => NULL
+223  		    , p_script_file => NULL
+224  		    , p_caller => l_self_caller
+225  		    , p_run_id => NULL
+226  		      -- full details
+227  		    , p_full_message => SQLERRM
+228  		    )
+229  	   ;
+230  	   RETURN sosl_constants.LOG_FATAL_TYPE;
+231    END get_valid_log_type;
+232  
+233    FUNCTION distribute( p_string		IN OUT	       VARCHAR2
+234  			  , p_clob		IN OUT NOCOPY  CLOB
+235  			  , p_max_string_length IN	       INTEGER	 DEFAULT 4000
+236  			  , p_split_end 	IN	       VARCHAR2  DEFAULT '...'
+237  			  , p_split_start	IN	       VARCHAR2  DEFAULT '...'
+238  			  , p_delimiter 	IN	       VARCHAR2  DEFAULT ' - '
+239  			  )
+240  	 RETURN BOOLEAN
+241    IS
+242  	 l_string	     VARCHAR2(32767);
+243  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
+244  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.distribute';
+245    BEGIN
+246  	 IF	(p_string IS NULL OR NVL(LENGTH(TRIM(p_string)), 0) = 0)
+247  	    AND (p_clob   IS NULL OR NVL(LENGTH(TRIM(p_clob)), 0) = 0)
 248  	 THEN
-249  	   IF LENGTH(p_string) > p_max_string_length
-250  	   THEN
-251  	     -- need to split
-252  	     l_string := p_split_start || SUBSTR(p_string, (p_max_string_length - LENGTH(p_split_end) + 1)) || p_delimiter;
-253  	     p_string := SUBSTR(p_string, 1, (p_max_string_length - LENGTH(p_split_end))) || p_split_end;
-254  	     p_clob   := l_string || p_clob;
-255  	   END IF;
-256  	   RETURN TRUE;
-257  	 END IF;
-258  	 IF p_string IS NOT NULL AND NVL(LENGTH(TRIM(p_string)), 0) > 0
-259  	 THEN
-260  	   IF LENGTH(p_string) > p_max_string_length
-261  	   THEN
-262  	     -- need to split
-263  	     l_string := p_split_start || SUBSTR(p_string, (p_max_string_length - LENGTH(p_split_end) + 1));
-264  	     p_string := SUBSTR(p_string, 1, (p_max_string_length - LENGTH(p_split_end))) || p_split_end;
-265  	     p_clob   := TO_CLOB(l_string);
-266  	   ELSE
-267  	     p_clob := TO_CLOB(l_string);
-268  	   END IF;
-269  	   RETURN TRUE;
-270  	 END IF;
-271  	 IF p_clob IS NOT NULL AND NVL(LENGTH(TRIM(p_clob)), 0) > 0
-272  	 THEN
-273  	   IF LENGTH(p_clob) > p_max_string_length
-274  	   THEN
-275  	     p_string := TO_CHAR(SUBSTR(p_clob, 1, (p_max_string_length - LENGTH(p_split_end))) || p_split_end);
-276  	   ELSE
-277  	     p_string := TO_CHAR(p_clob);
-278  	   END IF;
-279  	   RETURN TRUE;
-280  	 END IF;
-281  	 -- should not reach this point
-282  	 log_event( p_message => l_self_caller || ': Logic incomplete. Procedure should exit before and not reach end of procedure'
-283  		  , p_log_type => sosl_constants.LOG_FATAL_TYPE
-284  		  , p_log_category => l_self_log_category
-285  		  , p_guid => NULL
-286  		  , p_sosl_identifier => NULL
-287  		  , p_executor_id => NULL
-288  		  , p_ext_script_id => NULL
-289  		  , p_caller => l_self_caller
-290  		  , p_run_id => NULL
-291  		    -- full details
-292  		  , p_full_message => SQLERRM
-293  		  )
-294  	 ;
-295  	 RETURN FALSE;
-296    EXCEPTION
-297  	 WHEN OTHERS THEN
-298  	   log_event( p_message => l_self_caller || ': Unhandled EXCEPTION = ' || TRIM(SUBSTR(SQLERRM, 1, 500)) || CASE WHEN LENGTH(SQLERRM) > 500 THEN ' ... see full_message for complete details.' END
-299  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
-300  		    , p_log_category => l_self_log_category
-301  		    , p_guid => NULL
-302  		    , p_sosl_identifier => NULL
-303  		    , p_executor_id => NULL
-304  		    , p_ext_script_id => NULL
-305  		    , p_caller => l_self_caller
-306  		    , p_run_id => NULL
-307  		      -- full details
-308  		    , p_full_message => SQLERRM
-309  		    )
-310  	   ;
-311  	   RETURN FALSE;
-312    END distribute;
-313  
-314    PROCEDURE full_log( p_message	      IN VARCHAR2
-315  			 , p_log_type	      IN VARCHAR2    DEFAULT sosl_constants.LOG_INFO_TYPE
-316  			 , p_log_category     IN VARCHAR2    DEFAULT 'not set'
-317  			 , p_caller	      IN VARCHAR2    DEFAULT NULL
-318  			 , p_guid	      IN VARCHAR2    DEFAULT NULL
-319  			 , p_sosl_identifier  IN VARCHAR2    DEFAULT NULL
-320  			 , p_executor_id      IN NUMBER      DEFAULT NULL
-321  			 , p_ext_script_id    IN VARCHAR2    DEFAULT NULL
-322  			 , p_run_id	      IN NUMBER      DEFAULT NULL
-323  			 , p_full_message     IN CLOB	     DEFAULT NULL
-324  			 )
-325    IS
-326  	 -- set variables to current type
-327  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
-328  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.full_log';
-329  	 l_log_category      sosl_server_log.log_category%TYPE;
-330  	 l_caller	     sosl_server_log.caller%TYPE;
-331  	 l_guid 	     sosl_server_log.guid%TYPE;
-332  	 l_sosl_identifier   sosl_server_log.sosl_identifier%TYPE;
-333  	 l_executor_id	     sosl_server_log.executor_id%TYPE;
-334  	 l_ext_script_id     sosl_server_log.ext_script_id%TYPE;
-335  	 l_run_id	     sosl_server_log.run_id%TYPE;
-336  	 l_col_length	     INTEGER;
-337    BEGIN
-338  	 -- basic column checks message splitting is left to table triggers
-339  	 -- LOG_CATEGORY
-340  	 IF NVL(LENGTH(TRIM(p_log_category)), 0) > 256
-341  	 THEN
-342  	   -- write extra log entry and cut original content to limit
-343  	   log_event( p_message => l_self_caller || ': p_log_category length exceeds column length (256) in SOSL_SERVER_LOG. See full message for message causing the error.'
-344  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
-345  		    , p_log_category => l_self_log_category
-346  		    , p_guid => NULL
-347  		    , p_sosl_identifier => NULL
-348  		    , p_executor_id => NULL
-349  		    , p_ext_script_id => NULL
-350  		    , p_caller => l_self_caller
-351  		    , p_run_id => NULL
-352  		      -- details and original message
-353  		    , p_full_message => ('LOG_CATEGORY: ' || TRIM(p_log_category) || ' length: ' || LENGTH(TRIM(p_log_category)) || ' msg: ' || p_message || ' - ' || p_full_message)
-354  		    )
-355  	   ;
-356  	   l_log_category := SUBSTR(TRIM(p_log_category), 1, 256);
-357  	 ELSE
-358  	   l_log_category := NVL(TRIM(p_log_category), sosl_constants.GEN_NA_TYPE);
-359  	 END IF;
-360  	 -- CALLER
-361  	 IF NVL(LENGTH(TRIM(p_caller)), 0) > 256
-362  	 THEN
-363  	   -- write extra log entry and cut original content to limit
-364  	   log_event( p_message => l_self_caller || ': p_caller length exceeds column length (256) in SOSL_SERVER_LOG. See full message for message causing the error.'
-365  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
-366  		    , p_log_category => l_self_log_category
-367  		    , p_guid => NULL
-368  		    , p_sosl_identifier => NULL
-369  		    , p_executor_id => NULL
-370  		    , p_ext_script_id => NULL
-371  		    , p_caller => l_self_caller
-372  		    , p_run_id => NULL
-373  		      -- details and original message
-374  		    , p_full_message => ('CALLER: ' || TRIM(p_caller) || ' length: ' || LENGTH(TRIM(p_caller)) || ' msg: ' || p_message || ' - ' || p_full_message)
-375  		    )
-376  	   ;
-377  	   l_caller := SUBSTR(TRIM(p_caller), 1, 256);
-378  	 ELSE
-379  	   l_caller := TRIM(p_caller);
-380  	 END IF;
-381  	 -- GUID
-382  	 IF NVL(LENGTH(TRIM(p_guid)), 0) > 64
-383  	 THEN
-384  	   -- write extra log entry and cut original content to limit
-385  	   log_event( p_message => l_self_caller || ': p_guid length exceeds column length (64) in SOSL_SERVER_LOG. See full message for message causing the error.'
-386  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
-387  		    , p_log_category => l_self_log_category
-388  		    , p_guid => NULL
-389  		    , p_sosl_identifier => NULL
-390  		    , p_executor_id => NULL
-391  		    , p_ext_script_id => NULL
-392  		    , p_caller => l_self_caller
-393  		    , p_run_id => NULL
-394  		      -- details and original message
-395  		    , p_full_message => ('GUID: ' || TRIM(p_guid) || ' length: ' || LENGTH(TRIM(p_guid)) || ' msg: ' || p_message || ' - ' || p_full_message)
-396  		    )
-397  	   ;
-398  	   l_guid := SUBSTR(TRIM(p_guid), 1, 64);
-399  	 ELSE
-400  	   l_guid := TRIM(p_guid);
-401  	 END IF;
-402  	 -- SOSL_IDENTIFIER
-403  	 IF NVL(LENGTH(TRIM(p_sosl_identifier)), 0) > 256
-404  	 THEN
-405  	   -- write extra log entry and cut original content to limit
-406  	   log_event( p_message => l_self_caller || ': p_sosl_identifier length exceeds column length (256) in SOSL_SERVER_LOG. See full message for message causing the error.'
-407  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
-408  		    , p_log_category => l_self_log_category
-409  		    , p_guid => NULL
-410  		    , p_sosl_identifier => NULL
-411  		    , p_executor_id => NULL
-412  		    , p_ext_script_id => NULL
-413  		    , p_caller => l_self_caller
-414  		    , p_run_id => NULL
-415  		      -- details and original message
-416  		    , p_full_message => ('SOSL_IDENTIFIER: ' || TRIM(p_sosl_identifier) || ' length: ' || LENGTH(TRIM(p_sosl_identifier)) || ' msg: ' || p_message || ' - ' || p_full_message)
-417  		    )
-418  	   ;
-419  	   l_sosl_identifier := SUBSTR(TRIM(p_sosl_identifier), 1, 256);
-420  	 ELSE
-421  	   l_sosl_identifier := TRIM(p_sosl_identifier);
-422  	 END IF;
-423  	 -- EXT_SCRIPT_ID
-424  	 IF NVL(LENGTH(TRIM(p_ext_script_id)), 0) > 4000
-425  	 THEN
-426  	   -- write extra log entry and cut original content to limit
-427  	   log_event( p_message => l_self_caller || ': p_ext_script_id length exceeds column length (4000) in SOSL_SERVER_LOG. See full message for message causing the error.'
-428  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
-429  		    , p_log_category => l_self_log_category
-430  		    , p_guid => NULL
-431  		    , p_sosl_identifier => NULL
-432  		    , p_executor_id => NULL
-433  		    , p_ext_script_id => NULL
-434  		    , p_caller => l_self_caller
-435  		    , p_run_id => NULL
-436  		      -- details and original message
-437  		    , p_full_message => ('EXT_SCRIPT_ID: ' || TRIM(p_ext_script_id) || ' length: ' || LENGTH(TRIM(p_ext_script_id)) || ' msg: ' || p_message || ' - ' || p_full_message)
-438  		    )
-439  	   ;
-440  	   l_ext_script_id := SUBSTR(TRIM(p_ext_script_id), 1, 4000);
-441  	 ELSE
-442  	   l_ext_script_id := TRIM(p_ext_script_id);
-443  	 END IF;
-444  	 -- no check on numbers
-445  	 l_executor_id := p_executor_id;
-446  	 l_run_id := p_run_id;
-447  	 -- try to write the given data to SOSL_SERVER_LOG
-448  	 log_event( p_message => p_message
-449  		  , p_log_type => p_log_type
-450  		  , p_log_category => l_log_category
-451  		  , p_guid => l_guid
-452  		  , p_sosl_identifier => l_sosl_identifier
-453  		  , p_executor_id => l_executor_id
-454  		  , p_ext_script_id => l_ext_script_id
-455  		  , p_caller => l_caller
-456  		  , p_run_id => l_run_id
-457  		  , p_full_message => p_full_message
-458  		  )
-459  	 ;
-460    EXCEPTION
-461  	 WHEN OTHERS THEN
-462  	   log_event( p_message => l_self_caller || ': Unhandled EXCEPTION = ' || TRIM(SUBSTR(SQLERRM, 1, 500)) || CASE WHEN LENGTH(SQLERRM) > 500 THEN ' ... see full_message for complete details.' END
-463  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
-464  		    , p_log_category => l_self_log_category
-465  		    , p_guid => NULL
-466  		    , p_sosl_identifier => NULL
-467  		    , p_executor_id => NULL
-468  		    , p_ext_script_id => NULL
-469  		    , p_caller => l_self_caller
-470  		    , p_run_id => NULL
-471  		      -- full details and original message
-472  		    , p_full_message => (SQLERRM || ': ' || p_message)
-473  		    )
-474  	   ;
-475    END full_log;
-476  
-477    PROCEDURE exception_log( p_caller     IN VARCHAR2
-478  			      , p_category   IN VARCHAR2
-479  			      , p_sqlerrmsg  IN VARCHAR2
-480  			      )
-481    IS
-482  	 l_category  sosl_server_log.log_category%TYPE;
-483  	 l_caller    sosl_server_log.caller%TYPE;
-484  	 l_message   VARCHAR2(32767);
-485    BEGIN
-486  	 l_category  := NVL(p_category, sosl_constants.GEN_NA_TYPE);
-487  	 l_caller    := NVL(p_caller, sosl_constants.GEN_NA_TYPE);
-488  	 l_message   := NVL(p_sqlerrmsg, 'Called sosl_log.exception_log without message.');
-489  	 log_event( p_message => l_caller || ': Unhandled EXCEPTION = ' || TRIM(SUBSTR(l_message, 1, 500)) || CASE WHEN LENGTH(l_message) > 500 THEN ' ... see full_message for complete details.' END
-490  		  , p_log_type => sosl_constants.LOG_FATAL_TYPE
-491  		  , p_log_category => l_category
-492  		  , p_guid => NULL
-493  		  , p_sosl_identifier => NULL
-494  		  , p_executor_id => NULL
-495  		  , p_ext_script_id => NULL
-496  		  , p_caller => l_caller
-497  		  , p_run_id => NULL
-498  		    -- full details and original message
-499  		  , p_full_message => l_message
-500  		  )
-501  	 ;
-502    EXCEPTION
-503  	 WHEN OTHERS THEN
-504  	   -- no extra trouble if already in exception state
-505  	   NULL;
-506    END exception_log;
-507  
-508    PROCEDURE minimal_error_log( p_caller	 IN VARCHAR2
-509  				  , p_category	 IN VARCHAR2
-510  				  , p_short_msg  IN VARCHAR2
-511  				  , p_full_msg	 IN CLOB     DEFAULT NULL
-512  				  )
-513    IS
-514  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
-515  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.minimal_error_log CLOB';
-516  	 l_category	     sosl_server_log.log_category%TYPE;
-517  	 l_caller	     sosl_server_log.caller%TYPE;
-518  	 l_short_msg	     VARCHAR2(32767);
-519  	 l_full_msg	     CLOB;
-520    BEGIN
-521  	 l_category  := NVL(p_category, sosl_constants.GEN_NA_TYPE);
-522  	 l_caller    := NVL(p_caller, sosl_constants.GEN_NA_TYPE);
-523  	 IF p_short_msg IS NULL AND p_full_msg IS NULL
-524  	 THEN
-525  	   l_short_msg := l_caller || ': ERROR = Called sosl_log.minimal_error_log without any message.';
-526  	   l_full_msg  := l_caller || ': ERROR = Called sosl_log.minimal_error_log without any message.';
-527  	 ELSIF p_short_msg IS NULL AND p_full_msg IS NOT NULL
-528  	 THEN
-529  	   -- split long message
-530  	   l_short_msg := l_caller || ': ERROR = ' || SUBSTR(p_full_msg, 1, 500) || CASE WHEN LENGTH(p_full_msg) > 500 THEN ' ... see full_message for complete details.' END;
-531  	   l_full_msg  := p_full_msg;
-532  	 ELSIF LENGTH(p_short_msg) > 3600
-533  	 THEN
-534  	   -- a very long short message, handle the overflow and distribute it to full message, we do not check for 4000 length to have some formatting space
-535  	   l_short_msg := l_caller || ': ERROR = ' || SUBSTR(p_short_msg, 1, 500) || ' ... see full_message for complete details.';
-536  	   l_full_msg  := '... ' || SUBSTR(p_short_msg, 501) || ' - ' || p_full_msg;
-537  	 ELSE
-538  	   -- if long message is NULL we do not care, maybe NULL or given, handled as given.
-539  	   l_short_msg := l_caller || ': ERROR = ' || p_short_msg;
-540  	   l_full_msg  := p_full_msg;
-541  	 END IF;
-542  	 log_event( p_message => l_short_msg
-543  		  , p_log_type => sosl_constants.LOG_ERROR_TYPE
-544  		  , p_log_category => l_category
-545  		  , p_guid => NULL
-546  		  , p_sosl_identifier => NULL
-547  		  , p_executor_id => NULL
-548  		  , p_ext_script_id => NULL
-549  		  , p_caller => l_caller
-550  		  , p_run_id => NULL
-551  		    -- full details and original message
-552  		  , p_full_message => l_full_msg
-553  		  )
-554  	 ;
-555    EXCEPTION
-556  	 WHEN OTHERS THEN
-557  	   -- log exception as we should not be already in exception state, only application error
-558  	   -- do not raise again
-559  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-560    END minimal_error_log;
-561  
-562    PROCEDURE minimal_error_log( p_caller	 IN VARCHAR2
-563  				  , p_category	 IN VARCHAR2
-564  				  , p_short_msg  IN VARCHAR2
-565  				  , p_full_msg	 IN VARCHAR2
-566  				  )
-567    IS
-568  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
-569  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.minimal_error_log VARCHAR2';
-570    BEGIN
-571  	 sosl_log.minimal_error_log(p_caller, p_category, p_short_msg, TO_CLOB(p_full_msg));
-572    EXCEPTION
-573  	 WHEN OTHERS THEN
-574  	   -- log exception as we should not be already in exception state, only application error
-575  	   -- do not raise again
-576  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-577    END minimal_error_log;
-578  
-579    PROCEDURE minimal_info_log( p_caller	IN VARCHAR2
-580  				 , p_category	IN VARCHAR2
-581  				 , p_short_msg	IN VARCHAR2
-582  				 , p_full_msg	IN CLOB      DEFAULT NULL
-583  				 )
-584    IS
-585  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
-586  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.minimal_info_log CLOB';
-587  	 l_category	     sosl_server_log.log_category%TYPE;
-588  	 l_caller	     sosl_server_log.caller%TYPE;
-589  	 l_short_msg	     VARCHAR2(32767);
-590  	 l_full_msg	     CLOB;
-591    BEGIN
-592  	 l_category  := NVL(p_category, sosl_constants.GEN_NA_TYPE);
-593  	 l_caller    := NVL(p_caller, sosl_constants.GEN_NA_TYPE);
-594  	 IF p_short_msg IS NULL AND p_full_msg IS NULL
-595  	 THEN
-596  	   l_short_msg := l_caller || ': ERROR = Called sosl_log.minimal_info_log without any message.';
-597  	   l_full_msg  := l_caller || ': ERROR = Called sosl_log.minimal_info_log without any message.';
-598  	 ELSIF p_short_msg IS NULL AND p_full_msg IS NOT NULL
-599  	 THEN
-600  	   -- split long message
-601  	   l_short_msg := SUBSTR(p_full_msg, 1, 500) || CASE WHEN LENGTH(p_full_msg) > 500 THEN ' ... see full_message for complete details.' END;
-602  	   l_full_msg  := p_full_msg;
-603  	 ELSIF LENGTH(p_short_msg) > 3600
-604  	 THEN
-605  	   -- a very long short message, handle the overflow and distribute it to full message, we do not check for 4000 length to have some formatting space
-606  	   l_short_msg := SUBSTR(p_short_msg, 1, 500) || ' ... see full_message for complete details.';
-607  	   l_full_msg  := '... ' || SUBSTR(p_short_msg, 501) || ' - ' || p_full_msg;
-608  	 ELSE
-609  	   -- if long message is NULL we do not care, maybe NULL or given, handled as given.
-610  	   l_short_msg := p_short_msg;
-611  	   l_full_msg  := p_full_msg;
-612  	 END IF;
-613  	 log_event( p_message => l_short_msg
-614  		  , p_log_type => sosl_constants.LOG_INFO_TYPE
-615  		  , p_log_category => l_category
-616  		  , p_guid => NULL
-617  		  , p_sosl_identifier => NULL
-618  		  , p_executor_id => NULL
-619  		  , p_ext_script_id => NULL
-620  		  , p_caller => l_caller
-621  		  , p_run_id => NULL
-622  		    -- full details and original message
-623  		  , p_full_message => l_full_msg
-624  		  )
-625  	 ;
-626    EXCEPTION
-627  	 WHEN OTHERS THEN
-628  	   -- log exception as we should not be already in exception state, only application error
-629  	   -- do not raise again
-630  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-631    END minimal_info_log;
-632  
-633    PROCEDURE minimal_info_log( p_caller	IN VARCHAR2
-634  				 , p_category	IN VARCHAR2
-635  				 , p_short_msg	IN VARCHAR2
-636  				 , p_full_msg	IN VARCHAR2
-637  				 )
-638    IS
-639  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
-640  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.minimal_info_log VARCHAR2';
-641    BEGIN
-642  	 sosl_log.minimal_info_log(p_caller, p_category, p_short_msg, TO_CLOB(p_full_msg));
-643    EXCEPTION
-644  	 WHEN OTHERS THEN
-645  	   -- log exception as we should not be already in exception state, only application error
-646  	   -- do not raise again
-647  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-648    END minimal_info_log;
-649  
-650    PROCEDURE minimal_warning_log( p_caller	   IN VARCHAR2
-651  				    , p_category   IN VARCHAR2
-652  				    , p_short_msg  IN VARCHAR2
-653  				    , p_full_msg   IN CLOB     DEFAULT NULL
-654  				    )
-655    IS
-656  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
-657  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.minimal_warning_log CLOB';
-658  	 l_category	     sosl_server_log.log_category%TYPE;
-659  	 l_caller	     sosl_server_log.caller%TYPE;
-660  	 l_short_msg	     VARCHAR2(32767);
-661  	 l_full_msg	     CLOB;
-662    BEGIN
-663  	 l_category  := NVL(p_category, sosl_constants.GEN_NA_TYPE);
-664  	 l_caller    := NVL(p_caller, sosl_constants.GEN_NA_TYPE);
-665  	 IF p_short_msg IS NULL AND p_full_msg IS NULL
-666  	 THEN
-667  	   l_short_msg := l_caller || ': ERROR = Called sosl_log.minimal_warning_log without any message.';
-668  	   l_full_msg  := l_caller || ': ERROR = Called sosl_log.minimal_warning_log without any message.';
-669  	 ELSIF p_short_msg IS NULL AND p_full_msg IS NOT NULL
-670  	 THEN
-671  	   -- split long message
-672  	   l_short_msg := SUBSTR(p_full_msg, 1, 500) || CASE WHEN LENGTH(p_full_msg) > 500 THEN ' ... see full_message for complete details.' END;
-673  	   l_full_msg  := p_full_msg;
-674  	 ELSIF LENGTH(p_short_msg) > 3600
-675  	 THEN
-676  	   -- a very long short message, handle the overflow and distribute it to full message, we do not check for 4000 length to have some formatting space
-677  	   l_short_msg := SUBSTR(p_short_msg, 1, 500) || ' ... see full_message for complete details.';
-678  	   l_full_msg  := '... ' || SUBSTR(p_short_msg, 501) || ' - ' || p_full_msg;
-679  	 ELSE
-680  	   -- if long message is NULL we do not care, maybe NULL or given, handled as given.
-681  	   l_short_msg := p_short_msg;
-682  	   l_full_msg  := p_full_msg;
-683  	 END IF;
-684  	 log_event( p_message => l_short_msg
-685  		  , p_log_type => sosl_constants.LOG_WARNING_TYPE
-686  		  , p_log_category => l_category
-687  		  , p_guid => NULL
-688  		  , p_sosl_identifier => NULL
-689  		  , p_executor_id => NULL
-690  		  , p_ext_script_id => NULL
-691  		  , p_caller => l_caller
-692  		  , p_run_id => NULL
-693  		    -- full details and original message
-694  		  , p_full_message => l_full_msg
-695  		  )
-696  	 ;
-697    EXCEPTION
-698  	 WHEN OTHERS THEN
-699  	   -- log exception as we should not be already in exception state, only application error
-700  	   -- do not raise again
-701  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-702    END minimal_warning_log;
-703  
-704    PROCEDURE minimal_warning_log( p_caller	   IN VARCHAR2
-705  				    , p_category   IN VARCHAR2
-706  				    , p_short_msg  IN VARCHAR2
-707  				    , p_full_msg   IN VARCHAR2
-708  				    )
-709    IS
-710  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
-711  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.minimal_warning_log VARCHAR2';
-712    BEGIN
-713  	 sosl_log.minimal_warning_log(p_caller, p_category, p_short_msg, TO_CLOB(p_full_msg));
-714    EXCEPTION
-715  	 WHEN OTHERS THEN
-716  	   -- log exception as we should not be already in exception state, only application error
-717  	   -- do not raise again
-718  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-719    END minimal_warning_log;
-720  
-721    PROCEDURE log_column_change( p_old_value     IN VARCHAR2
-722  				  , p_new_value     IN VARCHAR2
-723  				  , p_column_name   IN VARCHAR2
-724  				  , p_caller	    IN VARCHAR2
-725  				  , p_forbidden     IN BOOLEAN	DEFAULT TRUE
-726  				  )
-727    IS
-728  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
-729  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.log_column_change VARCHAR2';
-730  	 l_log_category      sosl_server_log.log_category%TYPE;
-731  	 l_caller	     sosl_server_log.caller%TYPE;
-732    BEGIN
-733  	 l_log_category := NVL(UPPER(p_column_name), sosl_constants.GEN_NA_TYPE);
-734  	 l_caller	:= NVL(p_caller, sosl_constants.GEN_NA_TYPE);
-735  	   -- log parameter errors
-736  	 IF p_column_name IS NULL
-737  	 THEN
-738  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'ERROR Parameter p_column_name is missing.');
-739  	 END IF;
-740  	 IF p_caller IS NULL
-741  	 THEN
-742  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'ERROR Parameter p_caller is missing.');
-743  	 END IF;
-744  	 IF NVL(p_old_value, sosl_constants.GEN_NA_TYPE) != NVL(p_new_value, sosl_constants.GEN_NA_TYPE)
-745  	 THEN
-746  	   IF p_forbidden
-747  	   THEN
-748  	     sosl_log.minimal_warning_log( l_caller
-749  					 , l_log_category
-750  					 , 'FORBIDDEN change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' tried to: ' || NVL(p_new_value, sosl_constants.GEN_NULL_TEXT)
-751  					 , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
-752  					 )
-753  	     ;
-754  	   ELSE
-755  	     sosl_log.minimal_info_log( l_caller
-756  				      , l_log_category
-757  				      , 'Change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' from: ' || NVL(p_old_value, sosl_constants.GEN_NULL_TEXT) || ' to: ' || NVL(p_new_value, sosl_constants.GEN_NULL_TEXT)
-758  				      , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
-759  				      )
-760  	     ;
-761  	   END IF;
-762  	 END IF;
-763    EXCEPTION
-764  	 WHEN OTHERS THEN
-765  	   -- log exception as we should not be already in exception state, only application error
-766  	   -- do not raise again
-767  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-768    END log_column_change; -- VARCHAR2
-769  
-770    PROCEDURE log_column_change( p_old_value     IN NUMBER
-771  				  , p_new_value     IN NUMBER
-772  				  , p_column_name   IN VARCHAR2
-773  				  , p_caller	    IN VARCHAR2
-774  				  , p_forbidden     IN BOOLEAN	DEFAULT TRUE
-775  				  )
-776    IS
-777  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
-778  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.log_column_change NUMBER';
-779  	 l_log_category      sosl_server_log.log_category%TYPE;
-780  	 l_caller	     sosl_server_log.caller%TYPE;
-781    BEGIN
-782  	 l_log_category := NVL(UPPER(p_column_name), sosl_constants.GEN_NA_TYPE);
-783  	 l_caller	:= NVL(p_caller, sosl_constants.GEN_NA_TYPE);
-784  	   -- log parameter errors
-785  	 IF p_column_name IS NULL
-786  	 THEN
-787  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'ERROR Parameter p_column_name is missing.');
-788  	 END IF;
-789  	 IF p_caller IS NULL
-790  	 THEN
-791  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'ERROR Parameter p_caller is missing.');
-792  	 END IF;
-793  	 -- use TO_CHAR for comparing NULL values as there is no invalid number symbol
-794  	 IF NVL(TO_CHAR(p_old_value), sosl_constants.GEN_NA_TYPE) != NVL(TO_CHAR(p_new_value), sosl_constants.GEN_NA_TYPE)
-795  	 THEN
-796  	   IF p_forbidden
-797  	   THEN
-798  	     sosl_log.minimal_warning_log( l_caller
-799  					 , l_log_category
-800  					 , 'FORBIDDEN change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' tried to: ' || NVL(TO_CHAR(p_new_value), sosl_constants.GEN_NULL_TEXT)
-801  					 , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
-802  					 )
-803  	     ;
-804  	   ELSE
-805  	     sosl_log.minimal_info_log( l_caller
-806  				      , l_log_category
-807  				      , 'Change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' from: ' || NVL(TO_CHAR(p_old_value), sosl_constants.GEN_NULL_TEXT) || ' to: ' || NVL(TO_CHAR(p_new_value), sosl_constants.GEN_NULL_TEXT)
-808  				      , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
-809  				      )
-810  	     ;
-811  	   END IF;
-812  	 END IF;
-813    EXCEPTION
-814  	 WHEN OTHERS THEN
-815  	   -- log exception as we should not be already in exception state, only application error
-816  	   -- do not raise again
-817  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-818    END log_column_change; -- NUMBER
-819  
-820    PROCEDURE log_column_change( p_old_value     IN DATE
-821  				  , p_new_value     IN DATE
-822  				  , p_column_name   IN VARCHAR2
-823  				  , p_caller	    IN VARCHAR2
-824  				  , p_forbidden     IN BOOLEAN	DEFAULT TRUE
-825  				  )
-826    IS
-827  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
-828  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.log_column_change DATE';
-829  	 l_log_category      sosl_server_log.log_category%TYPE;
-830  	 l_caller	     sosl_server_log.caller%TYPE;
-831    BEGIN
-832  	 l_log_category := NVL(UPPER(p_column_name), sosl_constants.GEN_NA_TYPE);
-833  	 l_caller	:= NVL(p_caller, sosl_constants.GEN_NA_TYPE);
-834  	   -- log parameter errors
-835  	 IF p_column_name IS NULL
-836  	 THEN
-837  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'ERROR Parameter p_column_name is missing.');
-838  	 END IF;
-839  	 IF p_caller IS NULL
-840  	 THEN
-841  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'ERROR Parameter p_caller is missing.');
-842  	 END IF;
-843  	 IF NVL(p_old_value, sosl_constants.GEN_NA_DATE_TYPE) != NVL(p_new_value, sosl_constants.GEN_NA_DATE_TYPE)
-844  	 THEN
-845  	   IF p_forbidden
-846  	   THEN
-847  	     sosl_log.minimal_warning_log( l_caller
-848  					 , l_log_category
-849  					 , 'FORBIDDEN change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' tried to: ' || NVL(TO_CHAR(p_new_value, sosl_constants.GEN_DATE_FORMAT), sosl_constants.GEN_NULL_TEXT)
-850  					 , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
-851  					 )
-852  	     ;
-853  	   ELSE
-854  	     sosl_log.minimal_info_log( l_caller
-855  				      , l_log_category
-856  				      , 'Change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' from: ' || NVL(TO_CHAR(p_old_value, sosl_constants.GEN_DATE_FORMAT), sosl_constants.GEN_NULL_TEXT) || ' to: ' || NVL(TO_CHAR(p_new_value, sosl_constants.GEN_DATE_FORMAT), sosl_constants.GEN_NULL_TEXT)
-857  				      , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
-858  				      )
-859  	     ;
-860  	   END IF;
-861  	 END IF;
-862    EXCEPTION
-863  	 WHEN OTHERS THEN
-864  	   -- log exception as we should not be already in exception state, only application error
-865  	   -- do not raise again
-866  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-867    END log_column_change; -- DATE
-868  
-869    PROCEDURE log_column_change( p_old_value     IN TIMESTAMP
-870  				  , p_new_value     IN TIMESTAMP
-871  				  , p_column_name   IN VARCHAR2
-872  				  , p_caller	    IN VARCHAR2
-873  				  , p_forbidden     IN BOOLEAN	DEFAULT TRUE
-874  				  )
-875    IS
-876  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
-877  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.log_column_change TIMESTAMP';
-878  	 l_log_category      sosl_server_log.log_category%TYPE;
-879  	 l_caller	     sosl_server_log.caller%TYPE;
-880    BEGIN
-881  	 l_log_category := NVL(UPPER(p_column_name), sosl_constants.GEN_NA_TYPE);
-882  	 l_caller	:= NVL(p_caller, sosl_constants.GEN_NA_TYPE);
-883  	   -- log parameter errors
-884  	 IF p_column_name IS NULL
-885  	 THEN
-886  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'ERROR Parameter p_column_name is missing.');
-887  	 END IF;
-888  	 IF p_caller IS NULL
-889  	 THEN
-890  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'ERROR Parameter p_caller is missing.');
-891  	 END IF;
-892  	 IF NVL(p_old_value, sosl_constants.GEN_NA_TIMESTAMP_TYPE) != NVL(p_new_value, sosl_constants.GEN_NA_TIMESTAMP_TYPE)
-893  	 THEN
-894  	   IF p_forbidden
-895  	   THEN
-896  	     sosl_log.minimal_warning_log( l_caller
-897  					 , l_log_category
-898  					 , 'FORBIDDEN change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' tried to: ' || NVL(TO_CHAR(p_new_value, sosl_constants.GEN_TIMESTAMP_FORMAT), sosl_constants.GEN_NULL_TEXT)
-899  					 , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
-900  					 )
-901  	     ;
-902  	   ELSE
-903  	     sosl_log.minimal_info_log( l_caller
-904  				      , l_log_category
-905  				      , 'Change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' from: ' || NVL(TO_CHAR(p_old_value, sosl_constants.GEN_TIMESTAMP_FORMAT), sosl_constants.GEN_NULL_TEXT) || ' to: ' || NVL(TO_CHAR(p_new_value, sosl_constants.GEN_TIMESTAMP_FORMAT), sosl_constants.GEN_NULL_TEXT)
-906  				      , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
-907  				      )
-908  	     ;
-909  	   END IF;
-910  	 END IF;
-911    EXCEPTION
-912  	 WHEN OTHERS THEN
-913  	   -- log exception as we should not be already in exception state, only application error
-914  	   -- do not raise again
-915  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-916    END log_column_change; -- TIMESTAMP
-917  
-918  END;
-919  /
+249  	   RETURN FALSE;
+250  	 END IF;
+251  	 IF	p_string IS NOT NULL AND NVL(LENGTH(TRIM(p_string)), 0) > 0
+252  	    AND p_clob	 IS NOT NULL AND NVL(LENGTH(TRIM(p_clob)), 0) > 0
+253  	 THEN
+254  	   IF LENGTH(p_string) > p_max_string_length
+255  	   THEN
+256  	     -- need to split
+257  	     l_string := p_split_start || SUBSTR(p_string, (p_max_string_length - LENGTH(p_split_end) + 1)) || p_delimiter;
+258  	     p_string := SUBSTR(p_string, 1, (p_max_string_length - LENGTH(p_split_end))) || p_split_end;
+259  	     p_clob   := l_string || p_clob;
+260  	   END IF;
+261  	   RETURN TRUE;
+262  	 END IF;
+263  	 IF p_string IS NOT NULL AND NVL(LENGTH(TRIM(p_string)), 0) > 0
+264  	 THEN
+265  	   IF LENGTH(p_string) > p_max_string_length
+266  	   THEN
+267  	     -- need to split
+268  	     l_string := p_split_start || SUBSTR(p_string, (p_max_string_length - LENGTH(p_split_end) + 1));
+269  	     p_string := SUBSTR(p_string, 1, (p_max_string_length - LENGTH(p_split_end))) || p_split_end;
+270  	     p_clob   := TO_CLOB(l_string);
+271  	   ELSE
+272  	     p_clob := TO_CLOB(l_string);
+273  	   END IF;
+274  	   RETURN TRUE;
+275  	 END IF;
+276  	 IF p_clob IS NOT NULL AND NVL(LENGTH(TRIM(p_clob)), 0) > 0
+277  	 THEN
+278  	   IF LENGTH(p_clob) > p_max_string_length
+279  	   THEN
+280  	     p_string := TO_CHAR(SUBSTR(p_clob, 1, (p_max_string_length - LENGTH(p_split_end))) || p_split_end);
+281  	   ELSE
+282  	     p_string := TO_CHAR(p_clob);
+283  	   END IF;
+284  	   RETURN TRUE;
+285  	 END IF;
+286  	 -- should not reach this point
+287  	 log_event( p_message => l_self_caller || ': Logic incomplete. Procedure should exit before and not reach end of procedure'
+288  		  , p_log_type => sosl_constants.LOG_FATAL_TYPE
+289  		  , p_log_category => l_self_log_category
+290  		  , p_guid => NULL
+291  		  , p_sosl_identifier => NULL
+292  		  , p_executor_id => NULL
+293  		  , p_ext_script_id => NULL
+294  		  , p_script_file => NULL
+295  		  , p_caller => l_self_caller
+296  		  , p_run_id => NULL
+297  		    -- full details
+298  		  , p_full_message => SQLERRM
+299  		  )
+300  	 ;
+301  	 RETURN FALSE;
+302    EXCEPTION
+303  	 WHEN OTHERS THEN
+304  	   log_event( p_message => l_self_caller || ': Unhandled EXCEPTION = ' || TRIM(SUBSTR(SQLERRM, 1, 500)) || CASE WHEN LENGTH(SQLERRM) > 500 THEN ' ... see full_message for complete details.' END
+305  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
+306  		    , p_log_category => l_self_log_category
+307  		    , p_guid => NULL
+308  		    , p_sosl_identifier => NULL
+309  		    , p_executor_id => NULL
+310  		    , p_ext_script_id => NULL
+311  		    , p_script_file => NULL
+312  		    , p_caller => l_self_caller
+313  		    , p_run_id => NULL
+314  		      -- full details
+315  		    , p_full_message => SQLERRM
+316  		    )
+317  	   ;
+318  	   RETURN FALSE;
+319    END distribute;
+320  
+321    PROCEDURE full_log( p_message	      IN VARCHAR2
+322  			 , p_log_type	      IN VARCHAR2    DEFAULT sosl_constants.LOG_INFO_TYPE
+323  			 , p_log_category     IN VARCHAR2    DEFAULT 'not set'
+324  			 , p_caller	      IN VARCHAR2    DEFAULT NULL
+325  			 , p_guid	      IN VARCHAR2    DEFAULT NULL
+326  			 , p_sosl_identifier  IN VARCHAR2    DEFAULT NULL
+327  			 , p_executor_id      IN NUMBER      DEFAULT NULL
+328  			 , p_ext_script_id    IN VARCHAR2    DEFAULT NULL
+329  			 , p_script_file      IN VARCHAR2    DEFAULT NULL
+330  			 , p_run_id	      IN NUMBER      DEFAULT NULL
+331  			 , p_full_message     IN CLOB	     DEFAULT NULL
+332  			 )
+333    IS
+334  	 -- set variables to current type
+335  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
+336  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.full_log';
+337  	 l_log_category      sosl_server_log.log_category%TYPE;
+338  	 l_log_type	     sosl_server_log.log_type%TYPE;
+339  	 l_caller	     sosl_server_log.caller%TYPE;
+340  	 l_guid 	     sosl_server_log.guid%TYPE;
+341  	 l_sosl_identifier   sosl_server_log.sosl_identifier%TYPE;
+342  	 l_executor_id	     sosl_server_log.executor_id%TYPE;
+343  	 l_ext_script_id     sosl_server_log.ext_script_id%TYPE;
+344  	 l_script_file	     sosl_server_log.script_file%TYPE;
+345  	 l_run_id	     sosl_server_log.run_id%TYPE;
+346  	 l_col_length	     INTEGER;
+347    BEGIN
+348  	 -- basic column checks message splitting is left to table triggers
+349  	 l_log_type := sosl_log.get_valid_log_type(p_log_type);
+350  	 -- LOG_CATEGORY
+351  	 IF NVL(LENGTH(TRIM(p_log_category)), 0) > 256
+352  	 THEN
+353  	   -- write extra log entry and cut original content to limit
+354  	   log_event( p_message => l_self_caller || ': p_log_category length exceeds column length (256) in SOSL_SERVER_LOG. See full message for message causing the error.'
+355  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
+356  		    , p_log_category => l_self_log_category
+357  		    , p_guid => NULL
+358  		    , p_sosl_identifier => NULL
+359  		    , p_executor_id => NULL
+360  		    , p_ext_script_id => NULL
+361  		    , p_script_file => NULL
+362  		    , p_caller => l_self_caller
+363  		    , p_run_id => NULL
+364  		      -- details and original message
+365  		    , p_full_message => ('LOG_CATEGORY: ' || TRIM(p_log_category) || ' length: ' || LENGTH(TRIM(p_log_category)) || ' msg: ' || p_message || ' - ' || p_full_message)
+366  		    )
+367  	   ;
+368  	   l_log_category := SUBSTR(TRIM(p_log_category), 1, 256);
+369  	 ELSE
+370  	   l_log_category := NVL(TRIM(p_log_category), sosl_constants.GEN_NA_TYPE);
+371  	 END IF;
+372  	 -- CALLER
+373  	 IF NVL(LENGTH(TRIM(p_caller)), 0) > 256
+374  	 THEN
+375  	   -- write extra log entry and cut original content to limit
+376  	   log_event( p_message => l_self_caller || ': p_caller length exceeds column length (256) in SOSL_SERVER_LOG. See full message for message causing the error.'
+377  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
+378  		    , p_log_category => l_self_log_category
+379  		    , p_guid => NULL
+380  		    , p_sosl_identifier => NULL
+381  		    , p_executor_id => NULL
+382  		    , p_ext_script_id => NULL
+383  		    , p_script_file => NULL
+384  		    , p_caller => l_self_caller
+385  		    , p_run_id => NULL
+386  		      -- details and original message
+387  		    , p_full_message => ('CALLER: ' || TRIM(p_caller) || ' length: ' || LENGTH(TRIM(p_caller)) || ' msg: ' || p_message || ' - ' || p_full_message)
+388  		    )
+389  	   ;
+390  	   l_caller := SUBSTR(TRIM(p_caller), 1, 256);
+391  	 ELSE
+392  	   l_caller := TRIM(p_caller);
+393  	 END IF;
+394  	 -- GUID
+395  	 IF NVL(LENGTH(TRIM(p_guid)), 0) > 64
+396  	 THEN
+397  	   -- write extra log entry and cut original content to limit
+398  	   log_event( p_message => l_self_caller || ': p_guid length exceeds column length (64) in SOSL_SERVER_LOG. See full message for message causing the error.'
+399  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
+400  		    , p_log_category => l_self_log_category
+401  		    , p_guid => NULL
+402  		    , p_sosl_identifier => NULL
+403  		    , p_executor_id => NULL
+404  		    , p_ext_script_id => NULL
+405  		    , p_script_file => NULL
+406  		    , p_caller => l_self_caller
+407  		    , p_run_id => NULL
+408  		      -- details and original message
+409  		    , p_full_message => ('GUID: ' || TRIM(p_guid) || ' length: ' || LENGTH(TRIM(p_guid)) || ' msg: ' || p_message || ' - ' || p_full_message)
+410  		    )
+411  	   ;
+412  	   l_guid := SUBSTR(TRIM(p_guid), 1, 64);
+413  	 ELSE
+414  	   l_guid := TRIM(p_guid);
+415  	 END IF;
+416  	 -- SOSL_IDENTIFIER
+417  	 IF NVL(LENGTH(TRIM(p_sosl_identifier)), 0) > 256
+418  	 THEN
+419  	   -- write extra log entry and cut original content to limit
+420  	   log_event( p_message => l_self_caller || ': p_sosl_identifier length exceeds column length (256) in SOSL_SERVER_LOG. See full message for message causing the error.'
+421  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
+422  		    , p_log_category => l_self_log_category
+423  		    , p_guid => NULL
+424  		    , p_sosl_identifier => NULL
+425  		    , p_executor_id => NULL
+426  		    , p_ext_script_id => NULL
+427  		    , p_script_file => NULL
+428  		    , p_caller => l_self_caller
+429  		    , p_run_id => NULL
+430  		      -- details and original message
+431  		    , p_full_message => ('SOSL_IDENTIFIER: ' || TRIM(p_sosl_identifier) || ' length: ' || LENGTH(TRIM(p_sosl_identifier)) || ' msg: ' || p_message || ' - ' || p_full_message)
+432  		    )
+433  	   ;
+434  	   l_sosl_identifier := SUBSTR(TRIM(p_sosl_identifier), 1, 256);
+435  	 ELSE
+436  	   l_sosl_identifier := TRIM(p_sosl_identifier);
+437  	 END IF;
+438  	 -- EXT_SCRIPT_ID
+439  	 IF NVL(LENGTH(TRIM(p_ext_script_id)), 0) > 4000
+440  	 THEN
+441  	   -- write extra log entry and cut original content to limit
+442  	   log_event( p_message => l_self_caller || ': p_ext_script_id length exceeds column length (4000) in SOSL_SERVER_LOG. See full message for message causing the error.'
+443  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
+444  		    , p_log_category => l_self_log_category
+445  		    , p_guid => NULL
+446  		    , p_sosl_identifier => NULL
+447  		    , p_executor_id => NULL
+448  		    , p_ext_script_id => NULL
+449  		    , p_script_file => NULL
+450  		    , p_caller => l_self_caller
+451  		    , p_run_id => NULL
+452  		      -- details and original message
+453  		    , p_full_message => ('EXT_SCRIPT_ID: ' || TRIM(p_ext_script_id) || ' length: ' || LENGTH(TRIM(p_ext_script_id)) || ' msg: ' || p_message || ' - ' || p_full_message)
+454  		    )
+455  	   ;
+456  	   l_ext_script_id := SUBSTR(TRIM(p_ext_script_id), 1, 4000);
+457  	 ELSE
+458  	   l_ext_script_id := TRIM(p_ext_script_id);
+459  	 END IF;
+460  	 -- SCRIPT_FILE
+461  	 IF NVL(LENGTH(TRIM(p_script_file)), 0) > 4000
+462  	 THEN
+463  	   -- write extra log entry and cut original content to limit
+464  	   log_event( p_message => l_self_caller || ': p_script_file length exceeds column length (4000) in SOSL_SERVER_LOG. See full message for message causing the error.'
+465  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
+466  		    , p_log_category => l_self_log_category
+467  		    , p_guid => NULL
+468  		    , p_sosl_identifier => NULL
+469  		    , p_executor_id => NULL
+470  		    , p_ext_script_id => NULL
+471  		    , p_script_file => NULL
+472  		    , p_caller => l_self_caller
+473  		    , p_run_id => NULL
+474  		      -- details and original message
+475  		    , p_full_message => ('SCRIPT_FILE: ' || TRIM(p_script_file) || ' length: ' || LENGTH(TRIM(p_script_file)) || ' msg: ' || p_message || ' - ' || p_full_message)
+476  		    )
+477  	   ;
+478  	   l_script_file := SUBSTR(TRIM(p_script_file), 1, 4000);
+479  	 ELSE
+480  	   l_script_file := TRIM(p_script_file);
+481  	 END IF;
+482  	 -- no check on numbers
+483  	 l_executor_id := p_executor_id;
+484  	 l_run_id := p_run_id;
+485  	 -- try to write the given data to SOSL_SERVER_LOG
+486  	 log_event( p_message => p_message
+487  		  , p_log_type => l_log_type
+488  		  , p_log_category => l_log_category
+489  		  , p_guid => l_guid
+490  		  , p_sosl_identifier => l_sosl_identifier
+491  		  , p_executor_id => l_executor_id
+492  		  , p_ext_script_id => l_ext_script_id
+493  		  , p_script_file => l_script_file
+494  		  , p_caller => l_caller
+495  		  , p_run_id => l_run_id
+496  		  , p_full_message => p_full_message
+497  		  )
+498  	 ;
+499    EXCEPTION
+500  	 WHEN OTHERS THEN
+501  	   log_event( p_message => l_self_caller || ': Unhandled EXCEPTION = ' || TRIM(SUBSTR(SQLERRM, 1, 500)) || CASE WHEN LENGTH(SQLERRM) > 500 THEN ' ... see full_message for complete details.' END
+502  		    , p_log_type => sosl_constants.LOG_FATAL_TYPE
+503  		    , p_log_category => l_self_log_category
+504  		    , p_guid => NULL
+505  		    , p_sosl_identifier => NULL
+506  		    , p_executor_id => NULL
+507  		    , p_ext_script_id => NULL
+508  		    , p_script_file => NULL
+509  		    , p_caller => l_self_caller
+510  		    , p_run_id => NULL
+511  		      -- full details and original message
+512  		    , p_full_message => (SQLERRM || ': ' || p_message)
+513  		    )
+514  	   ;
+515    END full_log;
+516  
+517    PROCEDURE exception_log( p_caller     IN VARCHAR2
+518  			      , p_category   IN VARCHAR2
+519  			      , p_sqlerrmsg  IN VARCHAR2
+520  			      )
+521    IS
+522  	 l_category  sosl_server_log.log_category%TYPE;
+523  	 l_caller    sosl_server_log.caller%TYPE;
+524  	 l_message   VARCHAR2(32767);
+525    BEGIN
+526  	 l_category  := NVL(p_category, sosl_constants.GEN_NA_TYPE);
+527  	 l_caller    := NVL(p_caller, sosl_constants.GEN_NA_TYPE);
+528  	 l_message   := NVL(p_sqlerrmsg, 'Called sosl_log.exception_log without message.');
+529  	 log_event( p_message => l_caller || ': Unhandled EXCEPTION = ' || TRIM(SUBSTR(l_message, 1, 500)) || CASE WHEN LENGTH(l_message) > 500 THEN ' ... see full_message for complete details.' END
+530  		  , p_log_type => sosl_constants.LOG_FATAL_TYPE
+531  		  , p_log_category => l_category
+532  		  , p_guid => NULL
+533  		  , p_sosl_identifier => NULL
+534  		  , p_executor_id => NULL
+535  		  , p_ext_script_id => NULL
+536  		  , p_script_file => NULL
+537  		  , p_caller => l_caller
+538  		  , p_run_id => NULL
+539  		    -- full details and original message
+540  		  , p_full_message => l_message
+541  		  )
+542  	 ;
+543    EXCEPTION
+544  	 WHEN OTHERS THEN
+545  	   -- no extra trouble if already in exception state
+546  	   NULL;
+547    END exception_log;
+548  
+549    PROCEDURE minimal_error_log( p_caller	 IN VARCHAR2
+550  				  , p_category	 IN VARCHAR2
+551  				  , p_short_msg  IN VARCHAR2
+552  				  , p_full_msg	 IN CLOB     DEFAULT NULL
+553  				  )
+554    IS
+555  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
+556  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.minimal_error_log CLOB';
+557  	 l_category	     sosl_server_log.log_category%TYPE;
+558  	 l_caller	     sosl_server_log.caller%TYPE;
+559  	 l_short_msg	     VARCHAR2(32767);
+560  	 l_full_msg	     CLOB;
+561    BEGIN
+562  	 l_category  := NVL(p_category, sosl_constants.GEN_NA_TYPE);
+563  	 l_caller    := NVL(p_caller, sosl_constants.GEN_NA_TYPE);
+564  	 IF p_short_msg IS NULL AND p_full_msg IS NULL
+565  	 THEN
+566  	   l_short_msg := l_caller || ': ERROR = Called sosl_log.minimal_error_log without any message.';
+567  	   l_full_msg  := l_caller || ': ERROR = Called sosl_log.minimal_error_log without any message.';
+568  	 ELSIF p_short_msg IS NULL AND p_full_msg IS NOT NULL
+569  	 THEN
+570  	   -- split long message
+571  	   l_short_msg := l_caller || ': ERROR = ' || SUBSTR(p_full_msg, 1, 500) || CASE WHEN LENGTH(p_full_msg) > 500 THEN ' ... see full_message for complete details.' END;
+572  	   l_full_msg  := p_full_msg;
+573  	 ELSIF LENGTH(p_short_msg) > 3600
+574  	 THEN
+575  	   -- a very long short message, handle the overflow and distribute it to full message, we do not check for 4000 length to have some formatting space
+576  	   l_short_msg := l_caller || ': ERROR = ' || SUBSTR(p_short_msg, 1, 500) || ' ... see full_message for complete details.';
+577  	   l_full_msg  := '... ' || SUBSTR(p_short_msg, 501) || ' - ' || p_full_msg;
+578  	 ELSE
+579  	   -- if long message is NULL we do not care, maybe NULL or given, handled as given.
+580  	   l_short_msg := l_caller || ': ERROR = ' || p_short_msg;
+581  	   l_full_msg  := p_full_msg;
+582  	 END IF;
+583  	 log_event( p_message => l_short_msg
+584  		  , p_log_type => sosl_constants.LOG_ERROR_TYPE
+585  		  , p_log_category => l_category
+586  		  , p_guid => NULL
+587  		  , p_sosl_identifier => NULL
+588  		  , p_executor_id => NULL
+589  		  , p_ext_script_id => NULL
+590  		  , p_script_file => NULL
+591  		  , p_caller => l_caller
+592  		  , p_run_id => NULL
+593  		    -- full details and original message
+594  		  , p_full_message => l_full_msg
+595  		  )
+596  	 ;
+597    EXCEPTION
+598  	 WHEN OTHERS THEN
+599  	   -- log exception as we should not be already in exception state, only application error
+600  	   -- do not raise again
+601  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+602    END minimal_error_log;
+603  
+604    PROCEDURE minimal_error_log( p_caller	 IN VARCHAR2
+605  				  , p_category	 IN VARCHAR2
+606  				  , p_short_msg  IN VARCHAR2
+607  				  , p_full_msg	 IN VARCHAR2
+608  				  )
+609    IS
+610  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
+611  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.minimal_error_log VARCHAR2';
+612    BEGIN
+613  	 sosl_log.minimal_error_log(p_caller, p_category, p_short_msg, TO_CLOB(p_full_msg));
+614    EXCEPTION
+615  	 WHEN OTHERS THEN
+616  	   -- log exception as we should not be already in exception state, only application error
+617  	   -- do not raise again
+618  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+619    END minimal_error_log;
+620  
+621    PROCEDURE minimal_info_log( p_caller	IN VARCHAR2
+622  				 , p_category	IN VARCHAR2
+623  				 , p_short_msg	IN VARCHAR2
+624  				 , p_full_msg	IN CLOB      DEFAULT NULL
+625  				 )
+626    IS
+627  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
+628  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.minimal_info_log CLOB';
+629  	 l_category	     sosl_server_log.log_category%TYPE;
+630  	 l_caller	     sosl_server_log.caller%TYPE;
+631  	 l_short_msg	     VARCHAR2(32767);
+632  	 l_full_msg	     CLOB;
+633    BEGIN
+634  	 l_category  := NVL(p_category, sosl_constants.GEN_NA_TYPE);
+635  	 l_caller    := NVL(p_caller, sosl_constants.GEN_NA_TYPE);
+636  	 IF p_short_msg IS NULL AND p_full_msg IS NULL
+637  	 THEN
+638  	   l_short_msg := l_caller || ': ERROR = Called sosl_log.minimal_info_log without any message.';
+639  	   l_full_msg  := l_caller || ': ERROR = Called sosl_log.minimal_info_log without any message.';
+640  	 ELSIF p_short_msg IS NULL AND p_full_msg IS NOT NULL
+641  	 THEN
+642  	   -- split long message
+643  	   l_short_msg := SUBSTR(p_full_msg, 1, 500) || CASE WHEN LENGTH(p_full_msg) > 500 THEN ' ... see full_message for complete details.' END;
+644  	   l_full_msg  := p_full_msg;
+645  	 ELSIF LENGTH(p_short_msg) > 3600
+646  	 THEN
+647  	   -- a very long short message, handle the overflow and distribute it to full message, we do not check for 4000 length to have some formatting space
+648  	   l_short_msg := SUBSTR(p_short_msg, 1, 500) || ' ... see full_message for complete details.';
+649  	   l_full_msg  := '... ' || SUBSTR(p_short_msg, 501) || ' - ' || p_full_msg;
+650  	 ELSE
+651  	   -- if long message is NULL we do not care, maybe NULL or given, handled as given.
+652  	   l_short_msg := p_short_msg;
+653  	   l_full_msg  := p_full_msg;
+654  	 END IF;
+655  	 log_event( p_message => l_short_msg
+656  		  , p_log_type => sosl_constants.LOG_INFO_TYPE
+657  		  , p_log_category => l_category
+658  		  , p_guid => NULL
+659  		  , p_sosl_identifier => NULL
+660  		  , p_executor_id => NULL
+661  		  , p_ext_script_id => NULL
+662  		  , p_script_file => NULL
+663  		  , p_caller => l_caller
+664  		  , p_run_id => NULL
+665  		    -- full details and original message
+666  		  , p_full_message => l_full_msg
+667  		  )
+668  	 ;
+669    EXCEPTION
+670  	 WHEN OTHERS THEN
+671  	   -- log exception as we should not be already in exception state, only application error
+672  	   -- do not raise again
+673  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+674    END minimal_info_log;
+675  
+676    PROCEDURE minimal_info_log( p_caller	IN VARCHAR2
+677  				 , p_category	IN VARCHAR2
+678  				 , p_short_msg	IN VARCHAR2
+679  				 , p_full_msg	IN VARCHAR2
+680  				 )
+681    IS
+682  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
+683  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.minimal_info_log VARCHAR2';
+684    BEGIN
+685  	 sosl_log.minimal_info_log(p_caller, p_category, p_short_msg, TO_CLOB(p_full_msg));
+686    EXCEPTION
+687  	 WHEN OTHERS THEN
+688  	   -- log exception as we should not be already in exception state, only application error
+689  	   -- do not raise again
+690  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+691    END minimal_info_log;
+692  
+693    PROCEDURE minimal_warning_log( p_caller	   IN VARCHAR2
+694  				    , p_category   IN VARCHAR2
+695  				    , p_short_msg  IN VARCHAR2
+696  				    , p_full_msg   IN CLOB     DEFAULT NULL
+697  				    )
+698    IS
+699  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
+700  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.minimal_warning_log CLOB';
+701  	 l_category	     sosl_server_log.log_category%TYPE;
+702  	 l_caller	     sosl_server_log.caller%TYPE;
+703  	 l_short_msg	     VARCHAR2(32767);
+704  	 l_full_msg	     CLOB;
+705    BEGIN
+706  	 l_category  := NVL(p_category, sosl_constants.GEN_NA_TYPE);
+707  	 l_caller    := NVL(p_caller, sosl_constants.GEN_NA_TYPE);
+708  	 IF p_short_msg IS NULL AND p_full_msg IS NULL
+709  	 THEN
+710  	   l_short_msg := l_caller || ': ERROR = Called sosl_log.minimal_warning_log without any message.';
+711  	   l_full_msg  := l_caller || ': ERROR = Called sosl_log.minimal_warning_log without any message.';
+712  	 ELSIF p_short_msg IS NULL AND p_full_msg IS NOT NULL
+713  	 THEN
+714  	   -- split long message
+715  	   l_short_msg := SUBSTR(p_full_msg, 1, 500) || CASE WHEN LENGTH(p_full_msg) > 500 THEN ' ... see full_message for complete details.' END;
+716  	   l_full_msg  := p_full_msg;
+717  	 ELSIF LENGTH(p_short_msg) > 3600
+718  	 THEN
+719  	   -- a very long short message, handle the overflow and distribute it to full message, we do not check for 4000 length to have some formatting space
+720  	   l_short_msg := SUBSTR(p_short_msg, 1, 500) || ' ... see full_message for complete details.';
+721  	   l_full_msg  := '... ' || SUBSTR(p_short_msg, 501) || ' - ' || p_full_msg;
+722  	 ELSE
+723  	   -- if long message is NULL we do not care, maybe NULL or given, handled as given.
+724  	   l_short_msg := p_short_msg;
+725  	   l_full_msg  := p_full_msg;
+726  	 END IF;
+727  	 log_event( p_message => l_short_msg
+728  		  , p_log_type => sosl_constants.LOG_WARNING_TYPE
+729  		  , p_log_category => l_category
+730  		  , p_guid => NULL
+731  		  , p_sosl_identifier => NULL
+732  		  , p_executor_id => NULL
+733  		  , p_ext_script_id => NULL
+734  		  , p_script_file => NULL
+735  		  , p_caller => l_caller
+736  		  , p_run_id => NULL
+737  		    -- full details and original message
+738  		  , p_full_message => l_full_msg
+739  		  )
+740  	 ;
+741    EXCEPTION
+742  	 WHEN OTHERS THEN
+743  	   -- log exception as we should not be already in exception state, only application error
+744  	   -- do not raise again
+745  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+746    END minimal_warning_log;
+747  
+748    PROCEDURE minimal_warning_log( p_caller	   IN VARCHAR2
+749  				    , p_category   IN VARCHAR2
+750  				    , p_short_msg  IN VARCHAR2
+751  				    , p_full_msg   IN VARCHAR2
+752  				    )
+753    IS
+754  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
+755  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.minimal_warning_log VARCHAR2';
+756    BEGIN
+757  	 sosl_log.minimal_warning_log(p_caller, p_category, p_short_msg, TO_CLOB(p_full_msg));
+758    EXCEPTION
+759  	 WHEN OTHERS THEN
+760  	   -- log exception as we should not be already in exception state, only application error
+761  	   -- do not raise again
+762  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+763    END minimal_warning_log;
+764  
+765    PROCEDURE log_column_change( p_old_value     IN VARCHAR2
+766  				  , p_new_value     IN VARCHAR2
+767  				  , p_column_name   IN VARCHAR2
+768  				  , p_caller	    IN VARCHAR2
+769  				  , p_forbidden     IN BOOLEAN	DEFAULT TRUE
+770  				  )
+771    IS
+772  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
+773  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.log_column_change VARCHAR2';
+774  	 l_log_category      sosl_server_log.log_category%TYPE;
+775  	 l_caller	     sosl_server_log.caller%TYPE;
+776    BEGIN
+777  	 l_log_category := NVL(UPPER(p_column_name), sosl_constants.GEN_NA_TYPE);
+778  	 l_caller	:= NVL(p_caller, sosl_constants.GEN_NA_TYPE);
+779  	   -- log parameter errors
+780  	 IF p_column_name IS NULL
+781  	 THEN
+782  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'ERROR Parameter p_column_name is missing.');
+783  	 END IF;
+784  	 IF p_caller IS NULL
+785  	 THEN
+786  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'ERROR Parameter p_caller is missing.');
+787  	 END IF;
+788  	 IF NVL(p_old_value, sosl_constants.GEN_NA_TYPE) != NVL(p_new_value, sosl_constants.GEN_NA_TYPE)
+789  	 THEN
+790  	   IF p_forbidden
+791  	   THEN
+792  	     sosl_log.minimal_warning_log( l_caller
+793  					 , l_log_category
+794  					 , 'FORBIDDEN change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' tried to: ' || NVL(p_new_value, sosl_constants.GEN_NULL_TEXT)
+795  					 , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+796  					 )
+797  	     ;
+798  	   ELSE
+799  	     sosl_log.minimal_info_log( l_caller
+800  				      , l_log_category
+801  				      , 'Change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' from: ' || NVL(p_old_value, sosl_constants.GEN_NULL_TEXT) || ' to: ' || NVL(p_new_value, sosl_constants.GEN_NULL_TEXT)
+802  				      , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+803  				      )
+804  	     ;
+805  	   END IF;
+806  	 END IF;
+807    EXCEPTION
+808  	 WHEN OTHERS THEN
+809  	   -- log exception as we should not be already in exception state, only application error
+810  	   -- do not raise again
+811  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+812    END log_column_change; -- VARCHAR2
+813  
+814    PROCEDURE log_column_change( p_old_value     IN NUMBER
+815  				  , p_new_value     IN NUMBER
+816  				  , p_column_name   IN VARCHAR2
+817  				  , p_caller	    IN VARCHAR2
+818  				  , p_forbidden     IN BOOLEAN	DEFAULT TRUE
+819  				  )
+820    IS
+821  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
+822  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.log_column_change NUMBER';
+823  	 l_log_category      sosl_server_log.log_category%TYPE;
+824  	 l_caller	     sosl_server_log.caller%TYPE;
+825    BEGIN
+826  	 l_log_category := NVL(UPPER(p_column_name), sosl_constants.GEN_NA_TYPE);
+827  	 l_caller	:= NVL(p_caller, sosl_constants.GEN_NA_TYPE);
+828  	   -- log parameter errors
+829  	 IF p_column_name IS NULL
+830  	 THEN
+831  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'ERROR Parameter p_column_name is missing.');
+832  	 END IF;
+833  	 IF p_caller IS NULL
+834  	 THEN
+835  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'ERROR Parameter p_caller is missing.');
+836  	 END IF;
+837  	 -- use TO_CHAR for comparing NULL values as there is no invalid number symbol
+838  	 IF NVL(TO_CHAR(p_old_value), sosl_constants.GEN_NA_TYPE) != NVL(TO_CHAR(p_new_value), sosl_constants.GEN_NA_TYPE)
+839  	 THEN
+840  	   IF p_forbidden
+841  	   THEN
+842  	     sosl_log.minimal_warning_log( l_caller
+843  					 , l_log_category
+844  					 , 'FORBIDDEN change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' tried to: ' || NVL(TO_CHAR(p_new_value), sosl_constants.GEN_NULL_TEXT)
+845  					 , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+846  					 )
+847  	     ;
+848  	   ELSE
+849  	     sosl_log.minimal_info_log( l_caller
+850  				      , l_log_category
+851  				      , 'Change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' from: ' || NVL(TO_CHAR(p_old_value), sosl_constants.GEN_NULL_TEXT) || ' to: ' || NVL(TO_CHAR(p_new_value), sosl_constants.GEN_NULL_TEXT)
+852  				      , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+853  				      )
+854  	     ;
+855  	   END IF;
+856  	 END IF;
+857    EXCEPTION
+858  	 WHEN OTHERS THEN
+859  	   -- log exception as we should not be already in exception state, only application error
+860  	   -- do not raise again
+861  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+862    END log_column_change; -- NUMBER
+863  
+864    PROCEDURE log_column_change( p_old_value     IN DATE
+865  				  , p_new_value     IN DATE
+866  				  , p_column_name   IN VARCHAR2
+867  				  , p_caller	    IN VARCHAR2
+868  				  , p_forbidden     IN BOOLEAN	DEFAULT TRUE
+869  				  )
+870    IS
+871  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
+872  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.log_column_change DATE';
+873  	 l_log_category      sosl_server_log.log_category%TYPE;
+874  	 l_caller	     sosl_server_log.caller%TYPE;
+875    BEGIN
+876  	 l_log_category := NVL(UPPER(p_column_name), sosl_constants.GEN_NA_TYPE);
+877  	 l_caller	:= NVL(p_caller, sosl_constants.GEN_NA_TYPE);
+878  	   -- log parameter errors
+879  	 IF p_column_name IS NULL
+880  	 THEN
+881  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'ERROR Parameter p_column_name is missing.');
+882  	 END IF;
+883  	 IF p_caller IS NULL
+884  	 THEN
+885  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'ERROR Parameter p_caller is missing.');
+886  	 END IF;
+887  	 IF NVL(p_old_value, sosl_constants.GEN_NA_DATE_TYPE) != NVL(p_new_value, sosl_constants.GEN_NA_DATE_TYPE)
+888  	 THEN
+889  	   IF p_forbidden
+890  	   THEN
+891  	     sosl_log.minimal_warning_log( l_caller
+892  					 , l_log_category
+893  					 , 'FORBIDDEN change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' tried to: ' || NVL(TO_CHAR(p_new_value, sosl_constants.GEN_DATE_FORMAT), sosl_constants.GEN_NULL_TEXT)
+894  					 , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+895  					 )
+896  	     ;
+897  	   ELSE
+898  	     sosl_log.minimal_info_log( l_caller
+899  				      , l_log_category
+900  				      , 'Change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' from: ' || NVL(TO_CHAR(p_old_value, sosl_constants.GEN_DATE_FORMAT), sosl_constants.GEN_NULL_TEXT) || ' to: ' || NVL(TO_CHAR(p_new_value, sosl_constants.GEN_DATE_FORMAT), sosl_constants.GEN_NULL_TEXT)
+901  				      , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+902  				      )
+903  	     ;
+904  	   END IF;
+905  	 END IF;
+906    EXCEPTION
+907  	 WHEN OTHERS THEN
+908  	   -- log exception as we should not be already in exception state, only application error
+909  	   -- do not raise again
+910  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+911    END log_column_change; -- DATE
+912  
+913    PROCEDURE log_column_change( p_old_value     IN TIMESTAMP
+914  				  , p_new_value     IN TIMESTAMP
+915  				  , p_column_name   IN VARCHAR2
+916  				  , p_caller	    IN VARCHAR2
+917  				  , p_forbidden     IN BOOLEAN	DEFAULT TRUE
+918  				  )
+919    IS
+920  	 l_self_log_category sosl_server_log.log_category%TYPE	   := 'SOSL_LOG';
+921  	 l_self_caller	     sosl_server_log.caller%TYPE	   := 'sosl_log.log_column_change TIMESTAMP';
+922  	 l_log_category      sosl_server_log.log_category%TYPE;
+923  	 l_caller	     sosl_server_log.caller%TYPE;
+924    BEGIN
+925  	 l_log_category := NVL(UPPER(p_column_name), sosl_constants.GEN_NA_TYPE);
+926  	 l_caller	:= NVL(p_caller, sosl_constants.GEN_NA_TYPE);
+927  	   -- log parameter errors
+928  	 IF p_column_name IS NULL
+929  	 THEN
+930  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'ERROR Parameter p_column_name is missing.');
+931  	 END IF;
+932  	 IF p_caller IS NULL
+933  	 THEN
+934  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'ERROR Parameter p_caller is missing.');
+935  	 END IF;
+936  	 IF NVL(p_old_value, sosl_constants.GEN_NA_TIMESTAMP_TYPE) != NVL(p_new_value, sosl_constants.GEN_NA_TIMESTAMP_TYPE)
+937  	 THEN
+938  	   IF p_forbidden
+939  	   THEN
+940  	     sosl_log.minimal_warning_log( l_caller
+941  					 , l_log_category
+942  					 , 'FORBIDDEN change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' tried to: ' || NVL(TO_CHAR(p_new_value, sosl_constants.GEN_TIMESTAMP_FORMAT), sosl_constants.GEN_NULL_TEXT)
+943  					 , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+944  					 )
+945  	     ;
+946  	   ELSE
+947  	     sosl_log.minimal_info_log( l_caller
+948  				      , l_log_category
+949  				      , 'Change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' from: ' || NVL(TO_CHAR(p_old_value, sosl_constants.GEN_TIMESTAMP_FORMAT), sosl_constants.GEN_NULL_TEXT) || ' to: ' || NVL(TO_CHAR(p_new_value, sosl_constants.GEN_TIMESTAMP_FORMAT), sosl_constants.GEN_NULL_TEXT)
+950  				      , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+951  				      )
+952  	     ;
+953  	   END IF;
+954  	 END IF;
+955    EXCEPTION
+956  	 WHEN OTHERS THEN
+957  	   -- log exception as we should not be already in exception state, only application error
+958  	   -- do not raise again
+959  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+960    END log_column_change; -- TIMESTAMP
+961  
+962  END;
+963  /
 
 Package body created.
 
@@ -4566,6 +4624,634 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_sys
 
 Package body created.
 
+SQL> @@../sosl_ddl/packages/sosl_server.pks
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> -- server interface package of the Simple Oracle Script Loader
+SQL> CREATE OR REPLACE PACKAGE sosl_server
+  2  AS
+  3    /**
+  4    * This package contains the server interface used by the Simple Oracle Script Loader.
+  5    * All server scripts depend on this package. The default error return value is -1, either
+  6    * as number or as string. The SOSL server can only deal with this two types of return
+  7    * values: NUMBER or VARCHAR2. And it can only deal with functions usable in a SELECT statement.
+  8    * All interpreted values are read in as COLUMN variables, it makes no difference, if -1 or '-1'
+  9    * is delivered as error code.
+ 10    */
+ 11  
+ 12    /*====================================== start internal functions made visible for testing ======================================*/
+ 13    -- SOSL server will not call this functions directly, so return type can be different from NUMBER or VARCHAR2
+ 14  
+ 15    /* FUNCTION SOSL_SERVER.HAS_CONFIG_NAME
+ 16    * Checks if a given case sensitive configuration name exists. Errors get logged.
+ 17    *
+ 18    * @param p_config_name The config name of the configuration item.
+ 19    *
+ 20    * @return Either TRUE if the configuration name exists or FALSE, including FALSE on error.
+ 21    */
+ 22    FUNCTION has_config_name(p_config_name IN VARCHAR2)
+ 23  	 RETURN BOOLEAN
+ 24    ;
+ 25    /*====================================== end internal functions made visible for testing ======================================*/
+ 26  
+ 27    /** Function SOSL_SERVER.SET_CONFIG
+ 28    * Sets an existing configuration value for a given and existing case sensitive configuration name. Invalid
+ 29    * config names get logged. Invalid config values for SOSL_RUNMODE and SOSL_SERVER_STATE are ignored and will
+ 30    * not change the config value. Errors get logged.
+ 31    * SOSL_RUNMODE values: RUN, WAIT, STOP
+ 32    * SOSL_SERVER_STATE values: ACTIVE, INACTIVE, PAUSE
+ 33    *
+ 34    * @param p_config_name The valid config name of the configuration item.
+ 35    * @param p_config_value The value to assign to the configuration item.
+ 36    *
+ 37    * @return Exit code, either 0 = successful or -1 on error.
+ 38    */
+ 39    FUNCTION set_config( p_config_name  IN VARCHAR2
+ 40  			  , p_config_value IN VARCHAR2
+ 41  			  )
+ 42  	 RETURN NUMBER
+ 43    ;
+ 44  
+ 45    /** Function SOSL_SERVER.GET_CONFIG
+ 46    * Gets an existing configuration value for a given and existing case sensitive configuration name. Errors get logged.
+ 47    *
+ 48    * @param p_config_name The config name of the configuration item.
+ 49    *
+ 50    * @return The configured value as VARCHAR2 or '-1' string on error.
+ 51    */
+ 52    FUNCTION get_config(p_config_name IN VARCHAR2)
+ 53  	 RETURN VARCHAR2
+ 54    ;
+ 55  
+ 56    /* FUNCTION SOSL_SERVER.SET_SERVER_STATE
+ 57    * A shortcut function using sosl_server.set_config for SOSL_SERVER_STATE. Errors get logged.
+ 58    *
+ 59    * @param p_server_state A valid server state: ACTIVE, INACTIVE, PAUSE.
+ 60    *
+ 61    * @return Exit code, either 0 = successful or -1 on error.
+ 62    */
+ 63    FUNCTION set_server_state(p_server_state IN VARCHAR2)
+ 64  	 RETURN NUMBER
+ 65    ;
+ 66  
+ 67  
+ 68    /* FUNCTION SOSL_SERVER.SET_RUNMODE
+ 69    * A shortcut function using sosl_server.set_config for SOSL_RUNMODE. Errors get logged.
+ 70    *
+ 71    * @param p_server_state A valid run mode: RUN, WAIT, STOP.
+ 72    *
+ 73    * @return Exit code, either 0 = successful or -1 on error.
+ 74    */
+ 75    FUNCTION set_runmode(p_runmode IN VARCHAR2)
+ 76  	 RETURN NUMBER
+ 77    ;
+ 78  
+ 79    /* FUNCTION SOSL_SERVER.GET_EXECUTOR_CFG
+ 80    * Retrieves the config login file to use for a specific executor by a given run id. Errors get logged.
+ 81    *
+ 82    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
+ 83    *
+ 84    * @return The configuration login filename including relative or absolute path or '-1' on errors.
+ 85    */
+ 86    FUNCTION get_executor_cfg(p_run_id IN NUMBER)
+ 87  	 RETURN VARCHAR2
+ 88    ;
+ 89  
+ 90    /* FUNCTION SOSL_SERVER.SET_GUID
+ 91    * Sets the GUID of the SOSL server, used during script execution, in SOSL_RUN_QUEUE. The GUID will be
+ 92    * a generic identifier for this script execution. All identifiers in SOSLERRLOG will start with this GUID
+ 93    * for a specific script execution.
+ 94    *
+ 95    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
+ 96    * @param p_guid The GUID used by the SOSL server for this script execution.
+ 97    *
+ 98    * @return Exit code, either 0 = successful or -1 on error.
+ 99    */
+100    FUNCTION set_guid( p_run_id IN NUMBER
+101  			, p_guid   IN VARCHAR2
+102  			)
+103  	 RETURN NUMBER
+104    ;
+105  
+106    /* FUNCTION SOSL_SERVER.SET_IDENTIFIER
+107    * Sets the exact SOSL IDENTIFIER of the SOSL server, used during main script execution, in SOSL_RUN_QUEUE. The identifier
+108    * will exactly match SOSLERRLOG.IDENTIFIER in case of errors for a specific script execution. It will start with the GUID
+109    * for the whole script execution process.
+110    *
+111    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
+112    * @param p_identifier The exact identifier used by the SOSL server for the main part of the script execution.
+113    *
+114    * @return Exit code, either 0 = successful or -1 on error.
+115    */
+116    FUNCTION set_identifier( p_run_id     IN NUMBER
+117  			      , p_identifier IN VARCHAR2
+118  			      )
+119  	 RETURN NUMBER
+120    ;
+121  
+122    /* FUNCTION SOSL_SERVER.SET_SCRIPT_STARTED
+123    * Short cut function for sosl_sys.set_run_state to guarantee correct run states. On errors the script state will
+124    * be set to error. Before calling this function at least GUID should be set for the current script.
+125    *
+126    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
+127    *
+128    * @return Exit code, either 0 = successful or -1 on error.
+129    */
+130    FUNCTION set_script_started(p_run_id IN NUMBER)
+131  	 RETURN NUMBER
+132    ;
+133  
+134    /* FUNCTION SOSL_SERVER.SET_SCRIPT_RUNNING
+135    * Short cut function for sosl_sys.set_run_state to guarantee correct run states. On errors the script state will
+136    * be set to error. Before calling this function the exact SOSL identifier should be set for the current script.
+137    *
+138    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
+139    *
+140    * @return Exit code, either 0 = successful or -1 on error.
+141    */
+142    FUNCTION set_script_running(p_run_id IN NUMBER)
+143  	 RETURN NUMBER
+144    ;
+145  
+146    /* FUNCTION SOSL_SERVER.SET_SCRIPT_FINISHED
+147    * Short cut function for sosl_sys.set_run_state to guarantee correct run states. On errors the script state will
+148    * be set to error.
+149    *
+150    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
+151    *
+152    * @return Exit code, either 0 = successful or -1 on error.
+153    */
+154    FUNCTION set_script_finished(p_run_id IN NUMBER)
+155  	 RETURN NUMBER
+156    ;
+157  
+158    /* FUNCTION SOSL_SERVER.SET_SCRIPT_RUNNING
+159    * Short cut function for sosl_sys.set_run_state to guarantee correct run states. On errors the script state will
+160    * be set to error. Before calling this function the GUID and exact SOSL identifier should be set for the current script.
+161    *
+162    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
+163    *
+164    * @return Exit code, either 0 = successful or -1 on error.
+165    */
+166    FUNCTION set_script_error(p_run_id IN NUMBER)
+167  	 RETURN NUMBER
+168    ;
+169  
+170    /* FUNCTION SOSL_SERVER.INFO_LOG
+171    * Provides a possibility to output content for a local log as well as logging it to SOSL_SERVER_LOG. Can be
+172    * be called within every SELECT statement. On success log category will always be SOSL_SERVER, log type INFO.
+173    *
+174    * @param p_srv_caller The script calling this function.
+175    * @param p_srv_message The message to use for the local log as well as to the SOSL_SERVER_LOG.
+176    * @param p_identifier In almost all cases scripts called from the server have an identifier, that they use for SOSLERRORLOG. NULL by default.
+177    * @param p_local_log In almost all cases scripts called from the server have a log file, that they use. NULL by default.
+178    * @param p_srv_run_id Scripts issued by executors will have a run id which is retrieved from the SOSL server. If a run id is given, the log is also enhanced with executor details for this script. NULL by default.
+179    * @param p_srv_guid In very rare cases scripts called from the server have also the GUID, that they use. NULL by default.
+180    *
+181    * @return Will return p_message or error information.
+182    */
+183    FUNCTION info_log( p_srv_caller	 IN VARCHAR2
+184  			, p_srv_message  IN VARCHAR2
+185  			, p_identifier	 IN VARCHAR2 DEFAULT NULL
+186  			, p_local_log	 IN VARCHAR2 DEFAULT NULL
+187  			, p_srv_run_id	 IN NUMBER   DEFAULT NULL
+188  			, p_srv_guid	 IN VARCHAR2 DEFAULT NULL
+189  			)
+190  	 RETURN VARCHAR2
+191    ;
+192  
+193    /* FUNCTION SOSL_SERVER.WARNING_LOG
+194    * Provides a possibility to output content for a local log as well as logging it to SOSL_SERVER_LOG. Can be
+195    * be called within every SELECT statement. On success log category will always be SOSL_SERVER, log type WARNING.
+196    *
+197    * @param p_caller The script calling this function.
+198    * @param p_message The message to use for the local log as well as to the SOSL_SERVER_LOG.
+199    *
+200    * @return Will return p_message or error information.
+201    */
+202    FUNCTION warning_log( p_caller	    IN VARCHAR2
+203  			   , p_message	    IN VARCHAR2
+204  			   )
+205  	 RETURN VARCHAR2
+206    ;
+207  
+208    /* FUNCTION SOSL_SERVER.ERROR_LOG
+209    * Provides a possibility to output content for a local log as well as logging it to SOSL_SERVER_LOG. Can be
+210    * be called within every SELECT statement. On success log category will always be SOSL_SERVER, log type ERROR.
+211    *
+212    * @param p_caller The script calling this function.
+213    * @param p_message The message to use for the local log as well as to the SOSL_SERVER_LOG.
+214    *
+215    * @return Will return p_message or error information.
+216    */
+217    FUNCTION error_log( p_caller	  IN VARCHAR2
+218  			 , p_message	  IN VARCHAR2
+219  			 )
+220  	 RETURN VARCHAR2
+221    ;
+222  
+223  END;
+224  /
+
+Package created.
+
+SQL> -- grants
+SQL> GRANT EXECUTE ON sosl_server TO sosl_executor;
+
+Grant succeeded.
+
+SQL> @@../sosl_ddl/packages/sosl_server.pkb
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> CREATE OR REPLACE PACKAGE BODY sosl_server
+  2  AS
+  3    -- for description see header file
+  4    FUNCTION has_config_name(p_config_name IN VARCHAR2)
+  5  	 RETURN BOOLEAN
+  6    IS
+  7  	 l_return	     BOOLEAN;
+  8  	 l_count	     NUMBER;
+  9  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SERVER';
+ 10  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_server.has_config_name';
+ 11    BEGIN
+ 12  	 SELECT COUNT(*)
+ 13  	   INTO l_count
+ 14  	   FROM sosl_config
+ 15  	  WHERE config_name = p_config_name
+ 16  	 ;
+ 17  	 l_return := (l_count = 1);
+ 18  	 RETURN l_return;
+ 19    EXCEPTION
+ 20  	 WHEN OTHERS THEN
+ 21  	   -- log the error instead of RAISE
+ 22  	   sosl_log.exception_log('sosl_server.has_config_name', 'SOSL_SERVER', SQLERRM);
+ 23  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+ 24  	   RETURN FALSE;
+ 25    END has_config_name;
+ 26  
+ 27    FUNCTION set_config( p_config_name  IN VARCHAR2
+ 28  			  , p_config_value IN VARCHAR2
+ 29  			  )
+ 30  	 RETURN NUMBER
+ 31    IS
+ 32  	 PRAGMA AUTONOMOUS_TRANSACTION;
+ 33  	 l_return	     NUMBER;
+ 34  	 l_set_value	     BOOLEAN;
+ 35  	 l_config_value      sosl_config.config_value%TYPE;
+ 36  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SERVER';
+ 37  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_server.set_config';
+ 38    BEGIN
+ 39  	 l_return := -1;
+ 40  	 IF sosl_server.has_config_name(p_config_name)
+ 41  	 THEN
+ 42  	   l_set_value	  := TRUE;
+ 43  	   l_config_value := TRIM(p_config_value);
+ 44  	   -- do some extra checks on config name SOSL_RUNMODE and SOSL_SERVER_STATE
+ 45  	   IF p_config_name IN ('SOSL_RUNMODE', 'SOSL_SERVER_STATE')
+ 46  	   THEN
+ 47  	     -- make commands uppercase
+ 48  	     l_config_value := UPPER(l_config_value);
+ 49  	     IF     p_config_name      = 'SOSL_RUNMODE'
+ 50  		AND l_config_value NOT IN ('RUN', 'WAIT', 'STOP')
+ 51  	     THEN
+ 52  	       -- log the error and do not change the config value
+ 53  	       sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Invalid run mode: ' || l_config_value || '. Configuration not changed');
+ 54  	       l_set_value := FALSE;
+ 55  	     END IF;
+ 56  	     IF      p_config_name = 'SOSL_SERVER_STATE'
+ 57  		AND  l_config_value NOT IN ('ACTIVE', 'INACTIVE', 'PAUSE')
+ 58  	     THEN
+ 59  	       -- log the error and do not change the config value
+ 60  	       sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Invalid server state: ' || l_config_value || '. Configuration not changed');
+ 61  	       l_set_value := FALSE;
+ 62  	     END IF;
+ 63  	   END IF;
+ 64  	   IF l_set_value
+ 65  	   THEN
+ 66  	     UPDATE sosl_config
+ 67  		SET config_value = p_config_value
+ 68  	      WHERE config_name = p_config_name
+ 69  	     ;
+ 70  	     COMMIT;
+ 71  	     l_return := 0;
+ 72  	   END IF;
+ 73  	 ELSE
+ 74  	   -- log error wrong config name
+ 75  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Requested config name "' || p_config_name || '" does not exist.');
+ 76  	 END IF;
+ 77  	 RETURN l_return;
+ 78    EXCEPTION
+ 79  	 WHEN OTHERS THEN
+ 80  	   -- log the error instead of RAISE
+ 81  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+ 82  	   RETURN -1;
+ 83    END set_config;
+ 84  
+ 85    FUNCTION get_config(p_config_name IN VARCHAR2)
+ 86  	 RETURN VARCHAR2
+ 87    IS
+ 88  	 l_config_value      sosl_config.config_value%TYPE;
+ 89  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SERVER';
+ 90  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_server.get_config';
+ 91    BEGIN
+ 92  	 l_config_value := '-1';
+ 93  	 IF sosl_server.has_config_name(p_config_name)
+ 94  	 THEN
+ 95  	   SELECT config_value
+ 96  	     INTO l_config_value
+ 97  	     FROM sosl_config
+ 98  	    WHERE config_name = p_config_name
+ 99  	   ;
+100  	 ELSE
+101  	   -- log error wrong config name
+102  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Requested config name "' || p_config_name || '" does not exist.');
+103  	   l_config_value := '-1';
+104  	 END IF;
+105  	 RETURN l_config_value;
+106    EXCEPTION
+107  	 WHEN OTHERS THEN
+108  	   -- log the error instead of RAISE
+109  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+110  	   RETURN '-1';
+111    END get_config;
+112  
+113    FUNCTION set_server_state(p_server_state IN VARCHAR2)
+114  	 RETURN NUMBER
+115    IS
+116  	 l_return  NUMBER;
+117    BEGIN
+118  	 l_return := sosl_server.set_config('SOSL_SERVER_STATE', p_server_state);
+119  	 RETURN l_return;
+120    EXCEPTION
+121  	 WHEN OTHERS THEN
+122  	   -- log the error instead of RAISE
+123  	   sosl_log.exception_log('sosl_server.set_server_state', 'SOSL_SERVER', SQLERRM);
+124  	   RETURN -1;
+125    END set_server_state;
+126  
+127    FUNCTION set_runmode(p_runmode IN VARCHAR2)
+128  	 RETURN NUMBER
+129    IS
+130  	 l_return  NUMBER;
+131    BEGIN
+132  	 l_return := sosl_server.set_config('SOSL_RUNMODE', p_runmode);
+133  	 RETURN l_return;
+134    EXCEPTION
+135  	 WHEN OTHERS THEN
+136  	   -- log the error instead of RAISE
+137  	   sosl_log.exception_log('sosl_server.set_runmode', 'SOSL_SERVER', SQLERRM);
+138  	   RETURN -1;
+139    END set_runmode;
+140  
+141    FUNCTION get_executor_cfg(p_run_id IN NUMBER)
+142  	 RETURN VARCHAR2
+143    IS
+144  	 l_executor_cfg      sosl_executor_definition.cfg_file%TYPE;
+145  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SERVER';
+146  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_server.get_executor_cfg';
+147    BEGIN
+148  	 IF sosl_sys.has_run_id(p_run_id)
+149  	 THEN
+150  	   SELECT sed.cfg_file
+151  	     INTO l_executor_cfg
+152  	     FROM sosl_run_queue srq
+153  	     LEFT OUTER JOIN sosl_executor_definition sed
+154  	       ON srq.executor_id = sed.executor_id
+155  	    WHERE srq.run_id = p_run_id
+156  	   ;
+157  	 ELSE
+158  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Requested run id ' || p_run_id || ' does not exist.');
+159  	   l_executor_cfg := '-1';
+160  	 END IF;
+161  	 RETURN l_executor_cfg;
+162    EXCEPTION
+163  	 WHEN OTHERS THEN
+164  	   -- log the error instead of RAISE
+165  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+166  	   RETURN '-1';
+167    END get_executor_cfg;
+168  
+169    FUNCTION set_guid( p_run_id IN NUMBER
+170  			, p_guid   IN VARCHAR2
+171  			)
+172  	 RETURN NUMBER
+173    IS
+174  	 PRAGMA AUTONOMOUS_TRANSACTION;
+175  	 l_return	     NUMBER;
+176  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SERVER';
+177  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_server.set_guid';
+178    BEGIN
+179  	 l_return := -1;
+180  	 IF sosl_sys.has_run_id(p_run_id)
+181  	 THEN
+182  	   UPDATE sosl_run_queue
+183  	      SET script_guid = p_guid
+184  	    WHERE run_id = p_run_id
+185  	   ;
+186  	   COMMIT;
+187  	   l_return := 0;
+188  	 ELSE
+189  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Requested run id ' || p_run_id || ' does not exist.');
+190  	   l_return := -1;
+191  	 END IF;
+192  	 RETURN l_return;
+193    EXCEPTION
+194  	 WHEN OTHERS THEN
+195  	   -- log the error instead of RAISE
+196  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+197  	   RETURN -1;
+198    END set_guid;
+199  
+200    FUNCTION set_identifier( p_run_id     IN NUMBER
+201  			      , p_identifier IN VARCHAR2
+202  			      )
+203  	 RETURN NUMBER
+204    IS
+205  	 PRAGMA AUTONOMOUS_TRANSACTION;
+206  	 l_return	     NUMBER;
+207  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SERVER';
+208  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_server.set_identifier';
+209    BEGIN
+210  	 l_return := -1;
+211  	 IF sosl_sys.has_run_id(p_run_id)
+212  	 THEN
+213  	   UPDATE sosl_run_queue
+214  	      SET sosl_identifier = p_identifier
+215  	    WHERE run_id = p_run_id
+216  	   ;
+217  	   COMMIT;
+218  	   l_return := 0;
+219  	 ELSE
+220  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Requested run id ' || p_run_id || ' does not exist.');
+221  	   l_return := -1;
+222  	 END IF;
+223  	 RETURN l_return;
+224    EXCEPTION
+225  	 WHEN OTHERS THEN
+226  	   -- log the error instead of RAISE
+227  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+228  	   RETURN -1;
+229    END set_identifier;
+230  
+231    FUNCTION set_script_started(p_run_id IN NUMBER)
+232  	 RETURN NUMBER
+233    IS
+234  	 l_return	     NUMBER;
+235    BEGIN
+236  	 IF sosl_sys.set_run_state(p_run_id, sosl_constants.RUN_STATE_STARTED)
+237  	 THEN
+238  	   l_return := 0;
+239  	 ELSE
+240  	   l_return := -1;
+241  	   -- error should be logged already by sosl_sys.get_run_state
+242  	 END IF;
+243  	 RETURN l_return;
+244    EXCEPTION
+245  	 WHEN OTHERS THEN
+246  	   -- log the error instead of RAISE
+247  	   sosl_log.exception_log('sosl_server.set_script_started', 'SOSL_SERVER', SQLERRM);
+248  	   RETURN -1;
+249    END set_script_started;
+250  
+251    FUNCTION set_script_running(p_run_id IN NUMBER)
+252  	 RETURN NUMBER
+253    IS
+254  	 l_return	     NUMBER;
+255    BEGIN
+256  	 IF sosl_sys.set_run_state(p_run_id, sosl_constants.RUN_STATE_RUNNING)
+257  	 THEN
+258  	   l_return := 0;
+259  	 ELSE
+260  	   l_return := -1;
+261  	   -- error should be logged already by sosl_sys.get_run_state
+262  	 END IF;
+263  	 RETURN l_return;
+264    EXCEPTION
+265  	 WHEN OTHERS THEN
+266  	   -- log the error instead of RAISE
+267  	   sosl_log.exception_log('sosl_server.set_script_running', 'SOSL_SERVER', SQLERRM);
+268  	   RETURN -1;
+269    END set_script_running;
+270  
+271    FUNCTION set_script_finished(p_run_id IN NUMBER)
+272  	 RETURN NUMBER
+273    IS
+274  	 l_return	     NUMBER;
+275    BEGIN
+276  	 IF sosl_sys.set_run_state(p_run_id, sosl_constants.RUN_STATE_FINISHED)
+277  	 THEN
+278  	   l_return := 0;
+279  	 ELSE
+280  	   l_return := -1;
+281  	   -- error should be logged already by sosl_sys.get_run_state
+282  	 END IF;
+283  	 RETURN l_return;
+284    EXCEPTION
+285  	 WHEN OTHERS THEN
+286  	   -- log the error instead of RAISE
+287  	   sosl_log.exception_log('sosl_server.set_script_finished', 'SOSL_SERVER', SQLERRM);
+288  	   RETURN -1;
+289    END set_script_finished;
+290  
+291    FUNCTION set_script_error(p_run_id IN NUMBER)
+292  	 RETURN NUMBER
+293    IS
+294  	 l_return	     NUMBER;
+295    BEGIN
+296  	 IF sosl_sys.set_run_state(p_run_id, sosl_constants.RUN_STATE_ERROR)
+297  	 THEN
+298  	   l_return := 0;
+299  	 ELSE
+300  	   l_return := -1;
+301  	   -- error should be logged already by sosl_sys.get_run_state
+302  	 END IF;
+303  	 RETURN l_return;
+304    EXCEPTION
+305  	 WHEN OTHERS THEN
+306  	   -- log the error instead of RAISE
+307  	   sosl_log.exception_log('sosl_server.set_script_error', 'SOSL_SERVER', SQLERRM);
+308  	   RETURN -1;
+309    END set_script_error;
+310  
+311    FUNCTION info_log( p_srv_caller	 IN VARCHAR2
+312  			, p_srv_message  IN VARCHAR2
+313  			, p_identifier	 IN VARCHAR2 DEFAULT NULL
+314  			, p_local_log	 IN VARCHAR2 DEFAULT NULL
+315  			, p_srv_run_id	 IN NUMBER   DEFAULT NULL
+316  			, p_srv_guid	 IN VARCHAR2 DEFAULT NULL
+317  			)
+318  	 RETURN VARCHAR2
+319    IS
+320  	 l_message   VARCHAR2(32767);
+321  	 l_payload   SOSL_PAYLOAD;
+322    BEGIN
+323  	 IF p_local_log IS NOT NULL
+324  	 THEN
+325  	   l_message := p_srv_message || ' local log file: ' || p_local_log;
+326  	 ELSE
+327  	   l_message := p_srv_message;
+328  	 END IF;
+329  	 IF p_srv_run_id IS NOT NULL
+330  	 THEN
+331  	   l_payload := sosl_sys.get_payload(p_srv_run_id);
+332  	 ELSE
+333  	   l_payload := SOSL_PAYLOAD(NULL, NULL, NULL);
+334  	 END IF;
+335  	 sosl_log.full_log( p_message => l_message
+336  			  , p_log_type => sosl_constants.LOG_INFO_TYPE
+337  			  , p_log_category => 'SOSL_SERVER'
+338  			  , p_caller => p_srv_caller
+339  			  , p_guid => p_srv_guid
+340  			  , p_sosl_identifier => p_identifier
+341  			  , p_executor_id => l_payload.executor_id
+342  			  , p_ext_script_id => l_payload.ext_script_id
+343  			  , p_script_file => l_payload.script_file
+344  			  , p_run_id => p_srv_run_id
+345  			  )
+346  	 ;
+347  	 RETURN p_srv_message;
+348    EXCEPTION
+349  	 WHEN OTHERS THEN
+350  	   -- log the error instead of RAISE
+351  	   sosl_log.exception_log('sosl_server.info_log', 'SOSL_SERVER', SQLERRM);
+352  	   RETURN SUBSTR(SQLERRM, 1, 4000);
+353    END info_log;
+354  
+355    FUNCTION warning_log( p_caller	    IN VARCHAR2
+356  			   , p_message	    IN VARCHAR2
+357  			   )
+358  	 RETURN VARCHAR2
+359    IS
+360    BEGIN
+361  	 sosl_log.minimal_warning_log(p_caller, 'SOSL_SERVER', p_message);
+362  	 RETURN p_message;
+363    EXCEPTION
+364  	 WHEN OTHERS THEN
+365  	   -- log the error instead of RAISE
+366  	   sosl_log.exception_log('sosl_server.warning_log', 'SOSL_SERVER', SQLERRM);
+367  	   RETURN SUBSTR(SQLERRM, 1, 4000);
+368    END warning_log;
+369  
+370    FUNCTION error_log( p_caller	  IN VARCHAR2
+371  			 , p_message	  IN VARCHAR2
+372  			 )
+373  	 RETURN VARCHAR2
+374    IS
+375    BEGIN
+376  	 sosl_log.minimal_error_log(p_caller, 'SOSL_SERVER', p_message);
+377  	 RETURN p_message;
+378    EXCEPTION
+379  	 WHEN OTHERS THEN
+380  	   -- log the error instead of RAISE
+381  	   sosl_log.exception_log('sosl_server.error_log', 'SOSL_SERVER', SQLERRM);
+382  	   RETURN SUBSTR(SQLERRM, 1, 4000);
+383    END error_log;
+384  
+385  END;
+386  /
+
+Package body created.
+
 SQL> @@../sosl_ddl/packages/sosl_api.pks
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.
@@ -4587,97 +5273,86 @@ SQL> CREATE OR REPLACE PACKAGE sosl_api
  15  	 RETURN SOSL_PAYLOAD
  16    ;
  17  
- 18    /** Function SOSL_API.SET_CONFIG
- 19    * Sets an existing configuration value for a given configuration name.
+ 18    /** Function SOSL_API.GET_CONFIG
+ 19    * Gets an existing configuration value for a given and existing case sensitive configuration name.
  20    *
- 21    * @return Exit code, either 0 = successful or -1 on error.
+ 21    * @return The configured value as VARCHAR2 or -1 string on error.
  22    */
- 23    FUNCTION set_config( p_config_name  IN VARCHAR2
- 24  			  , p_config_value IN VARCHAR2
- 25  			  )
- 26  	 RETURN NUMBER
- 27    ;
- 28  
- 29    /** Function SOSL_API.GET_CONFIG
- 30    * Gets an existing configuration value for a given and existing case sensitive configuration name.
+ 23    FUNCTION get_config(p_config_name IN VARCHAR2)
+ 24  	 RETURN VARCHAR2
+ 25    ;
+ 26  
+ 27  
+ 28    /** Function SOSL_API.BASE_PATH
+ 29    * Returns the base path to use for the given run id. Used to switch the run base path for scripts
+ 30    * running from a different directory.
  31    *
- 32    * @return The configured value as VARCHAR2 or -1 string on error.
+ 32    * @return The configured full base path or a simple point for current directory if nothing is configured.
  33    */
- 34    FUNCTION get_config(p_config_name IN VARCHAR2)
+ 34    FUNCTION base_path(p_run_id IN NUMBER)
  35  	 RETURN VARCHAR2
  36    ;
  37  
- 38  
- 39    /** Function SOSL_API.BASE_PATH
- 40    * Returns the base path to use for the given run id. Used to switch the run base path for scripts
- 41    * running from a different directory.
- 42    *
- 43    * @return The configured full base path or a simple point for current directory if nothing is configured.
- 44    */
- 45    FUNCTION base_path(p_run_id IN NUMBER)
- 46  	 RETURN VARCHAR2
- 47    ;
- 48  
- 49    /** Function SOSL_API.CFG_PATH
- 50    * Returns the relative configuration path to use for the given run id. A sosl_login.cfg file is expected
- 51    * at the given location.
- 52    *
- 53    * @return The configured relative configuration path or the configured default set by the sosl server.
- 54    */
- 55    FUNCTION cfg_path(p_run_id IN NUMBER)
- 56  	 RETURN VARCHAR2
- 57    ;
- 58  
- 59    /** Function SOSL_API.TMP_PATH
- 60    * Returns the relative temporary path to use for the given run id.
- 61    *
- 62    * @return The configured relative temporary path or the configured default set by the sosl server.
- 63    */
- 64    FUNCTION tmp_path(p_run_id IN NUMBER)
- 65  	 RETURN VARCHAR2
- 66    ;
- 67  
- 68    /** Function SOSL_API.LOG_PATH
- 69    * Returns the relative log path to use for the given run id.
- 70    *
- 71    * @return The configured relative log path or the configured default set by the sosl server.
- 72    */
- 73    FUNCTION log_path(p_run_id IN NUMBER)
- 74  	 RETURN VARCHAR2
- 75    ;
- 76  
- 77    /* FUNCTION SOSL_API.DUMMY_MAIL
- 78    * This is a testing function that will NOT send any mail. It will log the mail message created in SOSL_SERVER_LOG using
- 79    * the field full_message, so output can be controlled.
- 80    *
- 81    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
- 82    * @param p_recipients The semicolon separated list of mail recipient addresses.
- 83    * @param p_subject A preferablly short subject for the mail.
- 84    * @param p_message The correctly formatted mail message.
- 85    *
- 86    * @return Will return TRUE on success or FALSE on errors.
- 87    */
- 88    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
- 89  			  , p_recipients  IN VARCHAR2
- 90  			  , p_subject	  IN VARCHAR2
- 91  			  , p_message	  IN VARCHAR2
- 92  			  )
+ 38    /** Function SOSL_API.CFG_PATH
+ 39    * Returns the relative configuration path to use for the given run id. A sosl_login.cfg file is expected
+ 40    * at the given location.
+ 41    *
+ 42    * @return The configured relative configuration path or the configured default set by the sosl server.
+ 43    */
+ 44    FUNCTION cfg_path(p_run_id IN NUMBER)
+ 45  	 RETURN VARCHAR2
+ 46    ;
+ 47  
+ 48    /** Function SOSL_API.TMP_PATH
+ 49    * Returns the relative temporary path to use for the given run id.
+ 50    *
+ 51    * @return The configured relative temporary path or the configured default set by the sosl server.
+ 52    */
+ 53    FUNCTION tmp_path(p_run_id IN NUMBER)
+ 54  	 RETURN VARCHAR2
+ 55    ;
+ 56  
+ 57    /** Function SOSL_API.LOG_PATH
+ 58    * Returns the relative log path to use for the given run id.
+ 59    *
+ 60    * @return The configured relative log path or the configured default set by the sosl server.
+ 61    */
+ 62    FUNCTION log_path(p_run_id IN NUMBER)
+ 63  	 RETURN VARCHAR2
+ 64    ;
+ 65  
+ 66    /* FUNCTION SOSL_API.DUMMY_MAIL
+ 67    * This is a testing function that will NOT send any mail. It will log the mail message created in SOSL_SERVER_LOG using
+ 68    * the field full_message, so output can be controlled.
+ 69    *
+ 70    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
+ 71    * @param p_recipients The semicolon separated list of mail recipient addresses.
+ 72    * @param p_subject A preferablly short subject for the mail.
+ 73    * @param p_message The correctly formatted mail message.
+ 74    *
+ 75    * @return Will return TRUE on success or FALSE on errors.
+ 76    */
+ 77    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
+ 78  			  , p_recipients  IN VARCHAR2
+ 79  			  , p_subject	  IN VARCHAR2
+ 80  			  , p_message	  IN VARCHAR2
+ 81  			  )
+ 82  	 RETURN BOOLEAN
+ 83    ;
+ 84  
+ 85    /* FUNCTION SOSL_API.HAS_RUN_ID
+ 86    * Checks if a given run id exists. Errors get logged.
+ 87    *
+ 88    * @param p_run_id The run id to verify.
+ 89    *
+ 90    * @return TRUE if run id exists otherwise FALSE.
+ 91    */
+ 92    FUNCTION has_run_id(p_run_id IN NUMBER)
  93  	 RETURN BOOLEAN
  94    ;
  95  
- 96    /* FUNCTION SOSL_API.HAS_RUN_ID
- 97    * Checks if a given run id exists. Errors get logged.
- 98    *
- 99    * @param p_run_id The run id to verify.
-100    *
-101    * @return TRUE if run id exists otherwise FALSE.
-102    */
-103    FUNCTION has_run_id(p_run_id IN NUMBER)
-104  	 RETURN BOOLEAN
-105    ;
-106  
-107  END;
-108  /
+ 96  END;
+ 97  /
 
 Package created.
 
@@ -4702,88 +5377,79 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
  16  	   RETURN NULL;
  17    END get_payload;
  18  
- 19    FUNCTION set_config( p_config_name  IN VARCHAR2
- 20  			  , p_config_value IN VARCHAR2
- 21  			  )
- 22  	 RETURN NUMBER
- 23    IS
- 24    BEGIN
- 25  	 RETURN NULL;
- 26    END set_config;
- 27  
- 28    FUNCTION get_config(p_config_name IN VARCHAR2)
- 29  	 RETURN VARCHAR2
- 30    IS
- 31    BEGIN
- 32  	 RETURN NULL;
- 33    END get_config;
- 34  
- 35    FUNCTION base_path(p_run_id IN NUMBER)
- 36  	 RETURN VARCHAR2
- 37    IS
- 38    BEGIN
- 39  	 RETURN NULL;
- 40    END base_path;
- 41  
- 42    FUNCTION cfg_path(p_run_id IN NUMBER)
- 43  	 RETURN VARCHAR2
- 44    IS
- 45    BEGIN
- 46  	 RETURN NULL;
- 47    END cfg_path;
- 48  
- 49    FUNCTION tmp_path(p_run_id IN NUMBER)
- 50  	 RETURN VARCHAR2
- 51    IS
- 52    BEGIN
- 53  	 RETURN NULL;
- 54    END tmp_path;
- 55  
- 56    FUNCTION log_path(p_run_id IN NUMBER)
- 57  	 RETURN VARCHAR2
- 58    IS
- 59    BEGIN
- 60  	 RETURN NULL;
- 61    END log_path;
- 62  
- 63    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
- 64  			  , p_recipients  IN VARCHAR2
- 65  			  , p_subject	  IN VARCHAR2
- 66  			  , p_message	  IN VARCHAR2
- 67  			  )
- 68  	 RETURN BOOLEAN
- 69    IS
- 70  	 l_result  NUMBER;
- 71  	 l_return  BOOLEAN;
- 72    BEGIN
- 73  	 l_result  := sosl_util.dummy_mail(p_sender, p_recipients, p_subject, p_message);
- 74  	 l_return  := (l_result = 0);
- 75  	 RETURN l_return;
- 76    EXCEPTION
- 77  	 WHEN OTHERS THEN
- 78  	   -- log the error instead of RAISE
- 79  	   sosl_log.exception_log('sosl_api.dummy_mail', 'SOSL_API', SQLERRM);
- 80  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
- 81  	   RETURN FALSE;
- 82    END dummy_mail;
- 83  
- 84    FUNCTION has_run_id(p_run_id IN NUMBER)
- 85  	 RETURN BOOLEAN
- 86    IS
- 87  	 l_return BOOLEAN;
- 88    BEGIN
- 89  	 l_return := sosl_sys.has_run_id(p_run_id);
- 90  	 RETURN l_return;
- 91    EXCEPTION
- 92  	 WHEN OTHERS THEN
- 93  	   -- log the error instead of RAISE
- 94  	   sosl_log.exception_log('sosl_api.has_run_id', 'SOSL_API', SQLERRM);
- 95  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
- 96  	   RETURN FALSE;
- 97    END has_run_id;
- 98  
- 99  END;
-100  /
+ 19    FUNCTION get_config(p_config_name IN VARCHAR2)
+ 20  	 RETURN VARCHAR2
+ 21    IS
+ 22    BEGIN
+ 23  	 RETURN NULL;
+ 24    END get_config;
+ 25  
+ 26    FUNCTION base_path(p_run_id IN NUMBER)
+ 27  	 RETURN VARCHAR2
+ 28    IS
+ 29    BEGIN
+ 30  	 RETURN NULL;
+ 31    END base_path;
+ 32  
+ 33    FUNCTION cfg_path(p_run_id IN NUMBER)
+ 34  	 RETURN VARCHAR2
+ 35    IS
+ 36    BEGIN
+ 37  	 RETURN NULL;
+ 38    END cfg_path;
+ 39  
+ 40    FUNCTION tmp_path(p_run_id IN NUMBER)
+ 41  	 RETURN VARCHAR2
+ 42    IS
+ 43    BEGIN
+ 44  	 RETURN NULL;
+ 45    END tmp_path;
+ 46  
+ 47    FUNCTION log_path(p_run_id IN NUMBER)
+ 48  	 RETURN VARCHAR2
+ 49    IS
+ 50    BEGIN
+ 51  	 RETURN NULL;
+ 52    END log_path;
+ 53  
+ 54    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
+ 55  			  , p_recipients  IN VARCHAR2
+ 56  			  , p_subject	  IN VARCHAR2
+ 57  			  , p_message	  IN VARCHAR2
+ 58  			  )
+ 59  	 RETURN BOOLEAN
+ 60    IS
+ 61  	 l_result  NUMBER;
+ 62  	 l_return  BOOLEAN;
+ 63    BEGIN
+ 64  	 l_result  := sosl_util.dummy_mail(p_sender, p_recipients, p_subject, p_message);
+ 65  	 l_return  := (l_result = 0);
+ 66  	 RETURN l_return;
+ 67    EXCEPTION
+ 68  	 WHEN OTHERS THEN
+ 69  	   -- log the error instead of RAISE
+ 70  	   sosl_log.exception_log('sosl_api.dummy_mail', 'SOSL_API', SQLERRM);
+ 71  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+ 72  	   RETURN FALSE;
+ 73    END dummy_mail;
+ 74  
+ 75    FUNCTION has_run_id(p_run_id IN NUMBER)
+ 76  	 RETURN BOOLEAN
+ 77    IS
+ 78  	 l_return BOOLEAN;
+ 79    BEGIN
+ 80  	 l_return := sosl_sys.has_run_id(p_run_id);
+ 81  	 RETURN l_return;
+ 82    EXCEPTION
+ 83  	 WHEN OTHERS THEN
+ 84  	   -- log the error instead of RAISE
+ 85  	   sosl_log.exception_log('sosl_api.has_run_id', 'SOSL_API', SQLERRM);
+ 86  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+ 87  	   RETURN FALSE;
+ 88    END has_run_id;
+ 89  
+ 90  END;
+ 91  /
 
 Package body created.
 
@@ -5154,72 +5820,160 @@ SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> -- requires login with the correct schema, either SOSL or your own SOSL schema
 SQL> -- requires table to have been created before, as well as used packages
-SQL> CREATE OR REPLACE TRIGGER sosl_config_ins_upd_trg
-  2    BEFORE INSERT OR UPDATE ON sosl_config
+SQL> CREATE OR REPLACE TRIGGER sosl_config_ins_trg
+  2    BEFORE INSERT ON sosl_config
   3    FOR EACH ROW
   4  DECLARE
   5    l_ok		   BOOLEAN;
   6    l_date		   DATE;
   7    l_self_log_category sosl_server_log.log_category%TYPE   := 'SOSL_CONFIG';
-  8    l_self_caller	   sosl_server_log.caller%TYPE	       := 'sosl_config_ins_upd_trg';
+  8    l_self_caller	   sosl_server_log.caller%TYPE	       := 'sosl_config_ins_trg';
   9  BEGIN
  10    -- remove any leading and trailing blanks from config_value
  11    :NEW.config_value   := TRIM(:NEW.config_value);
- 12    IF UPDATING
- 13    THEN
- 14  	 :NEW.created	     := :OLD.created;
- 15  	 :NEW.created_by     := :OLD.created_by;
- 16  	 :NEW.created_by_os  := :OLD.created_by_os;
- 17    ELSE
- 18  	 :NEW.created	     := SYSDATE;
- 19  	 :NEW.created_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 20  	 :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
- 21    END IF;
- 22    :NEW.updated	   := SYSDATE;
- 23    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
- 24    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
- 25    -- check max length if defined
- 26    IF :NEW.config_type = 'CHAR'
- 27    THEN
- 28  	 IF :NEW.config_max_length > 0
- 29  	 THEN
- 30  	   IF LENGTH(:NEW.config_value) > :NEW.config_max_length
- 31  	   THEN
- 32  	     sosl_log.minimal_error_log( l_self_caller
- 33  				       , l_self_log_category
- 34  				       , '-20002 The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value)
- 35  				       , 'Wrong length of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
- 36  				       )
- 37  	     ;
- 38  	     RAISE_APPLICATION_ERROR(-20002, 'The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value));
- 39  	   END IF;
- 40  	 END IF;
- 41    END IF;
- 42    -- check number type
- 43    IF :NEW.config_type = 'NUMBER'
- 44    THEN
- 45  	 l_ok := TRUE;
- 46  	 -- compare TO_NUMBER with implicite conversion, if it fails the config_value cannot be interpreted correctly
- 47  	 BEGIN
- 48  	   l_ok := (TO_NUMBER(:NEW.config_value) = :NEW.config_value);
- 49  	 EXCEPTION
- 50  	   WHEN OTHERS THEN
- 51  	     sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
- 52  	     l_ok := FALSE;
- 53  	 END;
- 54  	 IF NOT l_ok
- 55  	 THEN
- 56  	   sosl_log.minimal_error_log( l_self_caller
- 57  				     , l_self_log_category
- 58  				     , '-20003 The given config_value "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" could not be converted successfully to a number.'
- 59  				     , 'Wrong type of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
- 60  				     )
- 61  	   ;
- 62  	   RAISE_APPLICATION_ERROR(-20003, 'The given config_value "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" could not be converted successfully to a number.');
- 63  	 END IF;
- 64    END IF;
- 65  END;
- 66  /
+ 12    :NEW.created	   := SYSDATE;
+ 13    :NEW.created_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 14    :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+ 15    -- check max length if defined
+ 16    IF :NEW.config_type = 'CHAR'
+ 17    THEN
+ 18  	 IF :NEW.config_max_length > 0
+ 19  	 THEN
+ 20  	   IF LENGTH(:NEW.config_value) > :NEW.config_max_length
+ 21  	   THEN
+ 22  	     sosl_log.minimal_error_log( l_self_caller
+ 23  				       , l_self_log_category
+ 24  				       , '-20010 The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value)
+ 25  				       , 'Wrong length of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+ 26  				       )
+ 27  	     ;
+ 28  	     RAISE_APPLICATION_ERROR(-20010, 'The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value));
+ 29  	   END IF;
+ 30  	 END IF;
+ 31    END IF;
+ 32    -- check number type
+ 33    IF :NEW.config_type = 'NUMBER'
+ 34    THEN
+ 35  	 l_ok := TRUE;
+ 36  	 -- compare TO_NUMBER with implicite conversion, if it fails the config_value cannot be interpreted correctly
+ 37  	 BEGIN
+ 38  	   l_ok := (TO_NUMBER(:NEW.config_value) = :NEW.config_value);
+ 39  	 EXCEPTION
+ 40  	   WHEN OTHERS THEN
+ 41  	     sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+ 42  	     l_ok := FALSE;
+ 43  	 END;
+ 44  	 IF NOT l_ok
+ 45  	 THEN
+ 46  	   sosl_log.minimal_error_log( l_self_caller
+ 47  				     , l_self_log_category
+ 48  				     , '-20011 The given config_value "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" could not be converted successfully to a number.'
+ 49  				     , 'Wrong type of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+ 50  				     )
+ 51  	   ;
+ 52  	   RAISE_APPLICATION_ERROR(-20011, 'The given config_value "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" could not be converted successfully to a number.');
+ 53  	 END IF;
+ 54    END IF;
+ 55  END;
+ 56  /
+
+Trigger created.
+
+SQL> 
+SQL> CREATE OR REPLACE TRIGGER sosl_config_upd_trg
+  2    BEFORE UPDATE ON sosl_config
+  3    FOR EACH ROW
+  4  DECLARE
+  5    l_ok		   BOOLEAN;
+  6    l_date		   DATE;
+  7    l_self_log_category sosl_server_log.log_category%TYPE   := 'SOSL_CONFIG';
+  8    l_self_caller	   sosl_server_log.caller%TYPE	       := 'sosl_config_upd_trg';
+  9  BEGIN
+ 10    -- remove any leading and trailing blanks from config_value
+ 11    :NEW.config_value   := TRIM(:NEW.config_value);
+ 12    -- report intended changes on columns not allowed to change and reset values to OLD
+ 13    sosl_log.log_column_change(:OLD.created, :NEW.created, 'SOSL_CONFIG.CREATED', l_self_caller, TRUE);
+ 14    :NEW.created	   := :OLD.created;
+ 15    sosl_log.log_column_change(:OLD.created_by, :NEW.created_by, 'SOSL_CONFIG.CREATED_BY', l_self_caller, TRUE);
+ 16    :NEW.created_by	   := :OLD.created_by;
+ 17    sosl_log.log_column_change(:OLD.created_by_os, :NEW.created_by_os, 'SOSL_CONFIG.CREATED_BY_OS', l_self_caller, TRUE);
+ 18    :NEW.created_by_os  := :OLD.created_by_os;
+ 19    -- check changes on config_name for protected values
+ 20    IF     :OLD.config_name != :NEW.config_name
+ 21  	  AND :OLD.config_name IN ( 'SOSL_PATH_CFG'
+ 22  				  , 'SOSL_PATH_TMP'
+ 23  				  , 'SOSL_PATH_LOG'
+ 24  				  , 'SOSL_START_LOG'
+ 25  				  , 'SOSL_BASE_LOG'
+ 26  				  , 'SOSL_EXT_LOG'
+ 27  				  , 'SOSL_EXT_TMP'
+ 28  				  , 'SOSL_EXT_LOCK'
+ 29  				  , 'SOSL_EXT_ERROR'
+ 30  				  , 'SOSL_MAX_PARALLEL'
+ 31  				  , 'SOSL_RUNMODE'
+ 32  				  , 'SOSL_DEFAULT_WAIT'
+ 33  				  , 'SOSL_NOJOB_WAIT'
+ 34  				  , 'SOSL_PAUSE_WAIT'
+ 35  				  , 'SOSL_SERVER_STATE'
+ 36  				  )
+ 37    THEN
+ 38  	 sosl_log.log_column_change(:OLD.config_name, :NEW.config_name, 'SOSL_CONFIG.CONFIG_NAME', l_self_caller, TRUE);
+ 39  	 sosl_log.minimal_error_log( l_self_caller
+ 40  				   , l_self_log_category
+ 41  				   , '-20012 The given system config_name ' || :OLD.config_name || ' cannot be changed.'
+ 42  				   , 'Tried to change a system config name for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+ 43  				   )
+ 44  	 ;
+ 45  	 RAISE_APPLICATION_ERROR(-20012, 'The given system config_name ' || :OLD.config_name || ' cannot be changed.');
+ 46    END IF;
+ 47    -- report value changes allowed
+ 48    sosl_log.log_column_change(:OLD.config_value, :NEW.config_value, :OLD.config_name, l_self_caller, FALSE);
+ 49    -- set updated
+ 50    :NEW.updated	   := SYSDATE;
+ 51    :NEW.updated_by	   := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+ 52    :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
+ 53    -- check max length if defined
+ 54    IF :NEW.config_type = 'CHAR'
+ 55    THEN
+ 56  	 IF :NEW.config_max_length > 0
+ 57  	 THEN
+ 58  	   IF LENGTH(:NEW.config_value) > :NEW.config_max_length
+ 59  	   THEN
+ 60  	     sosl_log.minimal_error_log( l_self_caller
+ 61  				       , l_self_log_category
+ 62  				       , '-20010 The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value)
+ 63  				       , 'Wrong length of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+ 64  				       )
+ 65  	     ;
+ 66  	     RAISE_APPLICATION_ERROR(-20010, 'The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value));
+ 67  	   END IF;
+ 68  	 END IF;
+ 69    END IF;
+ 70    -- check number type
+ 71    IF :NEW.config_type = 'NUMBER'
+ 72    THEN
+ 73  	 l_ok := TRUE;
+ 74  	 -- compare TO_NUMBER with implicite conversion, if it fails the config_value cannot be interpreted correctly
+ 75  	 BEGIN
+ 76  	   l_ok := (TO_NUMBER(:NEW.config_value) = :NEW.config_value);
+ 77  	 EXCEPTION
+ 78  	   WHEN OTHERS THEN
+ 79  	     sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+ 80  	     l_ok := FALSE;
+ 81  	 END;
+ 82  	 IF NOT l_ok
+ 83  	 THEN
+ 84  	   sosl_log.minimal_error_log( l_self_caller
+ 85  				     , l_self_log_category
+ 86  				     , '-20011 The given config_value "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" could not be converted successfully to a number.'
+ 87  				     , 'Wrong type of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+ 88  				     )
+ 89  	   ;
+ 90  	   RAISE_APPLICATION_ERROR(-20011, 'The given config_value "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" could not be converted successfully to a number.');
+ 91  	 END IF;
+ 92    END IF;
+ 93  END;
+ 94  /
 
 Trigger created.
 
@@ -5247,11 +6001,11 @@ SQL> CREATE OR REPLACE TRIGGER sosl_config_del_trg
  22    THEN
  23  	 sosl_log.minimal_error_log( 'sosl_config_del_trg'
  24  				   , 'SOSL_CONFIG'
- 25  				   , '-20004 The given system config_name "' || :OLD.config_name || '" cannot be deleted.'
+ 25  				   , '-20015 The given system config_name "' || :OLD.config_name || '" cannot be deleted.'
  26  				   , 'Forbidden delete of config name for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
  27  				   )
  28  	 ;
- 29  	 RAISE_APPLICATION_ERROR(-20004, 'The given system config_name "' || :OLD.config_name || '" cannot be deleted.');
+ 29  	 RAISE_APPLICATION_ERROR(-20013, 'The given system config_name "' || :OLD.config_name || '" cannot be deleted.');
  30    END IF;
  31  END;
  32  /
@@ -5291,52 +6045,52 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_definition_ins_trg
  25    THEN
  26  	 sosl_log.minimal_error_log( l_self_caller
  27  				   , l_self_log_category
- 28  				   , '-20005 The given database user "' || NVL(:NEW.db_user, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
+ 28  				   , '-20020 The given database user "' || NVL(:NEW.db_user, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
  29  				   , 'Wrong database user for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
  30  				   )
  31  	 ;
- 32  	 RAISE_APPLICATION_ERROR(-20005, 'The given database user "' || NVL(:NEW.db_user, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
+ 32  	 RAISE_APPLICATION_ERROR(-20020, 'The given database user "' || NVL(:NEW.db_user, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
  33    END IF;
  34    IF NOT sosl_util.has_db_user(:NEW.function_owner)
  35    THEN
  36  	 sosl_log.minimal_error_log( l_self_caller
  37  				   , l_self_log_category
- 38  				   , '-20006 The given function owner database user "' || NVL(:NEW.function_owner, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
+ 38  				   , '-20021 The given function owner database user "' || NVL(:NEW.function_owner, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
  39  				   , 'Wrong function owner for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
  40  				   )
  41  	 ;
- 42  	 RAISE_APPLICATION_ERROR(-20006, 'The given function owner database user "' || NVL(:NEW.function_owner, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
+ 42  	 RAISE_APPLICATION_ERROR(-20021, 'The given function owner database user "' || NVL(:NEW.function_owner, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
  43    END IF;
  44    -- check configured functions
  45    IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_has_scripts, 'NUMBER')
  46    THEN
  47  	 sosl_log.minimal_error_log( l_self_caller
  48  				   , l_self_log_category
- 49  				   , '-20007 The given function "' || NVL(:NEW.fn_has_scripts, sosl_constants.GEN_NULL_TEXT) || '" for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
+ 49  				   , '-20022 The given function "' || NVL(:NEW.fn_has_scripts, sosl_constants.GEN_NULL_TEXT) || '" for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
  50  				   , 'Wrong function has_scripts for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
  51  				   )
  52  	 ;
- 53  	 RAISE_APPLICATION_ERROR(-20007, 'The given function "' || NVL(:NEW.fn_has_scripts, sosl_constants.GEN_NULL_TEXT) || '" for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
+ 53  	 RAISE_APPLICATION_ERROR(-20022, 'The given function "' || NVL(:NEW.fn_has_scripts, sosl_constants.GEN_NULL_TEXT) || '" for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
  54    END IF;
  55    IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_get_next_script, 'OBJECT')
  56    THEN
  57  	 sosl_log.minimal_error_log( l_self_caller
  58  				   , l_self_log_category
- 59  				   , '-20008 The given function "' || NVL(:NEW.fn_get_next_script, sosl_constants.GEN_NULL_TEXT) || '" for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
+ 59  				   , '-20023 The given function "' || NVL(:NEW.fn_get_next_script, sosl_constants.GEN_NULL_TEXT) || '" for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
  60  				   , 'Wrong function get_next_script for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
  61  				   )
  62  	 ;
- 63  	 RAISE_APPLICATION_ERROR(-20008, 'The given function "' || NVL(:NEW.fn_get_next_script, sosl_constants.GEN_NULL_TEXT) || '" for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
+ 63  	 RAISE_APPLICATION_ERROR(-20023, 'The given function "' || NVL(:NEW.fn_get_next_script, sosl_constants.GEN_NULL_TEXT) || '" for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
  64    END IF;
  65    IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_set_script_status, 'NUMBER')
  66    THEN
  67  	 sosl_log.minimal_error_log( l_self_caller
  68  				   , l_self_log_category
- 69  				   , '-20009 The given function "' || NVL(:NEW.fn_set_script_status, sosl_constants.GEN_NULL_TEXT) || '" for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
+ 69  				   , '-20024 The given function "' || NVL(:NEW.fn_set_script_status, sosl_constants.GEN_NULL_TEXT) || '" for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
  70  				   , 'Wrong function set_script_status for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
  71  				   )
  72  	 ;
- 73  	 RAISE_APPLICATION_ERROR(-20009, 'The given function "' || NVL(:NEW.fn_set_script_status, sosl_constants.GEN_NULL_TEXT) || '" for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
+ 73  	 RAISE_APPLICATION_ERROR(-20024, 'The given function "' || NVL(:NEW.fn_set_script_status, sosl_constants.GEN_NULL_TEXT) || '" for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
  74    END IF;
  75    -- check mail
  76    IF :NEW.use_mail = 1
@@ -5345,11 +6099,11 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_definition_ins_trg
  79  	 THEN
  80  	   sosl_log.minimal_error_log( l_self_caller
  81  				     , l_self_log_category
- 82  				     , '-20010 The given function "' || NVL(:NEW.fn_send_db_mail, sosl_constants.GEN_NULL_TEXT) || '" for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
+ 82  				     , '-20025 The given function "' || NVL(:NEW.fn_send_db_mail, sosl_constants.GEN_NULL_TEXT) || '" for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
  83  				     , 'Wrong function send_db_mail for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
  84  				     )
  85  	   ;
- 86  	   RAISE_APPLICATION_ERROR(-20010, 'The given function "' || NVL(:NEW.fn_send_db_mail, sosl_constants.GEN_NULL_TEXT) || '" for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
+ 86  	   RAISE_APPLICATION_ERROR(-20025, 'The given function "' || NVL(:NEW.fn_send_db_mail, sosl_constants.GEN_NULL_TEXT) || '" for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
  87  	 END IF;
  88    END IF;
  89    -- log the insert
@@ -5411,52 +6165,52 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_definition_upd_trg
  37    THEN
  38  	 sosl_log.minimal_error_log( l_self_caller
  39  				   , l_self_log_category
- 40  				   , '-20005 The given database user "' || NVL(:NEW.db_user, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
+ 40  				   , '-20020 The given database user "' || NVL(:NEW.db_user, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
  41  				   , 'Wrong database user for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
  42  				   )
  43  	 ;
- 44  	 RAISE_APPLICATION_ERROR(-20005, 'The given database user "' || NVL(:NEW.db_user, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
+ 44  	 RAISE_APPLICATION_ERROR(-20020, 'The given database user "' || NVL(:NEW.db_user, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
  45    END IF;
  46    IF NOT sosl_util.has_db_user(:NEW.function_owner)
  47    THEN
  48  	 sosl_log.minimal_error_log( l_self_caller
  49  				   , l_self_log_category
- 50  				   , '-20006 The given function owner database user "' || NVL(:NEW.function_owner, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
+ 50  				   , '-20021 The given function owner database user "' || NVL(:NEW.function_owner, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
  51  				   , 'Wrong function owner for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
  52  				   )
  53  	 ;
- 54  	 RAISE_APPLICATION_ERROR(-20006, 'The given function owner database user "' || NVL(:NEW.function_owner, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
+ 54  	 RAISE_APPLICATION_ERROR(-20021, 'The given function owner database user "' || NVL(:NEW.function_owner, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
  55    END IF;
  56    -- check configured functions
  57    IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_has_scripts, 'NUMBER')
  58    THEN
  59  	 sosl_log.minimal_error_log( l_self_caller
  60  				   , l_self_log_category
- 61  				   , '-20007 The given function "' || NVL(:NEW.fn_has_scripts, sosl_constants.GEN_NULL_TEXT) || '" for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
+ 61  				   , '-20022 The given function "' || NVL(:NEW.fn_has_scripts, sosl_constants.GEN_NULL_TEXT) || '" for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
  62  				   , 'Wrong function has_scripts for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
  63  				   )
  64  	 ;
- 65  	 RAISE_APPLICATION_ERROR(-20007, 'The given function "' || NVL(:NEW.fn_has_scripts, sosl_constants.GEN_NULL_TEXT) || '" for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
+ 65  	 RAISE_APPLICATION_ERROR(-20022, 'The given function "' || NVL(:NEW.fn_has_scripts, sosl_constants.GEN_NULL_TEXT) || '" for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
  66    END IF;
  67    IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_get_next_script, 'OBJECT')
  68    THEN
  69  	 sosl_log.minimal_error_log( l_self_caller
  70  				   , l_self_log_category
- 71  				   , '-20008 The given function "' || NVL(:NEW.fn_get_next_script, sosl_constants.GEN_NULL_TEXT) || '" for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
+ 71  				   , '-20023 The given function "' || NVL(:NEW.fn_get_next_script, sosl_constants.GEN_NULL_TEXT) || '" for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
  72  				   , 'Wrong function get_next_script for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
  73  				   )
  74  	 ;
- 75  	 RAISE_APPLICATION_ERROR(-20008, 'The given function "' || NVL(:NEW.fn_get_next_script, sosl_constants.GEN_NULL_TEXT) || '" for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
+ 75  	 RAISE_APPLICATION_ERROR(-20023, 'The given function "' || NVL(:NEW.fn_get_next_script, sosl_constants.GEN_NULL_TEXT) || '" for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
  76    END IF;
  77    IF NOT sosl_util.has_function(:NEW.function_owner, :NEW.fn_set_script_status, 'NUMBER')
  78    THEN
  79  	 sosl_log.minimal_error_log( l_self_caller
  80  				   , l_self_log_category
- 81  				   , '-20009 The given function "' || NVL(:NEW.fn_set_script_status, sosl_constants.GEN_NULL_TEXT) || '" for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
+ 81  				   , '-20024 The given function "' || NVL(:NEW.fn_set_script_status, sosl_constants.GEN_NULL_TEXT) || '" for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
  82  				   , 'Wrong function set_script_status for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
  83  				   )
  84  	 ;
- 85  	 RAISE_APPLICATION_ERROR(-20009, 'The given function "' || NVL(:NEW.fn_set_script_status, sosl_constants.GEN_NULL_TEXT) || '" for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
+ 85  	 RAISE_APPLICATION_ERROR(-20024, 'The given function "' || NVL(:NEW.fn_set_script_status, sosl_constants.GEN_NULL_TEXT) || '" for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
  86    END IF;
  87    -- check mail
  88    IF :NEW.use_mail = 1
@@ -5465,11 +6219,11 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_definition_upd_trg
  91  	 THEN
  92  	   sosl_log.minimal_error_log( l_self_caller
  93  				     , l_self_log_category
- 94  				     , '-20010 The given function "' || NVL(:NEW.fn_send_db_mail, sosl_constants.GEN_NULL_TEXT) || '" for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
+ 94  				     , '-20025 The given function "' || NVL(:NEW.fn_send_db_mail, sosl_constants.GEN_NULL_TEXT) || '" for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
  95  				     , 'Wrong function send_db_mail for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
  96  				     )
  97  	   ;
- 98  	   RAISE_APPLICATION_ERROR(-20010, 'The given function "' || NVL(:NEW.fn_send_db_mail, sosl_constants.GEN_NULL_TEXT) || '" for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
+ 98  	   RAISE_APPLICATION_ERROR(-20025, 'The given function "' || NVL(:NEW.fn_send_db_mail, sosl_constants.GEN_NULL_TEXT) || '" for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
  99  	 END IF;
 100    END IF;
 101    -- check grants if active and reviewed
@@ -5482,11 +6236,11 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_definition_upd_trg
 108  	   -- could not check or grant role to database user or function owner
 109  	   sosl_log.minimal_error_log( l_self_caller
 110  				     , l_self_log_category
-111  				     , '-20012 Error granting necessary roles to db user (SOSL_USER) or function owner (SOSL_EXECUTOR). Check setup and roles. Probably grant the roles manually before trying update again.'
+111  				     , '-20026 Error granting necessary roles to db user (SOSL_USER) or function owner (SOSL_EXECUTOR). Check setup and roles. Probably grant the roles manually before trying update again.'
 112  				     , 'Failed granting necessary roles for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
 113  				     )
 114  	   ;
-115  	   RAISE_APPLICATION_ERROR(-20011, 'Error granting necessary roles to db user (SOSL_USER) or function owner (SOSL_EXECUTOR). Check setup and roles. Probably grant the roles manually before trying update again.');
+115  	   RAISE_APPLICATION_ERROR(-20026, 'Error granting necessary roles to db user (SOSL_USER) or function owner (SOSL_EXECUTOR). Check setup and roles. Probably grant the roles manually before trying update again.');
 116  	 END IF;
 117    END IF;
 118    -- log the update

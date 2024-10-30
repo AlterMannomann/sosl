@@ -20,7 +20,12 @@ SELECT config_value AS CONF_VAL
 SPOOL OFF
 -- write log file
 SPOOL &5 APPEND
-SELECT '&2. Get parameter &3. with value: &CONF_VAL.' AS info
+SELECT '&2. ' ||
+       sosl_server.info_log( '../sosl_sql/server/sosl_get_config.sql'
+                           , 'Get parameter &3. with value: &CONF_VAL.'
+                           , '&1'
+                           , '&5'
+                           ) AS info
   FROM dual;
 SPOOL OFF
 COLUMN EXITCODE NEW_VAL EXITCODE
