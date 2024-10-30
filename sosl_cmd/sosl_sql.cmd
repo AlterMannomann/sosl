@@ -6,4 +6,4 @@ REM Parameter 2: identifier for error log
 REM Parameter 3: OS timestamp
 REM Parameter 4: log file and relative path
 REM Add an extra line echo if last empty line is missing, errors must be handled by the caller
-(TYPE %SOSL_PATH_CFG%sosl_login.cfg && ECHO. && ECHO %~1 %2 %3 %4) | sqlplus
+(TYPE %SOSL_PATH_CFG%%SOSL_LOGIN% && ECHO. && ECHO %~1 %2 %3 %4) | sqlplus

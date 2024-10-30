@@ -6,7 +6,9 @@ CREATE TABLE sosl_run_queue
   , executor_id     NUMBER(38, 0)                                             NOT NULL
   , ext_script_id   VARCHAR2(4000)                                            NOT NULL
   , script_file     VARCHAR2(4000)                                            NOT NULL
-  , created         TIMESTAMP                                                 NOT NULL
+  , script_guid     VARCHAR2(64)    DEFAULT 'n/a'                             NOT NULL
+  , sosl_identifier VARCHAR2(256)   DEFAULT 'n/a'                             NOT NULL
+  , created         TIMESTAMP       DEFAULT SYSTIMESTAMP                      NOT NULL
   , waiting         TIMESTAMP
   , enqueued        TIMESTAMP
   , started         TIMESTAMP
@@ -32,6 +34,8 @@ COMMENT ON COLUMN sosl_run_queue.run_state IS 'Holds the run state: 0 Waiting, 1
 COMMENT ON COLUMN sosl_run_queue.executor_id IS 'The valid executor id as returned from API (NUMBER). No updates allowed, surpressed by trigger.';
 COMMENT ON COLUMN sosl_run_queue.ext_script_id IS 'The (external) identifier for the current script as returned from API (VARCHAR2). No updates allowed, surpressed by trigger.';
 COMMENT ON COLUMN sosl_run_queue.script_file IS 'The script file name including (relative) path from API (VARCHAR2). No updates allowed, surpressed by trigger.';
+COMMENT ON COLUMN sosl_run_queue.script_guid IS 'The unique id of the SOSL server associated with the script execution. This is a generic reference to SOSLERRORLOG.IDENTIFIER and local server logs. Set by SOSL server.';
+COMMENT ON COLUMN sosl_run_queue.sosl_identifier IS 'The unique SOSL identifier id of the SOSL server associated with the script execution. This is a unique reference to SOSLERRORLOG.IDENTIFIER and local server logs. Set by SOSL server.';
 COMMENT ON COLUMN sosl_run_queue.created IS 'The date of record creation. No updates allowed, surpressed by trigger.';
 COMMENT ON COLUMN sosl_run_queue.waiting IS 'The last date of setting the script run state to waiting (0). On insert this is the default managed by trigger.';
 COMMENT ON COLUMN sosl_run_queue.enqueued IS 'The last date of setting the script run state to enqueued (1).';

@@ -38,6 +38,8 @@ SPOOL logs/sosl_setup.log
 -- packages depending on SOSL objects
 @@../sosl_ddl/packages/sosl_sys.pks
 @@../sosl_ddl/packages/sosl_sys.pkb
+@@../sosl_ddl/packages/sosl_server.pks
+@@../sosl_ddl/packages/sosl_server.pkb
 @@../sosl_ddl/packages/sosl_api.pks
 @@../sosl_ddl/packages/sosl_api.pkb
 @@../sosl_ddl/packages/sosl_if.pks

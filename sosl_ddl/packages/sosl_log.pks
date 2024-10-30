@@ -52,6 +52,7 @@ AS
   * @param p_sosl_identifier The exact identifier for SOSLERRORLOG if available. Most likely used by CMD server.
   * @param p_executor_id The associated executor id if available. Used as well by CMD server and SOSL packages and functions.
   * @param p_ext_script_id The (external) script id if available. Used as well by CMD server and SOSL packages and functions.
+  * @param p_script_file The script file name and path if available. Used as well by CMD server and SOSL packages and functions.
   * @param p_caller Caller identification if available, to distinguish database processes from SOSL CMD server processes or external usage.
   * @param p_run_id The associated run id if available. Most likely used by SOSL packages and functions.
   * @param p_full_message The full message as CLOB if the message size exceeds the PLSQL limit of 32767 bytes. Must be given if p_message is NULL.
@@ -63,6 +64,7 @@ AS
                      , p_sosl_identifier  IN VARCHAR2
                      , p_executor_id      IN NUMBER
                      , p_ext_script_id    IN VARCHAR2
+                     , p_script_file      IN VARCHAR2
                      , p_caller           IN VARCHAR2
                      , p_run_id           IN NUMBER
                      , p_full_message     IN CLOB
@@ -147,6 +149,7 @@ AS
   * @param p_sosl_identifier The exact identifier for SOSLERRORLOG if available. Most likely used by CMD server.
   * @param p_executor_id The associated executor id if available. Used as well by CMD server and SOSL packages and functions.
   * @param p_ext_script_id The (external) script id if available. Used as well by CMD server and SOSL packages and functions.
+  * @param p_script_file The script file name and path if available. Used as well by CMD server and SOSL packages and functions.
   * @param p_run_id The associated run id if available. Most likely used by SOSL packages and functions.
   * @param p_full_message The full message as CLOB if the message size exceeds the PLSQL limit of 32767 bytes. Must be given if p_message is NULL.
   */
@@ -158,6 +161,7 @@ AS
                     , p_sosl_identifier  IN VARCHAR2    DEFAULT NULL
                     , p_executor_id      IN NUMBER      DEFAULT NULL
                     , p_ext_script_id    IN VARCHAR2    DEFAULT NULL
+                    , p_script_file      IN VARCHAR2    DEFAULT NULL
                     , p_run_id           IN NUMBER      DEFAULT NULL
                     , p_full_message     IN CLOB        DEFAULT NULL
                     )

@@ -27,6 +27,8 @@ SET SOSL_PATH_CFG=..\sosl_templates\
 REM Default fallback path to temporary files of SOSL using defined repository structure for startup until
 REM parameters are loaded.
 SET SOSL_PATH_TMP=..\setup\logs\
+REM Default login file for SOSL schema, used when not acting as executor
+SET SOSL_LOGIN=sosl_login.cfg
 REM Default fallback path to logging files of SOSL using defined repository structure for startup until
 REM parameters are loaded.
 SET SOSL_PATH_LOG=..\setup\logs\
@@ -131,4 +133,5 @@ REM do not care if SOSL_DATETIME is correct or undefined
 ECHO %SOSL_DATETIME% %SOSL_ERRMSG% >> %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
 
 :SOSL_EXIT
+CALL sosl_shutdown.cmd
 ENDLOCAL
