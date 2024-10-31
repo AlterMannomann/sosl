@@ -1,20 +1,20 @@
              Generic AI Disclosure License (GAIDL)
-                 Version 1.0, 29 October 2024
+                 Version 1.0, 31 October 2024
 
 Copyright (C) 2024 Michael Lindenau <https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1>
  Everyone is permitted to copy and distribute verbatim copies
  of this license document, but changing it is not allowed.
 
                             Preamble
-The Generic AI Disclosure License is for all human beings, not representing
+The Generic AI Disclosure License is for all Human beings, not representing
 an AI, a free, copyleft license for software and other kinds of works,
 specifically designed to ensure cooperation with the community in the case
 of network server software.
 
-It is not and never intended for the human community using it for themselves.
-It is intended for all possible versions of humans, AI and crawlers delivering
-results to AI components and other components delivering data to AI systems for
-training or any other purposes.
+It is an addendum to other licenses intended for all possible versions of
+humans, AI and crawlers delivering results to AI components and other
+components delivering data to AI systems for training or any other purposes.
+
 
 
                        TERMS AND CONDITIONS
@@ -30,10 +30,11 @@ works, such as semiconductor masks.
 License.  Each licensee is addressed as "you".  "Licensees" and
 "recipients" may be individuals or organizations.
 
-  To "modify" a work means to copy from or adapt all or part of the work
-in a fashion requiring copyright permission, other than the making of an
-exact copy.  The resulting work is called a "modified version" of the
-earlier work or a work "based on" the earlier work.
+  "Human beings" refers to all biological human beings without technical
+modifications or interfaces to AI or IT systems.
+
+  "Authors" refers to all authors, that worked and distributed content for
+The Program and are Human beings.
 
   A "covered work" means either the unmodified Program or a work based
 on the Program.
@@ -57,13 +58,19 @@ refer to systems provided from other companies. This license does not impact
 the legal rights of the used system.
 
   "AI usage" refers to all kinds of operations a software component does with
-the provided project content. This includes reading the content and analyze or
+the provided Source Code. This includes reading the content and analyze or
 use it for whatever purpose. As well as using humans to transfer the
 information to an AI component.
 
   "System" refers to any content producing framework or software under license
 conditions that may limit access or usage. A programming language is a tool not
 a system, but compilers or code generators are systems.
+
+  "unambiguous assignments" refers to any code that is NOT build upon existing
+code. It refers to Source Code fragments that are an unexpected new solution to
+a problem without others Authors involved. Only the committed lines of the
+Source Code by specific Authors can be taken into account by an AI if a
+explicite permission is given.
 
   An interactive user interface displays "Appropriate Legal Notices"
 to the extent that it includes a convenient and prominently visible
@@ -74,22 +81,90 @@ work under this License, and how to view a copy of this License.  If
 the interface presents a list of user commands or options, such as a
 menu, a prominent item in the list meets this criterion.
 
-  1. Project.
+  1. Source Code.
 
-  AI usage is generally forbidden. Authors may grant permission on their work
-parts explicitely. If not all authors agree, only unambiguous assignments to
-project data of that authors can be used, that agreed explicitely.
+  The "source code" for a work means the preferred form of the work
+for making modifications to it.  "Object code" means any non-source
+form of a work.
 
-  Any AI usage has to be permitted before by all impacted authors and is only
-applicable to that unambiguous assigned parts, the authors created and gave
-explicite permission for.
+  A "Standard Interface" means an interface that either is an official
+standard defined by a recognized standards body, or, in the case of
+interfaces specified for a particular programming language, one that
+is widely used among developers working in that language.
 
-  2. Systems.
+  The "System Libraries" of an executable work include anything, other
+than the work as a whole, that (a) is included in the normal form of
+packaging a Major Component, but which is not part of that Major
+Component, and (b) serves only to enable use of the work with that
+Major Component, or to implement a Standard Interface for which an
+implementation is available to the public in source code form.  A
+"Major Component", in this context, means a major essential component
+(kernel, window system, and so on) of the specific operating system
+(if any) on which the executable work runs, or a compiler used to
+produce the work, or an object code interpreter used to run it.
 
-  If the author is using systems that explicitly allow content scanning
+  The "Corresponding Source" for a work in object code form means all
+the source code needed to generate, install, and (for an executable
+work) run the object code and to modify the work, including scripts to
+control those activities.  However, it does not include the work's
+System Libraries, or general-purpose tools or generally available free
+programs which are used unmodified in performing those activities but
+which are not part of the work.  For example, Corresponding Source
+includes interface definition files associated with source files for
+the work, and the source code for shared libraries and dynamically
+linked subprograms that the work is specifically designed to require,
+such as by intimate data communication or control flow between those
+subprograms and other parts of the work.
+
+  The Corresponding Source need not include anything that users
+can regenerate automatically from other parts of the Corresponding
+Source.
+
+  The Corresponding Source for a work in source code form is that
+same work.
+
+  2. Basic Permissions.
+
+  Human beings may use The Program or the covered work as specified by their
+basic license. This license doesn't impact Human beings not providing input
+for AI usage.
+
+  AI usage is forbidden unless it is explicitely permitted.
+
+  3. AI Permission Restriction.
+
+  Authors may grant permission on their covered work parts explicitely, as long
+as all Authors agree. In this case only unambiguous assignments to project data
+of that Authors can be used, that agreed explicitely with the permission of ALL
+impacted Authors.
+
+  Any AI usage has to be permitted before by ALL impacted Authors and is only
+applicable to that unambiguous assigned parts, the specific Authors created and
+gave explicite permission for.
+
+  4. Systems.
+
+  If Authors are using systems that explicitly allow content scanning
 for any published content created by the system this license does not apply to
-the system created or generated content. But it still applies to any content
-that is the input for a system.
+the systems created or generated content, unless this content is just mirroring
+the input or preparing it for AI or crawler usage. But it still applies to any
+content and Source Code that is the input for any system.
+
+  5. AI usage information duty.
+
+  Any AI usage of The Program or the covered work needs to be explicitly
+permitted by the impacted Authors. ALL impacted Authors have to be informed
+BEFORE any AI usage takes place.
+
+  6. AI usage costs.
+
+  If not covered by indiviual contracts, agreed by all Authors, any usage of
+The program, the covered work and Source Code has to be paid. The amounts of
+payments are calculated by the sum of the median monthly earnings of all
+impacted Authors at first time of usage. This compensation is a constant
+monthly fee to the impacted Authors or their successors as long as used.
+Currency fluctuations have to be compensated in either direction related to
+purchasing power at first time of usage.
 
                      END OF TERMS AND CONDITIONS
 
