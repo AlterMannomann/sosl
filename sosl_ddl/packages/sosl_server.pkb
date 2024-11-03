@@ -3,6 +3,7 @@
 CREATE OR REPLACE PACKAGE BODY sosl_server
 AS
   -- for description see header file
+  /*====================================== start internal functions made visible for testing ======================================*/
   FUNCTION has_config_name(p_config_name IN VARCHAR2)
     RETURN BOOLEAN
   IS
@@ -25,6 +26,70 @@ AS
       -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
       RETURN FALSE;
   END has_config_name;
+
+
+  FUNCTION set_guid( p_run_id IN NUMBER
+                   , p_guid   IN VARCHAR2
+                   )
+    RETURN NUMBER
+  IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+    l_return            NUMBER;
+    l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SERVER';
+    l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_server.set_guid';
+  BEGIN
+    l_return := -1;
+    IF sosl_sys.has_run_id(p_run_id)
+    THEN
+      UPDATE sosl_run_queue
+         SET script_guid = p_guid
+       WHERE run_id = p_run_id
+      ;
+      COMMIT;
+      l_return := 0;
+    ELSE
+      sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Requested run id ' || p_run_id || ' does not exist.');
+      l_return := -1;
+    END IF;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+      RETURN -1;
+  END set_guid;
+
+  FUNCTION set_identifier( p_run_id     IN NUMBER
+                         , p_identifier IN VARCHAR2
+                         )
+    RETURN NUMBER
+  IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+    l_return            NUMBER;
+    l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SERVER';
+    l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_server.set_identifier';
+  BEGIN
+    l_return := -1;
+    IF sosl_sys.has_run_id(p_run_id)
+    THEN
+      UPDATE sosl_run_queue
+         SET sosl_identifier = p_identifier
+       WHERE run_id = p_run_id
+      ;
+      COMMIT;
+      l_return := 0;
+    ELSE
+      sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Requested run id ' || p_run_id || ' does not exist.');
+      l_return := -1;
+    END IF;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+      RETURN -1;
+  END set_identifier;
+  /*====================================== end internal functions made visible for testing ======================================*/
 
   FUNCTION set_config( p_config_name  IN VARCHAR2
                      , p_config_value IN VARCHAR2
@@ -168,68 +233,6 @@ AS
       RETURN '-1';
   END get_executor_cfg;
 
-  FUNCTION set_guid( p_run_id IN NUMBER
-                   , p_guid   IN VARCHAR2
-                   )
-    RETURN NUMBER
-  IS
-    PRAGMA AUTONOMOUS_TRANSACTION;
-    l_return            NUMBER;
-    l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SERVER';
-    l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_server.set_guid';
-  BEGIN
-    l_return := -1;
-    IF sosl_sys.has_run_id(p_run_id)
-    THEN
-      UPDATE sosl_run_queue
-         SET script_guid = p_guid
-       WHERE run_id = p_run_id
-      ;
-      COMMIT;
-      l_return := 0;
-    ELSE
-      sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Requested run id ' || p_run_id || ' does not exist.');
-      l_return := -1;
-    END IF;
-    RETURN l_return;
-  EXCEPTION
-    WHEN OTHERS THEN
-      -- log the error instead of RAISE
-      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-      RETURN -1;
-  END set_guid;
-
-  FUNCTION set_identifier( p_run_id     IN NUMBER
-                         , p_identifier IN VARCHAR2
-                         )
-    RETURN NUMBER
-  IS
-    PRAGMA AUTONOMOUS_TRANSACTION;
-    l_return            NUMBER;
-    l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SERVER';
-    l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_server.set_identifier';
-  BEGIN
-    l_return := -1;
-    IF sosl_sys.has_run_id(p_run_id)
-    THEN
-      UPDATE sosl_run_queue
-         SET sosl_identifier = p_identifier
-       WHERE run_id = p_run_id
-      ;
-      COMMIT;
-      l_return := 0;
-    ELSE
-      sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Requested run id ' || p_run_id || ' does not exist.');
-      l_return := -1;
-    END IF;
-    RETURN l_return;
-  EXCEPTION
-    WHEN OTHERS THEN
-      -- log the error instead of RAISE
-      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-      RETURN -1;
-  END set_identifier;
-
   FUNCTION set_script_started(p_run_id IN NUMBER)
     RETURN NUMBER
   IS
@@ -354,14 +357,43 @@ AS
       RETURN SUBSTR(SQLERRM, 1, 4000);
   END info_log;
 
-  FUNCTION warning_log( p_caller       IN VARCHAR2
-                      , p_message      IN VARCHAR2
+  FUNCTION warning_log( p_srv_caller   IN VARCHAR2
+                      , p_srv_message  IN VARCHAR2
+                      , p_identifier   IN VARCHAR2 DEFAULT NULL
+                      , p_local_log    IN VARCHAR2 DEFAULT NULL
+                      , p_srv_run_id   IN NUMBER   DEFAULT NULL
+                      , p_srv_guid     IN VARCHAR2 DEFAULT NULL
                       )
     RETURN VARCHAR2
   IS
+    l_message   VARCHAR2(32767);
+    l_payload   SOSL_PAYLOAD;
   BEGIN
-    sosl_log.minimal_warning_log(p_caller, 'SOSL_SERVER', p_message);
-    RETURN p_message;
+    IF p_local_log IS NOT NULL
+    THEN
+      l_message := p_srv_message || ' local log file: ' || p_local_log;
+    ELSE
+      l_message := p_srv_message;
+    END IF;
+    IF p_srv_run_id IS NOT NULL
+    THEN
+      l_payload := sosl_sys.get_payload(p_srv_run_id);
+    ELSE
+      l_payload := SOSL_PAYLOAD(NULL, NULL, NULL);
+    END IF;
+    sosl_log.full_log( p_message => l_message
+                     , p_log_type => sosl_constants.LOG_WARNING_TYPE
+                     , p_log_category => 'SOSL_SERVER'
+                     , p_caller => p_srv_caller
+                     , p_guid => p_srv_guid
+                     , p_sosl_identifier => p_identifier
+                     , p_executor_id => l_payload.executor_id
+                     , p_ext_script_id => l_payload.ext_script_id
+                     , p_script_file => l_payload.script_file
+                     , p_run_id => p_srv_run_id
+                     )
+    ;
+    RETURN p_srv_message;
   EXCEPTION
     WHEN OTHERS THEN
       -- log the error instead of RAISE
@@ -369,20 +401,108 @@ AS
       RETURN SUBSTR(SQLERRM, 1, 4000);
   END warning_log;
 
-  FUNCTION error_log( p_caller       IN VARCHAR2
-                    , p_message      IN VARCHAR2
+  FUNCTION error_log( p_srv_caller   IN VARCHAR2
+                    , p_srv_message  IN VARCHAR2
+                    , p_identifier   IN VARCHAR2 DEFAULT NULL
+                    , p_local_log    IN VARCHAR2 DEFAULT NULL
+                    , p_srv_run_id   IN NUMBER   DEFAULT NULL
+                    , p_srv_guid     IN VARCHAR2 DEFAULT NULL
                     )
     RETURN VARCHAR2
   IS
+    l_message   VARCHAR2(32767);
+    l_payload   SOSL_PAYLOAD;
   BEGIN
-    sosl_log.minimal_error_log(p_caller, 'SOSL_SERVER', p_message);
-    RETURN p_message;
+    IF p_local_log IS NOT NULL
+    THEN
+      l_message := p_srv_message || ' local log file: ' || p_local_log;
+    ELSE
+      l_message := p_srv_message;
+    END IF;
+    IF p_srv_run_id IS NOT NULL
+    THEN
+      l_payload := sosl_sys.get_payload(p_srv_run_id);
+    ELSE
+      l_payload := SOSL_PAYLOAD(NULL, NULL, NULL);
+    END IF;
+    sosl_log.full_log( p_message => l_message
+                     , p_log_type => sosl_constants.LOG_ERROR_TYPE
+                     , p_log_category => 'SOSL_SERVER'
+                     , p_caller => p_srv_caller
+                     , p_guid => p_srv_guid
+                     , p_sosl_identifier => p_identifier
+                     , p_executor_id => l_payload.executor_id
+                     , p_ext_script_id => l_payload.ext_script_id
+                     , p_script_file => l_payload.script_file
+                     , p_run_id => p_srv_run_id
+                     )
+    ;
+    RETURN p_srv_message;
   EXCEPTION
     WHEN OTHERS THEN
       -- log the error instead of RAISE
       sosl_log.exception_log('sosl_server.error_log', 'SOSL_SERVER', SQLERRM);
       RETURN SUBSTR(SQLERRM, 1, 4000);
   END error_log;
+
+  FUNCTION has_scripts
+    RETURN NUMBER
+  IS
+    l_return NUMBER;
+  BEGIN
+    l_return := sosl_sys.has_scripts;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log('sosl_server.has_scripts', 'SOSL_SERVER', SQLERRM);
+      RETURN -1;
+  END has_scripts;
+
+  FUNCTION get_next_script
+    RETURN NUMBER
+  IS
+    l_return NUMBER;
+  BEGIN
+    l_return := sosl_sys.get_next_script;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log('sosl_server.get_next_script', 'SOSL_SERVER', SQLERRM);
+      RETURN -1;
+  END get_next_script;
+
+  FUNCTION update_run_id( p_run_id      IN NUMBER
+                        , p_identifier  IN VARCHAR2
+                        , p_guid        IN VARCHAR2 DEFAULT NULL
+                        )
+    RETURN NUMBER
+  IS
+    l_return  NUMBER;
+    l_result  NUMBER;
+  BEGIN
+    l_return := -1;
+    l_result := sosl_server.set_identifier(p_run_id, p_identifier);
+    IF l_result = 0
+    THEN
+      l_return := 0;
+    END IF;
+    IF p_guid IS NOT NULL
+    THEN
+      l_result := sosl_server.set_guid(p_run_id, p_guid);
+      IF l_result != 0
+      THEN
+        l_return := -1;
+      END IF;
+    END IF;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log('sosl_server.update_run_id', 'SOSL_SERVER', SQLERRM);
+      RETURN -1;
+  END update_run_id;
 
 END;
 /

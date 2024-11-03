@@ -213,7 +213,7 @@ AS
   ;
 
   /* FUNCTION SOSL_SYS.HAS_SCRIPTS
-  * This function will be used by the wrapper function HAS_SCRIPTS.
+  * This function will be used by the wrapper function SOSL_SERVER.HAS_SCRIPTS.
   * Collects and sums the output of all defined executor has_scripts functions of active and reviewed executors that
   * return a number greater or equal to 0 as well as messages waiting in SOSL_RUN_QUEUE to be processed. Errors will get logged.
   *
@@ -291,7 +291,7 @@ AS
   ;
 
   /* FUNCTION SOSL_SYS.SET_SCRIPT_STATUS
-  * This function will be used by the wrapper function SET_SCRIPT_STATUS. It will first set the status of the script
+  * This function will be used by wrapper functions in SOSL_SERVER package. It will first set the status of the script
   * associated to the given run id in SOSL_RUN_QUEUE and then signal the state to all defined set_script_status functions.
   * Invalid status will lead to run state ERROR used. Errors will get logged. Invalid functions will deactivate the related
   * executors. If at least one status could be set successfully, it will return success (0).
@@ -312,7 +312,7 @@ AS
   ;
 
   /* FUNCTION SOSL_SYS.REGISTER_NEXT_SCRIPT
-  * Fetches the PAYLOAD from a given configured function for GET_NEXT_SCRIPT and stores it in SOSL_RUN_QUEUE with the
+  * Fetches the PAYLOAD from a given configured function for SOSL_SERVER.GET_NEXT_SCRIPT and stores it in SOSL_RUN_QUEUE with the
   * status WAITING. On errors, if sufficient data are available, the next script information is stored with status ERROR.
   * All executors using a function with errors will get deactivated.
   *
@@ -348,7 +348,7 @@ AS
   ;
 
   /* FUNCTION SOSL_SYS.GET_NEXT_SCRIPT
-  * This function will be used by the wrapper function GET_NEXT_SCRIPT.
+  * This function will be used by the wrapper function SOSL_SERVER.GET_NEXT_SCRIPT.
   * It collects from all executors the next script to execute, queues them in SOSL_RUN_QUEUE and then fetches the first script in the
   * run queue as next script to execute. If no scripts are available or on errors, the function will return -1.
   * Errors will be logged. From interface functions it excepts the return type SOSL_PAYLOAD.

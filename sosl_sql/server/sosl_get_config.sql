@@ -5,6 +5,7 @@
 -- parameter 3: The name of the configuration parameter
 -- parameter 4: The name and (relative) path of the temporary file to write to
 -- parameter 5: The name and (relative) path of the logfile to write to
+-- parameter 6: GUID of the process
 SET ECHO OFF
 -- define logging details, calling util relative to run directory
 @@..\sosl_sql\util\log_silent.sql
@@ -13,19 +14,29 @@ CLEAR COLUMNS
 COLUMN CONF_VAL NEW_VAL CONF_VAL
 SPOOL &4
 -- write result to temporary file
-SELECT config_value AS CONF_VAL
-  FROM sosl_config
- WHERE config_name = '&3'
+SELECT sosl_server.get_config('&3') AS CONF_VAL
+  FROM dual
 ;
 SPOOL OFF
 -- write log file
 SPOOL &5 APPEND
-SELECT '&2. ' ||
-       sosl_server.info_log( '../sosl_sql/server/sosl_get_config.sql'
-                           , 'Get parameter &3. with value: &CONF_VAL.'
-                           , '&1'
-                           , '&5'
-                           ) AS info
+SELECT CASE
+         WHEN '&CONF_VAL' = '-1'
+         THEN '&2. ' ||
+              sosl_server.error_log( p_srv_caller => '../sosl_sql/server/sosl_set_config.sql'
+                                   , p_srv_message => 'Error parameter &3. with value: &CONF_VAL.'
+                                   , p_identifier => '&1'
+                                   , p_local_log => '&5'
+                                   , p_srv_guid => '&6'
+                                   )
+         ELSE '&2. ' ||
+              sosl_server.info_log( p_srv_caller => '../sosl_sql/server/sosl_get_config.sql'
+                                  , p_srv_message => 'Get parameter &3. with value: &CONF_VAL.'
+                                  , p_identifier => '&1'
+                                  , p_local_log => '&5'
+                                  , p_srv_guid => '&6'
+                                  )
+         END AS info
   FROM dual;
 SPOOL OFF
 COLUMN EXITCODE NEW_VAL EXITCODE

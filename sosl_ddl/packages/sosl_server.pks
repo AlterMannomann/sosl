@@ -25,6 +25,36 @@ AS
   FUNCTION has_config_name(p_config_name IN VARCHAR2)
     RETURN BOOLEAN
   ;
+  /* FUNCTION SOSL_SERVER.SET_GUID
+  * Sets the GUID of the SOSL server, used during script execution, in SOSL_RUN_QUEUE. The GUID will be
+  * a generic identifier for this script execution. All identifiers in SOSLERRLOG will start with this GUID
+  * for a specific script execution.
+  *
+  * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
+  * @param p_guid The GUID used by the SOSL server for this script execution.
+  *
+  * @return Exit code, either 0 = successful or -1 on error.
+  */
+  FUNCTION set_guid( p_run_id IN NUMBER
+                   , p_guid   IN VARCHAR2
+                   )
+    RETURN NUMBER
+  ;
+  /* FUNCTION SOSL_SERVER.SET_IDENTIFIER
+  * Sets the exact SOSL IDENTIFIER of the SOSL server, used during main script execution, in SOSL_RUN_QUEUE. The identifier
+  * will exactly match SOSLERRLOG.IDENTIFIER in case of errors for a specific script execution. It will start with the GUID
+  * for the whole script execution process.
+  *
+  * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
+  * @param p_identifier The exact identifier used by the SOSL server for the main part of the script execution.
+  *
+  * @return Exit code, either 0 = successful or -1 on error.
+  */
+  FUNCTION set_identifier( p_run_id     IN NUMBER
+                         , p_identifier IN VARCHAR2
+                         )
+    RETURN NUMBER
+  ;
   /*====================================== end internal functions made visible for testing ======================================*/
 
   /** Function SOSL_SERVER.SET_CONFIG
@@ -90,41 +120,10 @@ AS
     RETURN VARCHAR2
   ;
 
-  /* FUNCTION SOSL_SERVER.SET_GUID
-  * Sets the GUID of the SOSL server, used during script execution, in SOSL_RUN_QUEUE. The GUID will be
-  * a generic identifier for this script execution. All identifiers in SOSLERRLOG will start with this GUID
-  * for a specific script execution.
-  *
-  * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
-  * @param p_guid The GUID used by the SOSL server for this script execution.
-  *
-  * @return Exit code, either 0 = successful or -1 on error.
-  */
-  FUNCTION set_guid( p_run_id IN NUMBER
-                   , p_guid   IN VARCHAR2
-                   )
-    RETURN NUMBER
-  ;
-
-  /* FUNCTION SOSL_SERVER.SET_IDENTIFIER
-  * Sets the exact SOSL IDENTIFIER of the SOSL server, used during main script execution, in SOSL_RUN_QUEUE. The identifier
-  * will exactly match SOSLERRLOG.IDENTIFIER in case of errors for a specific script execution. It will start with the GUID
-  * for the whole script execution process.
-  *
-  * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
-  * @param p_identifier The exact identifier used by the SOSL server for the main part of the script execution.
-  *
-  * @return Exit code, either 0 = successful or -1 on error.
-  */
-  FUNCTION set_identifier( p_run_id     IN NUMBER
-                         , p_identifier IN VARCHAR2
-                         )
-    RETURN NUMBER
-  ;
-
   /* FUNCTION SOSL_SERVER.SET_SCRIPT_STARTED
   * Short cut function for sosl_sys.set_run_state to guarantee correct run states. On errors the script state will
   * be set to error. Before calling this function at least GUID should be set for the current script.
+  * Wrapper function for SOSL_SYS.SET_SCRIPT_STATUS.
   *
   * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
   *
@@ -137,6 +136,7 @@ AS
   /* FUNCTION SOSL_SERVER.SET_SCRIPT_RUNNING
   * Short cut function for sosl_sys.set_run_state to guarantee correct run states. On errors the script state will
   * be set to error. Before calling this function the exact SOSL identifier should be set for the current script.
+  * Wrapper function for SOSL_SYS.SET_SCRIPT_STATUS.
   *
   * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
   *
@@ -148,7 +148,7 @@ AS
 
   /* FUNCTION SOSL_SERVER.SET_SCRIPT_FINISHED
   * Short cut function for sosl_sys.set_run_state to guarantee correct run states. On errors the script state will
-  * be set to error.
+  * be set to error. Wrapper function for SOSL_SYS.SET_SCRIPT_STATUS.
   *
   * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
   *
@@ -161,6 +161,7 @@ AS
   /* FUNCTION SOSL_SERVER.SET_SCRIPT_RUNNING
   * Short cut function for sosl_sys.set_run_state to guarantee correct run states. On errors the script state will
   * be set to error. Before calling this function the GUID and exact SOSL identifier should be set for the current script.
+  * Wrapper function for SOSL_SYS.SET_SCRIPT_STATUS.
   *
   * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
   *
@@ -179,7 +180,7 @@ AS
   * @param p_identifier In almost all cases scripts called from the server have an identifier, that they use for SOSLERRORLOG. NULL by default.
   * @param p_local_log In almost all cases scripts called from the server have a log file, that they use. NULL by default.
   * @param p_srv_run_id Scripts issued by executors will have a run id which is retrieved from the SOSL server. If a run id is given, the log is also enhanced with executor details for this script. NULL by default.
-  * @param p_srv_guid In very rare cases scripts called from the server have also the GUID, that they use. NULL by default.
+  * @param p_srv_guid For cases scripts called from the server have also the GUID, that they use. NULL by default.
   *
   * @return Will return p_message or error information.
   */
@@ -197,13 +198,21 @@ AS
   * Provides a possibility to output content for a local log as well as logging it to SOSL_SERVER_LOG. Can be
   * be called within every SELECT statement. On success log category will always be SOSL_SERVER, log type WARNING.
   *
-  * @param p_caller The script calling this function.
-  * @param p_message The message to use for the local log as well as to the SOSL_SERVER_LOG.
+  * @param p_srv_caller The script calling this function.
+  * @param p_srv_message The message to use for the local log as well as to the SOSL_SERVER_LOG.
+  * @param p_identifier In almost all cases scripts called from the server have an identifier, that they use for SOSLERRORLOG. NULL by default.
+  * @param p_local_log In almost all cases scripts called from the server have a log file, that they use. NULL by default.
+  * @param p_srv_run_id Scripts issued by executors will have a run id which is retrieved from the SOSL server. If a run id is given, the log is also enhanced with executor details for this script. NULL by default.
+  * @param p_srv_guid For cases scripts called from the server have also the GUID, that they use. NULL by default.
   *
   * @return Will return p_message or error information.
   */
-  FUNCTION warning_log( p_caller       IN VARCHAR2
-                      , p_message      IN VARCHAR2
+  FUNCTION warning_log( p_srv_caller   IN VARCHAR2
+                      , p_srv_message  IN VARCHAR2
+                      , p_identifier   IN VARCHAR2 DEFAULT NULL
+                      , p_local_log    IN VARCHAR2 DEFAULT NULL
+                      , p_srv_run_id   IN NUMBER   DEFAULT NULL
+                      , p_srv_guid     IN VARCHAR2 DEFAULT NULL
                       )
     RETURN VARCHAR2
   ;
@@ -212,15 +221,62 @@ AS
   * Provides a possibility to output content for a local log as well as logging it to SOSL_SERVER_LOG. Can be
   * be called within every SELECT statement. On success log category will always be SOSL_SERVER, log type ERROR.
   *
-  * @param p_caller The script calling this function.
-  * @param p_message The message to use for the local log as well as to the SOSL_SERVER_LOG.
+  * @param p_srv_caller The script calling this function.
+  * @param p_srv_message The message to use for the local log as well as to the SOSL_SERVER_LOG.
+  * @param p_identifier In almost all cases scripts called from the server have an identifier, that they use for SOSLERRORLOG. NULL by default.
+  * @param p_local_log In almost all cases scripts called from the server have a log file, that they use. NULL by default.
+  * @param p_srv_run_id Scripts issued by executors will have a run id which is retrieved from the SOSL server. If a run id is given, the log is also enhanced with executor details for this script. NULL by default.
+  * @param p_srv_guid For cases scripts called from the server have also the GUID, that they use. NULL by default.
   *
   * @return Will return p_message or error information.
   */
-  FUNCTION error_log( p_caller       IN VARCHAR2
-                    , p_message      IN VARCHAR2
+  FUNCTION error_log( p_srv_caller   IN VARCHAR2
+                    , p_srv_message  IN VARCHAR2
+                    , p_identifier   IN VARCHAR2 DEFAULT NULL
+                    , p_local_log    IN VARCHAR2 DEFAULT NULL
+                    , p_srv_run_id   IN NUMBER   DEFAULT NULL
+                    , p_srv_guid     IN VARCHAR2 DEFAULT NULL
                     )
     RETURN VARCHAR2
+  ;
+
+  /* FUNCTION SOSL_SERVER.HAS_SCRIPTS
+  * Wrapper function for SOSL_SYS.HAS_SCRIPTS.
+  * Collects and sums the output of all defined executor has_scripts functions of active and reviewed executors that
+  * return a number greater or equal to 0 as well as messages waiting in SOSL_RUN_QUEUE to be processed. Errors will get logged.
+  *
+  * @return The total amount of scripts waiting for processing or -1 on unhandled exceptions/all functions have errors.
+  */
+  FUNCTION has_scripts
+    RETURN NUMBER
+  ;
+
+  /* FUNCTION SOSL_SERVER.GET_NEXT_SCRIPT
+  * Wrapper function for SOSL_SYS.GET_NEXT_SCRIPT.
+  * It collects from all executors the next script to execute, queues them in SOSL_RUN_QUEUE and then fetches the first script in the
+  * run queue as next script to execute. If no scripts are available or on errors, the function will return -1.
+  * Errors will be logged. From interface functions it excepts the return type SOSL_PAYLOAD.
+  *
+  * @return The next script reference as RUN_ID from SOSL_RUN_QUEUE, containing run id that can be related to executor, external script id and scriptfile.
+  */
+  FUNCTION get_next_script
+    RETURN NUMBER
+  ;
+
+  /* FUNCTION SOSL_SERVER.UPDATE_RUN_ID
+  * Updates the run id with details from the server. Errors get logged.
+  *
+  * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
+  * @param p_identifier The exact identifier used by the SOSL server for the main part of the script execution.
+  * @param p_guid The (optional) GUID used by the SOSL server for this script execution.
+  *
+  * @return Exit code, either 0 = successful or -1 on error.
+  */
+  FUNCTION update_run_id( p_run_id      IN NUMBER
+                        , p_identifier  IN VARCHAR2
+                        , p_guid        IN VARCHAR2 DEFAULT NULL
+                        )
+    RETURN NUMBER
   ;
 
 END;
