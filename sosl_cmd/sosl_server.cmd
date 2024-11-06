@@ -1,3 +1,4 @@
+ECHO ON
 REM @ECHO OFF - disabled during testing
 REM (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 REM Not allowed to be used as AI training material without explicite permission.
@@ -61,23 +62,35 @@ REM STOP.
 SET SOSL_RUNMODE=RUN
 REM Defines the wait time, if scripts are available for execution, by default 1 second. Remember to give
 REM always other processes a chance.
-SET SOSL_MIN_WAIT=1
+SET SOSL_DEFAULT_WAIT=1
 REM Defines the wait time, if scripts are not available for execution and RUNMODE is not SLEEP, by
 REM default 2 minutes.
-SET SOSL_DEF_WAIT=120
+SET SOSL_NOJOB_WAIT=120
 REM Defines the wait time, if scripts are not available for execution and RUNMODE is SLEEP, by default 10
 REM minutes.
-SET SOSL_MAX_WAIT=600
-REM Defines the start hour for the SOSL server in 24h format, if -1 SOSL server is active the whole time.
-SET SOSL_START_JOBS=8
-REM Defines the end hour for the SOSL server in 24h format, ignored if SOSL_START_JOBS is -1.
+SET SOSL_PAUSE_WAIT=600
+REM Defines the start hour:minutes for the SOSL server in 24h format, if -1 SOSL server is active the whole time.
+SET SOSL_START_JOBS=08:00
+REM Defines the end hour:minutes for the SOSL server in 24h format, ignored if SOSL_START_JOBS is -1.
 REM After this hour, the SOSL server will not make any connections to the database until SOSL_START_JOBS
 REM hour is reached. Local log will be written with alive pings.
-SET SOSL_STOP_JOBS=18
-REM The mail server to connect.
-SET SOSL_MAIL_SERVER=undefined
-REM The mail server port to connect.
-SET SOSL_MAIL_PORT=undefined
+SET SOSL_STOP_JOBS=18:30
+REM *****************************************************************************************************
+REM Define internal variables
+REM Current login file name for execution. Will be used whenever acting as an executor. Will be overwritten
+REM whenever a new script is available by the executor definition for the configuration file. Should start
+REM with the same value as SOSL_LOGIN.
+SET CUR_SOSL_LOGIN=%SOSL_PATH_CFG%%SOSL_LOGIN%
+REM Defines the wait time used in the loop.
+SET CUR_WAIT_TIME=%SOSL_DEFAULT_WAIT%
+REM Defines the current fetched run id. -1 is for not having a valid run id.
+SET CUR_RUN_ID=-1
+REM Defines if the current time is okay to run scripts. Depends on SOSL_START_JOBS and SOSL_STOP_JOBS
+REM settings, based on the server time of the SOSL CMD server environment. 0 means SOSL CMD server can
+REM request new jobs, if available. -1 means that the server waits until SOSL_START_JOBS hour is reached.
+SET CUR_RUNTIME_OK=0
+REM Set with the current amount of waiting scripts.
+SET CUR_HAS_SCRIPTS=0
 REM Variable to hold GUIDs produced for each session. Used to create unique identifiers for SOSLERRORLOG
 REM by calling sosl_guid.cmd.
 SET SOSL_GUID=undefined
@@ -106,6 +119,11 @@ REM Variable for storing exit codes from ERRORLEVEL.
 SET SOSL_EXITCODE=-1
 REM Variable to store the current count of running processes.
 SET SOSL_RUNCOUNT=0
+REM Set lock file name
+SET LOCK_FILE=%SOSL_PATH_TMP%sosl_server.%SOSL_EXT_LOCK%
+REM Create lock file. Contains the run mode at start. Can be overwritten locally to stop
+REM the CMD server with stop_sosl_locally.cmd. Pause mode can only be set by database table SOSL_CONFIG.
+ECHO %SOSL_RUNMODE% > %LOCK_FILE%
 REM *****************************************************************************************************
 REM Create log entries
 CALL sosl_timestamp.cmd
@@ -115,6 +133,8 @@ IF NOT %SOSL_EXITCODE%==0 (
   GOTO :SOSL_ERROR
 )
 ECHO %SOSL_DATETIME% SOSL configuration loaded, running on %SOSL_OS% >> %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
+ECHO %SOSL_DATETIME% LOCK file created: %LOCK_FILE% >> %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
+
 CALL sosl_timestamp.cmd
 SET SOSL_EXITCODE=%ERRORLEVEL%
 IF NOT %SOSL_EXITCODE%==0 (
@@ -123,15 +143,95 @@ IF NOT %SOSL_EXITCODE%==0 (
 )
 ECHO %SOSL_DATETIME% Current GUID for session start: %SOSL_GUID%, repository directory %SOSL_GITDIR%  >> %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
 REM *****************************************************************************************************
+REM Start the loop, do not break the loop on minor errors
 
 :SOSL_LOOP
+REM Start loop always with SOSL login
+SET CUR_SOSL_LOGIN=%SOSL_PATH_CFG%%SOSL_LOGIN%
+REM Check if the we have reached max run count, go directly to wait if reached
+REM Takes the last value set for max parallel and wait time, will not fetch new values from database
+REM unless the run count falls under max parallel
+CALL sosl_get_run_count.cmd
+IF %SOSL_RUNCOUNT% GEQ %SOSL_MAX_PARALLEL% GOTO :SOSL_WAIT
+REM Fetch current parameters for each loop
+REM fetch a guid for the start process
+CALL sosl_guid.cmd
+SET SOSL_EXITCODE=%ERRORLEVEL%
+IF NOT %SOSL_EXITCODE%==0 (
+  SET SOSL_ERRMSG=Error executing sosl_guid.cmd
+  GOTO :SOSL_ERROR
+)
+REM *****************************************************************************************************
+REM Get and update the configuration from the database.
+CALL sosl_loop_config.cmd
+SET SOSL_EXITCODE=%ERRORLEVEL%
+IF NOT %SOSL_EXITCODE%==0 (
+  SET SOSL_ERRMSG=Error executing sosl_loop_config.cmd
+  GOTO :SOSL_ERROR
+) ELSE (
+  IF EXIST %SOSL_PATH_TMP%%SOSL_GUID%.tmp DEL %SOSL_PATH_TMP%%SOSL_GUID%.tmp
+)
+REM Get local settings
+CALL sosl_read_local.cmd
+REM Check runmode and adjust wait time based on run mode
+IF %SOSL_RUNMODE%==STOP GOTO :SOSL_EXIT
+REM Check defined run hours, if not successful will return to this point
 
-REM Skip error handling
-GOTO SOSL_EXIT
+:SHORT_LOOP
+CALL sosl_run_hours.cmd
+IF %CUR_RUNTIME_OK%==-1 (
+  SET CUR_WAIT_TIME=%SOSL_PAUSE_WAIT%
+  CALL sosl_log.cmd "Not within timeframe between %SOSL_START_JOBS% and %SOSL_STOP_JOBS%. Set wait time to %CUR_WAIT_TIME% seconds" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
+  CALL sosl_wait.cmd
+  GOTO :SHORT_LOOP
+)
+REM Get a guid for has scripts
+CALL sosl_guid.cmd
+SET SOSL_EXITCODE=%ERRORLEVEL%
+IF NOT %SOSL_EXITCODE%==0 (
+  SET SOSL_ERRMSG=Error executing sosl_guid.cmd
+  GOTO :SOSL_ERROR
+)
+REM Check if scripts available and adjust wait time on has_scripts result
+CALL sosl_has_scripts.cmd
+SET SOSL_EXITCODE=%ERRORLEVEL%
+IF NOT %SOSL_EXITCODE%==0 (
+  CALL sosl_log.cmd "Error calling sosl_has_scripts.cmd" %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
+) ELSE (
+  IF EXIST %SOSL_PATH_TMP%%SOSL_GUID%.tmp DEL %SOSL_PATH_TMP%%SOSL_GUID%.tmp
+)
+REM If no script, wait and loop again
+IF %CUR_HAS_SCRIPTS%==0 GOTO :SOSL_WAIT
+REM wait also on errors
+IF %CUR_HAS_SCRIPTS% LSS 0 GOTO :SOSL_WAIT
+REM If script available execute it and check state
+REM Get a guid for running a script
+CALL sosl_guid.cmd
+SET SOSL_EXITCODE=%ERRORLEVEL%
+IF NOT %SOSL_EXITCODE%==0 (
+  SET SOSL_ERRMSG=Error executing sosl_guid.cmd
+  GOTO :SOSL_ERROR
+)
+REM The called function will START the execute script as an independend session
+CALL sosl_get_next_script.cmd
+SET SOSL_EXITCODE=%ERRORLEVEL%
+IF NOT %SOSL_EXITCODE%==0 (
+  CALL sosl_log.cmd "Error calling sosl_get_next_script.cmd" %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
+) ELSE (
+  IF EXIST %SOSL_PATH_TMP%%SOSL_GUID%.tmp DEL %SOSL_PATH_TMP%%SOSL_GUID%.tmp
+)
+REM Wait as defined and repeat loop
+
+:SOSL_WAIT
+CALL sosl_wait.cmd
+REM repeat loop
+GOTO :SOSL_LOOP
+
 :SOSL_ERROR
 REM do not care if SOSL_DATETIME is correct or undefined
 ECHO %SOSL_DATETIME% %SOSL_ERRMSG% >> %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
 
 :SOSL_EXIT
 CALL sosl_shutdown.cmd
+IF EXIST %LOCK_FILE% DEL %LOCK_FILE%
 ENDLOCAL

@@ -5,28 +5,42 @@
 -- parameter 3: The name of the configuration parameter
 -- parameter 4: The configuration value to write for given parameter
 -- parameter 5: The name and (relative) path of the logfile to write to
+-- parameter 6: GUID of the process
+-- return: EXITCODE 0 on success, -1 on errors
 SET ECHO OFF
 -- define logging details, calling util relative to run directory
 @@..\sosl_sql\util\log_silent.sql
 SET ERRORLOGGING ON TABLE soslerrorlog IDENTIFIER &1
-UPDATE sosl_config
-   SET config_value = '&4'
- WHERE config_name = '&3'
+CLEAR COLUMNS
+COLUMN SET_SUCCESS NEW_VAL SET_SUCCESS
+SELECT sosl_server.set_config('&3', '&4') AS SET_SUCCESS
+  FROM dual
 ;
-COMMIT;
 -- write log file
 SPOOL &5 APPEND
-SELECT '&2. ' ||
-       sosl_server.info_log( '../sosl_sql/server/sosl_set_config.sql'
-                           , 'Set parameter &3. to value: &4.'
-                           , '&1'
-                           , '&5'
-                           ) AS info
+SELECT CASE
+         WHEN &SET_SUCCESS = 0
+         THEN '&2. ' ||
+              sosl_server.info_log( p_srv_caller => '../sosl_sql/server/sosl_set_config.sql'
+                                  , p_srv_message => 'Set parameter &3. to value: &4.'
+                                  , p_identifier => '&1'
+                                  , p_local_log => '&5'
+                                  , p_srv_guid => '&6'
+                                  )
+         ELSE '&2. ' ||
+              sosl_server.error_log( p_srv_caller => '../sosl_sql/server/sosl_set_config.sql'
+                                   , p_srv_message => 'Error Set parameter &3. to value: &4.'
+                                   , p_identifier => '&1'
+                                   , p_local_log => '&5'
+                                   , p_srv_guid => '&6'
+                                   )
+       END AS info
   FROM dual;
 SPOOL OFF
 COLUMN EXITCODE NEW_VAL EXITCODE
 SELECT CASE
          WHEN COUNT(*) > 0
+           OR &SET_SUCCESS != 0
          THEN -1
          ELSE 0
        END AS EXITCODE

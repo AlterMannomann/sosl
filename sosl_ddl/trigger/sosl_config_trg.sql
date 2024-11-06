@@ -94,6 +94,8 @@ BEGIN
                              , 'SOSL_NOJOB_WAIT'
                              , 'SOSL_PAUSE_WAIT'
                              , 'SOSL_SERVER_STATE'
+                             , 'SOSL_START_JOBS'
+                             , 'SOSL_STOP_JOBS'
                              )
   THEN
     sosl_log.log_column_change(:OLD.config_name, :NEW.config_name, 'SOSL_CONFIG.CONFIG_NAME', l_self_caller, TRUE);
@@ -173,6 +175,8 @@ BEGIN
                          , 'SOSL_NOJOB_WAIT'
                          , 'SOSL_PAUSE_WAIT'
                          , 'SOSL_SERVER_STATE'
+                         , 'SOSL_START_JOBS'
+                         , 'SOSL_STOP_JOBS'
                          )
   THEN
     sosl_log.minimal_error_log( 'sosl_config_del_trg'

@@ -35,6 +35,16 @@ INSERT INTO sosl_config
 INSERT INTO sosl_config
   (config_name, config_value, config_max_length, config_description)
   VALUES
+  ('SOSL_START_JOBS', '22:00', 5, 'Defines the hour:minutes (24 hour format with leading zeros) where SOSL should start running scripts. If set to -1 this parameter is ignored and SOSL server runs until stopped. Otherwise the server will not start to request scripts before this hour. Either both hours are given for start and stop or -1 on one value deactivates the time frame.')
+;
+INSERT INTO sosl_config
+  (config_name, config_value, config_max_length, config_description)
+  VALUES
+  ('SOSL_STOP_JOBS', '03:30', 5, 'Defines the hour:minutes (24 hour format with leading zeros) where SOSL should stop running scripts. If set to -1 this parameter is ignored and SOSL server runs until stopped. Otherwise the server will stop to request scripts after this hour. Either both hours are given for start and stop or -1 on one value deactivates the time frame.')
+;
+INSERT INTO sosl_config
+  (config_name, config_value, config_max_length, config_description)
+  VALUES
   ('SOSL_PATH_CFG', '..\..\sosl_cfg\', 4000, 'Information only. The relative path with delimiter at path end to configuration files the SOSL server uses for SOSL logins. Set by SOSL server. As configuration files contain credentials and secrets the path should be in a safe space with controlled user rights.')
 ;
 INSERT INTO sosl_config
