@@ -114,9 +114,32 @@ AS
   *
   * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
   *
-  * @return The configuration login filename including relative or absolute path or '-1' on errors.
+  * @return The configuration login filename including relative/absolute path or '-1' on errors.
   */
   FUNCTION get_executor_cfg(p_run_id IN NUMBER)
+    RETURN VARCHAR2
+  ;
+
+  /* FUNCTION SOSL_SERVER.GET_SCRIPT_FILE
+  * Retrieves the script filename including relative or full path by a given run id. Errors get logged.
+  *
+  * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
+  *
+  * @return The script filename including relative/absolute path or '-1' on errors.
+  */
+  FUNCTION get_script_file(p_run_id IN NUMBER)
+    RETURN VARCHAR2
+  ;
+
+  /* FUNCTION SOSL_SERVER.GET_SCRIPT_SCHEMA
+  * Retrieves the schema a given script should run in by a given run id. Uses FUNCTION_OWNER as defined
+  * for the executor of this script. Errors get logged.
+  *
+  * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
+  *
+  * @return The schema to use for the script associated with the run id or the current schema of this package as fallback on errors.
+  */
+  FUNCTION get_script_schema(p_run_id IN NUMBER)
     RETURN VARCHAR2
   ;
 

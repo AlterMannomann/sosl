@@ -4,6 +4,7 @@
 -- parameter 2: The OS timestamp as it may differ from the database timestamp
 -- parameter 3: The name and (relative) path of the logfile to write to
 -- parameter 4: GUID of the process
+-- return: EXITCODE 0 on success, -1 on errors
 SET ECHO OFF
 -- define logging details, calling util relative to run directory
 @@..\sosl_sql\util\log_silent.sql

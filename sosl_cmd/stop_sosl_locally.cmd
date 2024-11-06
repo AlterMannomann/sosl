@@ -6,5 +6,5 @@ SET SOSL_EXT_LOCK=lock
 REM get current local configuration
 CALL sosl_config.cmd
 SET LOCK_FILE=%SOSL_PATH_TMP%sosl_server.%SOSL_EXT_LOCK%
-ECHO STOP > %LOCK_FILE%
+ECHO STOP>%LOCK_FILE%
 ECHO Set server lock file content to STOP on next loop cycle

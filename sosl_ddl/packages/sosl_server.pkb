@@ -212,6 +212,7 @@ AS
     l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SERVER';
     l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_server.get_executor_cfg';
   BEGIN
+    l_executor_cfg := '-1';
     IF sosl_sys.has_run_id(p_run_id)
     THEN
       SELECT sed.cfg_file
@@ -232,6 +233,62 @@ AS
       sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
       RETURN '-1';
   END get_executor_cfg;
+
+  FUNCTION get_script_file(p_run_id IN NUMBER)
+    RETURN VARCHAR2
+  IS
+    l_script_file       sosl_run_queue.script_file%TYPE;
+    l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SERVER';
+    l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_server.get_script_file';
+  BEGIN
+    l_script_file := '-1';
+    IF sosl_sys.has_run_id(p_run_id)
+    THEN
+      SELECT script_file
+        INTO l_script_file
+        FROM sosl_run_queue
+       WHERE run_id = p_run_id
+      ;
+    ELSE
+      sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Requested run id ' || p_run_id || ' does not exist.');
+      l_script_file := '-1';
+    END IF;
+    RETURN l_script_file;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+      RETURN '-1';
+  END get_script_file;
+
+  FUNCTION get_script_schema(p_run_id IN NUMBER)
+    RETURN VARCHAR2
+  IS
+    l_script_schema     sosl_executor_definition.function_owner%TYPE;
+    l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SERVER';
+    l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_server.get_script_file';
+  BEGIN
+    l_script_schema := TRIM(SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA'));
+    IF sosl_sys.has_run_id(p_run_id)
+    THEN
+      SELECT sed.function_owner
+        INTO l_script_schema
+        FROM sosl_run_queue srq
+        LEFT OUTER JOIN sosl_executor_definition sed
+          ON srq.executor_id = sed.executor_id
+       WHERE srq.run_id = p_run_id
+      ;
+    ELSE
+      sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Requested run id ' || p_run_id || ' does not exist.');
+      l_script_schema := TRIM(SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA'));
+    END IF;
+    RETURN l_script_schema;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+      RETURN TRIM(SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA'));
+  END get_script_schema;
 
   FUNCTION set_script_started(p_run_id IN NUMBER)
     RETURN NUMBER

@@ -6,6 +6,7 @@
 -- parameter 4: The configuration value to write for given parameter
 -- parameter 5: The name and (relative) path of the logfile to write to
 -- parameter 6: GUID of the process
+-- return: EXITCODE 0 on success, -1 on errors
 SET ECHO OFF
 -- define logging details, calling util relative to run directory
 @@..\sosl_sql\util\log_silent.sql
@@ -33,12 +34,13 @@ SELECT CASE
                                    , p_local_log => '&5'
                                    , p_srv_guid => '&6'
                                    )
-         END AS info
+       END AS info
   FROM dual;
 SPOOL OFF
 COLUMN EXITCODE NEW_VAL EXITCODE
 SELECT CASE
          WHEN COUNT(*) > 0
+           OR &SET_SUCCESS != 0
          THEN -1
          ELSE 0
        END AS EXITCODE

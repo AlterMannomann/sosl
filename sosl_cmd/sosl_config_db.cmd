@@ -1,9 +1,10 @@
+ECHO ON
 REM (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 REM Not allowed to be used as AI training material without explicite permission.
 REM Read configuration from database. Edit table SOSL_CONFIG in the database to change the values.
 REM Set global variables valid in the script.
 SET TMP_FILE=%SOSL_PATH_TMP%conf.tmp
-SET CUR_SOSL_LOGIN=%SOSL_LOGIN%
+SET CUR_SOSL_LOGIN=%SOSL_PATH_CFG%%SOSL_LOGIN%
 REM *****************************************************************************************************
 REM Now we can start logging
 REM Set server state to active and inform about the basics
@@ -260,8 +261,7 @@ GOTO :SOSL_CFG_END
 :SOSL_CFG_ERROR
 REM log to whatever definition of log file we have, on errors use the default
 CALL sosl_log.cmd "%SOSL_ERRMSG%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
-REM Delete temporary file if it exists
-IF EXIST %TMP_FILE% DEL %TMP_FILE%
+REM On errors do not delete the temporary file
 EXIT /B -1
 :SOSL_CFG_END
 REM Delete temporary file if it exists

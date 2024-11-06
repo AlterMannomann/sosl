@@ -1,0 +1,60 @@
+2024-11-06 01:54:02.988000 - Set parameter SOSL_SERVER_STATE to value: ACTIVE
+2024-11-06 01:54:03.525000 - Simple Oracle Script Loader server started db name: FREEPDB1 OS user: Adi DB user: SOSL schema: SOSL
+2024-11-06 01:54:03.887000 - Get parameter SOSL_MAX_PARALLEL with value: 8
+2024-11-06 01:54:04.215000 - Get parameter SOSL_RUNMODE with value: RUN
+2024-11-06 01:54:04.539000 - Get parameter SOSL_DEFAULT_WAIT with value: 1
+2024-11-06 01:54:04.925000 - Get parameter SOSL_NOJOB_WAIT with value: 120
+2024-11-06 01:54:05.269000 - Get parameter SOSL_PAUSE_WAIT with value: 3600
+2024-11-06 01:54:05.691000 - Get parameter SOSL_START_JOBS with value: 22:00
+2024-11-06 01:54:06.036000 - Get parameter SOSL_STOP_JOBS with value: 03:30
+2024-11-06 01:54:06.322000 - Set parameter SOSL_PATH_CFG to value: ..\sosl_templates\
+2024-11-06 01:54:06.568000 - Set parameter SOSL_PATH_TMP to value: ..\..\tmp\
+2024-11-06 01:54:06.811000 - Set parameter SOSL_PATH_LOG to value: ..\..\log\
+2024-11-06 01:54:07.056000 - Set parameter SOSL_EXT_LOG to value: log
+2024-11-06 01:54:07.281000 - Set parameter SOSL_EXT_LOCK to value: lock
+2024-11-06 01:54:07.503000 - Set parameter SOSL_START_LOG to value: sosl_server
+2024-11-06 01:54:07.734000 - Set parameter SOSL_BASE_LOG to value: sosl_job_
+2024-11-06 01:54:07.968000 - SOSL configuration loaded, running on WINDOWS 
+2024-11-06 01:54:07.968000 - LOCK file created: ..\..\tmp\sosl_server.lock 
+2024-11-06 01:54:08.028000 - Current GUID for session start: D02958AA-D902-48D8-8362-CE80A1CBBD6C, repository directory C:\Users\Adi\source\repos\sosl  
+2024-11-06 01:54:08.132000 - Get parameter SOSL_START_JOBS with value: 22:00
+2024-11-06 01:54:08.422000 - Get parameter SOSL_STOP_JOBS with value: 03:30
+2024-11-06 01:54:08.646000 - Get parameter SOSL_MAX_PARALLEL with value: 8
+2024-11-06 01:54:08.878000 - Get parameter SOSL_RUNMODE with value: RUN
+2024-11-06 01:54:09.102000 - Get parameter SOSL_DEFAULT_WAIT with value: 1
+2024-11-06 01:54:09.325000 - Get parameter SOSL_NOJOB_WAIT with value: 120
+2024-11-06 01:54:09.557000 - Get parameter SOSL_PAUSE_WAIT with value: 3600
+2024-11-06 01:54:09.900000 - Fetched sosl_server.has_scripts: 0
+2024-11-06 01:54:10.159000 - Wait for 120 seconds 
+2024-11-06 01:56:14.424000 - Get parameter SOSL_START_JOBS with value: 22:00
+2024-11-06 01:56:14.728000 - Get parameter SOSL_STOP_JOBS with value: 03:30
+2024-11-06 01:56:15.031000 - Get parameter SOSL_MAX_PARALLEL with value: 8
+2024-11-06 01:56:15.374000 - Get parameter SOSL_RUNMODE with value: RUN
+2024-11-06 01:56:15.680000 - Get parameter SOSL_DEFAULT_WAIT with value: 1
+2024-11-06 01:56:16.073000 - Get parameter SOSL_NOJOB_WAIT with value: 120
+2024-11-06 01:56:16.441000 - Get parameter SOSL_PAUSE_WAIT with value: 3600
+2024-11-06 01:56:16.974000 - Fetched sosl_server.has_scripts: 1
+2024-11-06 01:56:17.489000 - Fetched sosl_server.get_next_script run id: 1 and set script to STARTED
+2024-11-06 01:56:18.256000 - Fetched sosl_server.get_script_file: ..\sosl_tests\sosl_sql\sosl_hello_world.sql with run id 1
+2024-11-06 01:56:18.566000 - Fetched sosl_server.get_script_schema: SOSL with run id 1
+2024-11-06 01:56:18.947000 - Fetched sosl_server.get_executor_cfg: ..\sosl_templates\sosl_login.cfg with run id 1
+2024-11-06 01:56:19.368000 - Wait for 1 seconds 
+2024-11-06 01:56:19.579000 - Successfully executed: ..\sosl_tests\sosl_sql\sosl_hello_world.sql
+2024-11-06 01:56:20.235000 - Get parameter SOSL_START_JOBS with value: 22:00
+2024-11-06 01:56:21.198000 - Get parameter SOSL_STOP_JOBS with value: 03:30
+2024-11-06 01:56:22.491000 - Get parameter SOSL_MAX_PARALLEL with value: 8
+2024-11-06 01:56:22.983000 - Get parameter SOSL_RUNMODE with value: RUN
+2024-11-06 01:56:23.342000 - Get parameter SOSL_DEFAULT_WAIT with value: 1
+2024-11-06 01:56:23.735000 - Get parameter SOSL_NOJOB_WAIT with value: 120
+2024-11-06 01:56:24.104000 - Get parameter SOSL_PAUSE_WAIT with value: 3600
+2024-11-06 01:56:24.712000 - Fetched sosl_server.has_scripts: 0
+2024-11-06 01:56:25.097000 - Wait for 120 seconds 
+2024-11-06 01:58:29.432000 - Get parameter SOSL_START_JOBS with value: 22:00
+2024-11-06 01:58:29.754000 - Get parameter SOSL_STOP_JOBS with value: 03:30
+2024-11-06 01:58:30.077000 - Get parameter SOSL_MAX_PARALLEL with value: 8
+2024-11-06 01:58:30.405000 - Get parameter SOSL_RUNMODE with value: RUN
+2024-11-06 01:58:30.779000 - Get parameter SOSL_DEFAULT_WAIT with value: 1
+2024-11-06 01:58:31.133000 - Get parameter SOSL_NOJOB_WAIT with value: 120
+2024-11-06 01:58:31.475000 - Get parameter SOSL_PAUSE_WAIT with value: 3600
+2024-11-06 01:58:31.831000 - Set parameter SOSL_SERVER_STATE to value: INACTIVE
+2024-11-06 01:58:32.314000 - Simple Oracle Script Loader server stopped db name: FREEPDB1 OS user: Adi DB user: SOSL schema: SOSL

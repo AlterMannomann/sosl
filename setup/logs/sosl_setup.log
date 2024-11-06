@@ -4741,89 +4741,89 @@ SQL> CREATE OR REPLACE PACKAGE sosl_server
 111    *
 112    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
 113    *
-114    * @return The configuration login filename including relative or absolute path or '-1' on errors.
+114    * @return The configuration login filename including relative/absolute path or '-1' on errors.
 115    */
 116    FUNCTION get_executor_cfg(p_run_id IN NUMBER)
 117  	 RETURN VARCHAR2
 118    ;
 119  
-120    /* FUNCTION SOSL_SERVER.SET_SCRIPT_STARTED
-121    * Short cut function for sosl_sys.set_run_state to guarantee correct run states. On errors the script state will
-122    * be set to error. Before calling this function at least GUID should be set for the current script.
-123    * Wrapper function for SOSL_SYS.SET_SCRIPT_STATUS.
+120    /* FUNCTION SOSL_SERVER.GET_SCRIPT_FILE
+121    * Retrieves the script filename including relative or full path by a given run id. Errors get logged.
+122    *
+123    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
 124    *
-125    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
-126    *
-127    * @return Exit code, either 0 = successful or -1 on error.
-128    */
-129    FUNCTION set_script_started(p_run_id IN NUMBER)
-130  	 RETURN NUMBER
-131    ;
-132  
-133    /* FUNCTION SOSL_SERVER.SET_SCRIPT_RUNNING
-134    * Short cut function for sosl_sys.set_run_state to guarantee correct run states. On errors the script state will
-135    * be set to error. Before calling this function the exact SOSL identifier should be set for the current script.
-136    * Wrapper function for SOSL_SYS.SET_SCRIPT_STATUS.
-137    *
-138    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
-139    *
-140    * @return Exit code, either 0 = successful or -1 on error.
-141    */
-142    FUNCTION set_script_running(p_run_id IN NUMBER)
-143  	 RETURN NUMBER
-144    ;
-145  
-146    /* FUNCTION SOSL_SERVER.SET_SCRIPT_FINISHED
-147    * Short cut function for sosl_sys.set_run_state to guarantee correct run states. On errors the script state will
-148    * be set to error. Wrapper function for SOSL_SYS.SET_SCRIPT_STATUS.
+125    * @return The script filename including relative/absolute path or '-1' on errors.
+126    */
+127    FUNCTION get_script_file(p_run_id IN NUMBER)
+128  	 RETURN VARCHAR2
+129    ;
+130  
+131    /* FUNCTION SOSL_SERVER.GET_SCRIPT_SCHEMA
+132    * Retrieves the schema a given script should run in by a given run id. Uses FUNCTION_OWNER as defined
+133    * for the executor of this script. Errors get logged.
+134    *
+135    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
+136    *
+137    * @return The schema to use for the script associated with the run id or the current schema of this package as fallback on errors.
+138    */
+139    FUNCTION get_script_schema(p_run_id IN NUMBER)
+140  	 RETURN VARCHAR2
+141    ;
+142  
+143    /* FUNCTION SOSL_SERVER.SET_SCRIPT_STARTED
+144    * Short cut function for sosl_sys.set_run_state to guarantee correct run states. On errors the script state will
+145    * be set to error. Before calling this function at least GUID should be set for the current script.
+146    * Wrapper function for SOSL_SYS.SET_SCRIPT_STATUS.
+147    *
+148    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
 149    *
-150    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
-151    *
-152    * @return Exit code, either 0 = successful or -1 on error.
-153    */
-154    FUNCTION set_script_finished(p_run_id IN NUMBER)
-155  	 RETURN NUMBER
-156    ;
-157  
-158    /* FUNCTION SOSL_SERVER.SET_SCRIPT_RUNNING
-159    * Short cut function for sosl_sys.set_run_state to guarantee correct run states. On errors the script state will
-160    * be set to error. Before calling this function the GUID and exact SOSL identifier should be set for the current script.
-161    * Wrapper function for SOSL_SYS.SET_SCRIPT_STATUS.
+150    * @return Exit code, either 0 = successful or -1 on error.
+151    */
+152    FUNCTION set_script_started(p_run_id IN NUMBER)
+153  	 RETURN NUMBER
+154    ;
+155  
+156    /* FUNCTION SOSL_SERVER.SET_SCRIPT_RUNNING
+157    * Short cut function for sosl_sys.set_run_state to guarantee correct run states. On errors the script state will
+158    * be set to error. Before calling this function the exact SOSL identifier should be set for the current script.
+159    * Wrapper function for SOSL_SYS.SET_SCRIPT_STATUS.
+160    *
+161    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
 162    *
-163    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
-164    *
-165    * @return Exit code, either 0 = successful or -1 on error.
-166    */
-167    FUNCTION set_script_error(p_run_id IN NUMBER)
-168  	 RETURN NUMBER
-169    ;
-170  
-171    /* FUNCTION SOSL_SERVER.INFO_LOG
-172    * Provides a possibility to output content for a local log as well as logging it to SOSL_SERVER_LOG. Can be
-173    * be called within every SELECT statement. On success log category will always be SOSL_SERVER, log type INFO.
+163    * @return Exit code, either 0 = successful or -1 on error.
+164    */
+165    FUNCTION set_script_running(p_run_id IN NUMBER)
+166  	 RETURN NUMBER
+167    ;
+168  
+169    /* FUNCTION SOSL_SERVER.SET_SCRIPT_FINISHED
+170    * Short cut function for sosl_sys.set_run_state to guarantee correct run states. On errors the script state will
+171    * be set to error. Wrapper function for SOSL_SYS.SET_SCRIPT_STATUS.
+172    *
+173    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
 174    *
-175    * @param p_srv_caller The script calling this function.
-176    * @param p_srv_message The message to use for the local log as well as to the SOSL_SERVER_LOG.
-177    * @param p_identifier In almost all cases scripts called from the server have an identifier, that they use for SOSLERRORLOG. NULL by default.
-178    * @param p_local_log In almost all cases scripts called from the server have a log file, that they use. NULL by default.
-179    * @param p_srv_run_id Scripts issued by executors will have a run id which is retrieved from the SOSL server. If a run id is given, the log is also enhanced with executor details for this script. NULL by default.
-180    * @param p_srv_guid For cases scripts called from the server have also the GUID, that they use. NULL by default.
-181    *
-182    * @return Will return p_message or error information.
-183    */
-184    FUNCTION info_log( p_srv_caller	 IN VARCHAR2
-185  			, p_srv_message  IN VARCHAR2
-186  			, p_identifier	 IN VARCHAR2 DEFAULT NULL
-187  			, p_local_log	 IN VARCHAR2 DEFAULT NULL
-188  			, p_srv_run_id	 IN NUMBER   DEFAULT NULL
-189  			, p_srv_guid	 IN VARCHAR2 DEFAULT NULL
-190  			)
-191  	 RETURN VARCHAR2
+175    * @return Exit code, either 0 = successful or -1 on error.
+176    */
+177    FUNCTION set_script_finished(p_run_id IN NUMBER)
+178  	 RETURN NUMBER
+179    ;
+180  
+181    /* FUNCTION SOSL_SERVER.SET_SCRIPT_RUNNING
+182    * Short cut function for sosl_sys.set_run_state to guarantee correct run states. On errors the script state will
+183    * be set to error. Before calling this function the GUID and exact SOSL identifier should be set for the current script.
+184    * Wrapper function for SOSL_SYS.SET_SCRIPT_STATUS.
+185    *
+186    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
+187    *
+188    * @return Exit code, either 0 = successful or -1 on error.
+189    */
+190    FUNCTION set_script_error(p_run_id IN NUMBER)
+191  	 RETURN NUMBER
 192    ;
 193  
-194    /* FUNCTION SOSL_SERVER.WARNING_LOG
+194    /* FUNCTION SOSL_SERVER.INFO_LOG
 195    * Provides a possibility to output content for a local log as well as logging it to SOSL_SERVER_LOG. Can be
-196    * be called within every SELECT statement. On success log category will always be SOSL_SERVER, log type WARNING.
+196    * be called within every SELECT statement. On success log category will always be SOSL_SERVER, log type INFO.
 197    *
 198    * @param p_srv_caller The script calling this function.
 199    * @param p_srv_message The message to use for the local log as well as to the SOSL_SERVER_LOG.
@@ -4834,19 +4834,19 @@ SQL> CREATE OR REPLACE PACKAGE sosl_server
 204    *
 205    * @return Will return p_message or error information.
 206    */
-207    FUNCTION warning_log( p_srv_caller   IN VARCHAR2
-208  			   , p_srv_message  IN VARCHAR2
-209  			   , p_identifier   IN VARCHAR2 DEFAULT NULL
-210  			   , p_local_log    IN VARCHAR2 DEFAULT NULL
-211  			   , p_srv_run_id   IN NUMBER	DEFAULT NULL
-212  			   , p_srv_guid     IN VARCHAR2 DEFAULT NULL
-213  			   )
+207    FUNCTION info_log( p_srv_caller	 IN VARCHAR2
+208  			, p_srv_message  IN VARCHAR2
+209  			, p_identifier	 IN VARCHAR2 DEFAULT NULL
+210  			, p_local_log	 IN VARCHAR2 DEFAULT NULL
+211  			, p_srv_run_id	 IN NUMBER   DEFAULT NULL
+212  			, p_srv_guid	 IN VARCHAR2 DEFAULT NULL
+213  			)
 214  	 RETURN VARCHAR2
 215    ;
 216  
-217    /* FUNCTION SOSL_SERVER.ERROR_LOG
+217    /* FUNCTION SOSL_SERVER.WARNING_LOG
 218    * Provides a possibility to output content for a local log as well as logging it to SOSL_SERVER_LOG. Can be
-219    * be called within every SELECT statement. On success log category will always be SOSL_SERVER, log type ERROR.
+219    * be called within every SELECT statement. On success log category will always be SOSL_SERVER, log type WARNING.
 220    *
 221    * @param p_srv_caller The script calling this function.
 222    * @param p_srv_message The message to use for the local log as well as to the SOSL_SERVER_LOG.
@@ -4857,57 +4857,80 @@ SQL> CREATE OR REPLACE PACKAGE sosl_server
 227    *
 228    * @return Will return p_message or error information.
 229    */
-230    FUNCTION error_log( p_srv_caller   IN VARCHAR2
-231  			 , p_srv_message  IN VARCHAR2
-232  			 , p_identifier   IN VARCHAR2 DEFAULT NULL
-233  			 , p_local_log	  IN VARCHAR2 DEFAULT NULL
-234  			 , p_srv_run_id   IN NUMBER   DEFAULT NULL
-235  			 , p_srv_guid	  IN VARCHAR2 DEFAULT NULL
-236  			 )
+230    FUNCTION warning_log( p_srv_caller   IN VARCHAR2
+231  			   , p_srv_message  IN VARCHAR2
+232  			   , p_identifier   IN VARCHAR2 DEFAULT NULL
+233  			   , p_local_log    IN VARCHAR2 DEFAULT NULL
+234  			   , p_srv_run_id   IN NUMBER	DEFAULT NULL
+235  			   , p_srv_guid     IN VARCHAR2 DEFAULT NULL
+236  			   )
 237  	 RETURN VARCHAR2
 238    ;
 239  
-240    /* FUNCTION SOSL_SERVER.HAS_SCRIPTS
-241    * Wrapper function for SOSL_SYS.HAS_SCRIPTS.
-242    * Collects and sums the output of all defined executor has_scripts functions of active and reviewed executors that
-243    * return a number greater or equal to 0 as well as messages waiting in SOSL_RUN_QUEUE to be processed. Errors will get logged.
-244    *
-245    * @return The total amount of scripts waiting for processing or -1 on unhandled exceptions/all functions have errors.
-246    */
-247    FUNCTION has_scripts
-248  	 RETURN NUMBER
-249    ;
-250  
-251    /* FUNCTION SOSL_SERVER.GET_NEXT_SCRIPT
-252    * Wrapper function for SOSL_SYS.GET_NEXT_SCRIPT.
-253    * It collects from all executors the next script to execute, queues them in SOSL_RUN_QUEUE and then fetches the first script in the
-254    * run queue as next script to execute. If no scripts are available or on errors, the function will return -1.
-255    * Errors will be logged. From interface functions it excepts the return type SOSL_PAYLOAD.
-256    *
-257    * @return The next script reference as RUN_ID from SOSL_RUN_QUEUE, containing run id that can be related to executor, external script id and scriptfile.
-258    */
-259    FUNCTION get_next_script
-260  	 RETURN NUMBER
+240    /* FUNCTION SOSL_SERVER.ERROR_LOG
+241    * Provides a possibility to output content for a local log as well as logging it to SOSL_SERVER_LOG. Can be
+242    * be called within every SELECT statement. On success log category will always be SOSL_SERVER, log type ERROR.
+243    *
+244    * @param p_srv_caller The script calling this function.
+245    * @param p_srv_message The message to use for the local log as well as to the SOSL_SERVER_LOG.
+246    * @param p_identifier In almost all cases scripts called from the server have an identifier, that they use for SOSLERRORLOG. NULL by default.
+247    * @param p_local_log In almost all cases scripts called from the server have a log file, that they use. NULL by default.
+248    * @param p_srv_run_id Scripts issued by executors will have a run id which is retrieved from the SOSL server. If a run id is given, the log is also enhanced with executor details for this script. NULL by default.
+249    * @param p_srv_guid For cases scripts called from the server have also the GUID, that they use. NULL by default.
+250    *
+251    * @return Will return p_message or error information.
+252    */
+253    FUNCTION error_log( p_srv_caller   IN VARCHAR2
+254  			 , p_srv_message  IN VARCHAR2
+255  			 , p_identifier   IN VARCHAR2 DEFAULT NULL
+256  			 , p_local_log	  IN VARCHAR2 DEFAULT NULL
+257  			 , p_srv_run_id   IN NUMBER   DEFAULT NULL
+258  			 , p_srv_guid	  IN VARCHAR2 DEFAULT NULL
+259  			 )
+260  	 RETURN VARCHAR2
 261    ;
 262  
-263    /* FUNCTION SOSL_SERVER.UPDATE_RUN_ID
-264    * Updates the run id with details from the server. Errors get logged.
-265    *
-266    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
-267    * @param p_identifier The exact identifier used by the SOSL server for the main part of the script execution.
-268    * @param p_guid The (optional) GUID used by the SOSL server for this script execution.
-269    *
-270    * @return Exit code, either 0 = successful or -1 on error.
-271    */
-272    FUNCTION update_run_id( p_run_id      IN NUMBER
-273  			     , p_identifier  IN VARCHAR2
-274  			     , p_guid	     IN VARCHAR2 DEFAULT NULL
-275  			     )
-276  	 RETURN NUMBER
-277    ;
-278  
-279  END;
-280  /
+263    /* FUNCTION SOSL_SERVER.HAS_SCRIPTS
+264    * Wrapper function for SOSL_SYS.HAS_SCRIPTS.
+265    * Collects and sums the output of all defined executor has_scripts functions of active and reviewed executors that
+266    * return a number greater or equal to 0 as well as messages waiting in SOSL_RUN_QUEUE to be processed. Errors will get logged.
+267    *
+268    * @return The total amount of scripts waiting for processing or -1 on unhandled exceptions/all functions have errors.
+269    */
+270    FUNCTION has_scripts
+271  	 RETURN NUMBER
+272    ;
+273  
+274    /* FUNCTION SOSL_SERVER.GET_NEXT_SCRIPT
+275    * Wrapper function for SOSL_SYS.GET_NEXT_SCRIPT.
+276    * It collects from all executors the next script to execute, queues them in SOSL_RUN_QUEUE and then fetches the first script in the
+277    * run queue as next script to execute. If no scripts are available or on errors, the function will return -1.
+278    * Errors will be logged. From interface functions it excepts the return type SOSL_PAYLOAD.
+279    *
+280    * @return The next script reference as RUN_ID from SOSL_RUN_QUEUE, containing run id that can be related to executor, external script id and scriptfile.
+281    */
+282    FUNCTION get_next_script
+283  	 RETURN NUMBER
+284    ;
+285  
+286    /* FUNCTION SOSL_SERVER.UPDATE_RUN_ID
+287    * Updates the run id with details from the server. Errors get logged.
+288    *
+289    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
+290    * @param p_identifier The exact identifier used by the SOSL server for the main part of the script execution.
+291    * @param p_guid The (optional) GUID used by the SOSL server for this script execution.
+292    *
+293    * @return Exit code, either 0 = successful or -1 on error.
+294    */
+295    FUNCTION update_run_id( p_run_id      IN NUMBER
+296  			     , p_identifier  IN VARCHAR2
+297  			     , p_guid	     IN VARCHAR2 DEFAULT NULL
+298  			     )
+299  	 RETURN NUMBER
+300    ;
+301  
+302  END;
+303  /
 
 Package created.
 
@@ -5131,300 +5154,357 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_server
 210  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SERVER';
 211  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_server.get_executor_cfg';
 212    BEGIN
-213  	 IF sosl_sys.has_run_id(p_run_id)
-214  	 THEN
-215  	   SELECT sed.cfg_file
-216  	     INTO l_executor_cfg
-217  	     FROM sosl_run_queue srq
-218  	     LEFT OUTER JOIN sosl_executor_definition sed
-219  	       ON srq.executor_id = sed.executor_id
-220  	    WHERE srq.run_id = p_run_id
-221  	   ;
-222  	 ELSE
-223  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Requested run id ' || p_run_id || ' does not exist.');
-224  	   l_executor_cfg := '-1';
-225  	 END IF;
-226  	 RETURN l_executor_cfg;
-227    EXCEPTION
-228  	 WHEN OTHERS THEN
-229  	   -- log the error instead of RAISE
-230  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-231  	   RETURN '-1';
-232    END get_executor_cfg;
-233  
-234    FUNCTION set_script_started(p_run_id IN NUMBER)
-235  	 RETURN NUMBER
-236    IS
-237  	 l_return	     NUMBER;
-238    BEGIN
-239  	 IF sosl_sys.set_run_state(p_run_id, sosl_constants.RUN_STATE_STARTED)
-240  	 THEN
-241  	   l_return := 0;
-242  	 ELSE
-243  	   l_return := -1;
-244  	   -- error should be logged already by sosl_sys.get_run_state
-245  	 END IF;
-246  	 RETURN l_return;
-247    EXCEPTION
-248  	 WHEN OTHERS THEN
-249  	   -- log the error instead of RAISE
-250  	   sosl_log.exception_log('sosl_server.set_script_started', 'SOSL_SERVER', SQLERRM);
-251  	   RETURN -1;
-252    END set_script_started;
-253  
-254    FUNCTION set_script_running(p_run_id IN NUMBER)
-255  	 RETURN NUMBER
-256    IS
-257  	 l_return	     NUMBER;
-258    BEGIN
-259  	 IF sosl_sys.set_run_state(p_run_id, sosl_constants.RUN_STATE_RUNNING)
-260  	 THEN
-261  	   l_return := 0;
-262  	 ELSE
-263  	   l_return := -1;
-264  	   -- error should be logged already by sosl_sys.get_run_state
-265  	 END IF;
-266  	 RETURN l_return;
-267    EXCEPTION
-268  	 WHEN OTHERS THEN
-269  	   -- log the error instead of RAISE
-270  	   sosl_log.exception_log('sosl_server.set_script_running', 'SOSL_SERVER', SQLERRM);
-271  	   RETURN -1;
-272    END set_script_running;
-273  
-274    FUNCTION set_script_finished(p_run_id IN NUMBER)
-275  	 RETURN NUMBER
-276    IS
-277  	 l_return	     NUMBER;
-278    BEGIN
-279  	 IF sosl_sys.set_run_state(p_run_id, sosl_constants.RUN_STATE_FINISHED)
-280  	 THEN
-281  	   l_return := 0;
-282  	 ELSE
-283  	   l_return := -1;
-284  	   -- error should be logged already by sosl_sys.get_run_state
-285  	 END IF;
-286  	 RETURN l_return;
-287    EXCEPTION
-288  	 WHEN OTHERS THEN
-289  	   -- log the error instead of RAISE
-290  	   sosl_log.exception_log('sosl_server.set_script_finished', 'SOSL_SERVER', SQLERRM);
-291  	   RETURN -1;
-292    END set_script_finished;
-293  
-294    FUNCTION set_script_error(p_run_id IN NUMBER)
-295  	 RETURN NUMBER
-296    IS
-297  	 l_return	     NUMBER;
-298    BEGIN
-299  	 IF sosl_sys.set_run_state(p_run_id, sosl_constants.RUN_STATE_ERROR)
-300  	 THEN
-301  	   l_return := 0;
-302  	 ELSE
-303  	   l_return := -1;
-304  	   -- error should be logged already by sosl_sys.get_run_state
-305  	 END IF;
-306  	 RETURN l_return;
-307    EXCEPTION
-308  	 WHEN OTHERS THEN
-309  	   -- log the error instead of RAISE
-310  	   sosl_log.exception_log('sosl_server.set_script_error', 'SOSL_SERVER', SQLERRM);
-311  	   RETURN -1;
-312    END set_script_error;
-313  
-314    FUNCTION info_log( p_srv_caller	 IN VARCHAR2
-315  			, p_srv_message  IN VARCHAR2
-316  			, p_identifier	 IN VARCHAR2 DEFAULT NULL
-317  			, p_local_log	 IN VARCHAR2 DEFAULT NULL
-318  			, p_srv_run_id	 IN NUMBER   DEFAULT NULL
-319  			, p_srv_guid	 IN VARCHAR2 DEFAULT NULL
-320  			)
-321  	 RETURN VARCHAR2
-322    IS
-323  	 l_message   VARCHAR2(32767);
-324  	 l_payload   SOSL_PAYLOAD;
-325    BEGIN
-326  	 IF p_local_log IS NOT NULL
-327  	 THEN
-328  	   l_message := p_srv_message || ' local log file: ' || p_local_log;
-329  	 ELSE
-330  	   l_message := p_srv_message;
-331  	 END IF;
-332  	 IF p_srv_run_id IS NOT NULL
-333  	 THEN
-334  	   l_payload := sosl_sys.get_payload(p_srv_run_id);
-335  	 ELSE
-336  	   l_payload := SOSL_PAYLOAD(NULL, NULL, NULL);
-337  	 END IF;
-338  	 sosl_log.full_log( p_message => l_message
-339  			  , p_log_type => sosl_constants.LOG_INFO_TYPE
-340  			  , p_log_category => 'SOSL_SERVER'
-341  			  , p_caller => p_srv_caller
-342  			  , p_guid => p_srv_guid
-343  			  , p_sosl_identifier => p_identifier
-344  			  , p_executor_id => l_payload.executor_id
-345  			  , p_ext_script_id => l_payload.ext_script_id
-346  			  , p_script_file => l_payload.script_file
-347  			  , p_run_id => p_srv_run_id
-348  			  )
-349  	 ;
-350  	 RETURN p_srv_message;
-351    EXCEPTION
-352  	 WHEN OTHERS THEN
-353  	   -- log the error instead of RAISE
-354  	   sosl_log.exception_log('sosl_server.info_log', 'SOSL_SERVER', SQLERRM);
-355  	   RETURN SUBSTR(SQLERRM, 1, 4000);
-356    END info_log;
-357  
-358    FUNCTION warning_log( p_srv_caller   IN VARCHAR2
-359  			   , p_srv_message  IN VARCHAR2
-360  			   , p_identifier   IN VARCHAR2 DEFAULT NULL
-361  			   , p_local_log    IN VARCHAR2 DEFAULT NULL
-362  			   , p_srv_run_id   IN NUMBER	DEFAULT NULL
-363  			   , p_srv_guid     IN VARCHAR2 DEFAULT NULL
-364  			   )
-365  	 RETURN VARCHAR2
-366    IS
-367  	 l_message   VARCHAR2(32767);
-368  	 l_payload   SOSL_PAYLOAD;
-369    BEGIN
-370  	 IF p_local_log IS NOT NULL
-371  	 THEN
-372  	   l_message := p_srv_message || ' local log file: ' || p_local_log;
-373  	 ELSE
-374  	   l_message := p_srv_message;
-375  	 END IF;
-376  	 IF p_srv_run_id IS NOT NULL
-377  	 THEN
-378  	   l_payload := sosl_sys.get_payload(p_srv_run_id);
-379  	 ELSE
-380  	   l_payload := SOSL_PAYLOAD(NULL, NULL, NULL);
-381  	 END IF;
-382  	 sosl_log.full_log( p_message => l_message
-383  			  , p_log_type => sosl_constants.LOG_WARNING_TYPE
-384  			  , p_log_category => 'SOSL_SERVER'
-385  			  , p_caller => p_srv_caller
-386  			  , p_guid => p_srv_guid
-387  			  , p_sosl_identifier => p_identifier
-388  			  , p_executor_id => l_payload.executor_id
-389  			  , p_ext_script_id => l_payload.ext_script_id
-390  			  , p_script_file => l_payload.script_file
-391  			  , p_run_id => p_srv_run_id
-392  			  )
-393  	 ;
-394  	 RETURN p_srv_message;
-395    EXCEPTION
-396  	 WHEN OTHERS THEN
-397  	   -- log the error instead of RAISE
-398  	   sosl_log.exception_log('sosl_server.warning_log', 'SOSL_SERVER', SQLERRM);
-399  	   RETURN SUBSTR(SQLERRM, 1, 4000);
-400    END warning_log;
-401  
-402    FUNCTION error_log( p_srv_caller   IN VARCHAR2
-403  			 , p_srv_message  IN VARCHAR2
-404  			 , p_identifier   IN VARCHAR2 DEFAULT NULL
-405  			 , p_local_log	  IN VARCHAR2 DEFAULT NULL
-406  			 , p_srv_run_id   IN NUMBER   DEFAULT NULL
-407  			 , p_srv_guid	  IN VARCHAR2 DEFAULT NULL
-408  			 )
-409  	 RETURN VARCHAR2
-410    IS
-411  	 l_message   VARCHAR2(32767);
-412  	 l_payload   SOSL_PAYLOAD;
-413    BEGIN
-414  	 IF p_local_log IS NOT NULL
-415  	 THEN
-416  	   l_message := p_srv_message || ' local log file: ' || p_local_log;
-417  	 ELSE
-418  	   l_message := p_srv_message;
-419  	 END IF;
-420  	 IF p_srv_run_id IS NOT NULL
-421  	 THEN
-422  	   l_payload := sosl_sys.get_payload(p_srv_run_id);
-423  	 ELSE
-424  	   l_payload := SOSL_PAYLOAD(NULL, NULL, NULL);
-425  	 END IF;
-426  	 sosl_log.full_log( p_message => l_message
-427  			  , p_log_type => sosl_constants.LOG_ERROR_TYPE
-428  			  , p_log_category => 'SOSL_SERVER'
-429  			  , p_caller => p_srv_caller
-430  			  , p_guid => p_srv_guid
-431  			  , p_sosl_identifier => p_identifier
-432  			  , p_executor_id => l_payload.executor_id
-433  			  , p_ext_script_id => l_payload.ext_script_id
-434  			  , p_script_file => l_payload.script_file
-435  			  , p_run_id => p_srv_run_id
-436  			  )
-437  	 ;
-438  	 RETURN p_srv_message;
-439    EXCEPTION
-440  	 WHEN OTHERS THEN
-441  	   -- log the error instead of RAISE
-442  	   sosl_log.exception_log('sosl_server.error_log', 'SOSL_SERVER', SQLERRM);
-443  	   RETURN SUBSTR(SQLERRM, 1, 4000);
-444    END error_log;
-445  
-446    FUNCTION has_scripts
-447  	 RETURN NUMBER
-448    IS
-449  	 l_return NUMBER;
-450    BEGIN
-451  	 l_return := sosl_sys.has_scripts;
-452  	 RETURN l_return;
-453    EXCEPTION
-454  	 WHEN OTHERS THEN
-455  	   -- log the error instead of RAISE
-456  	   sosl_log.exception_log('sosl_server.has_scripts', 'SOSL_SERVER', SQLERRM);
-457  	   RETURN -1;
-458    END has_scripts;
-459  
-460    FUNCTION get_next_script
-461  	 RETURN NUMBER
-462    IS
-463  	 l_return NUMBER;
-464    BEGIN
-465  	 l_return := sosl_sys.get_next_script;
-466  	 RETURN l_return;
-467    EXCEPTION
-468  	 WHEN OTHERS THEN
-469  	   -- log the error instead of RAISE
-470  	   sosl_log.exception_log('sosl_server.get_next_script', 'SOSL_SERVER', SQLERRM);
-471  	   RETURN -1;
-472    END get_next_script;
-473  
-474    FUNCTION update_run_id( p_run_id      IN NUMBER
-475  			     , p_identifier  IN VARCHAR2
-476  			     , p_guid	     IN VARCHAR2 DEFAULT NULL
-477  			     )
-478  	 RETURN NUMBER
-479    IS
-480  	 l_return  NUMBER;
-481  	 l_result  NUMBER;
-482    BEGIN
-483  	 l_return := -1;
-484  	 l_result := sosl_server.set_identifier(p_run_id, p_identifier);
-485  	 IF l_result = 0
-486  	 THEN
-487  	   l_return := 0;
-488  	 END IF;
-489  	 IF p_guid IS NOT NULL
-490  	 THEN
-491  	   l_result := sosl_server.set_guid(p_run_id, p_guid);
-492  	   IF l_result != 0
-493  	   THEN
-494  	     l_return := -1;
-495  	   END IF;
-496  	 END IF;
-497  	 RETURN l_return;
-498    EXCEPTION
-499  	 WHEN OTHERS THEN
-500  	   -- log the error instead of RAISE
-501  	   sosl_log.exception_log('sosl_server.update_run_id', 'SOSL_SERVER', SQLERRM);
-502  	   RETURN -1;
-503    END update_run_id;
-504  
-505  END;
-506  /
+213  	 l_executor_cfg := '-1';
+214  	 IF sosl_sys.has_run_id(p_run_id)
+215  	 THEN
+216  	   SELECT sed.cfg_file
+217  	     INTO l_executor_cfg
+218  	     FROM sosl_run_queue srq
+219  	     LEFT OUTER JOIN sosl_executor_definition sed
+220  	       ON srq.executor_id = sed.executor_id
+221  	    WHERE srq.run_id = p_run_id
+222  	   ;
+223  	 ELSE
+224  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Requested run id ' || p_run_id || ' does not exist.');
+225  	   l_executor_cfg := '-1';
+226  	 END IF;
+227  	 RETURN l_executor_cfg;
+228    EXCEPTION
+229  	 WHEN OTHERS THEN
+230  	   -- log the error instead of RAISE
+231  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+232  	   RETURN '-1';
+233    END get_executor_cfg;
+234  
+235    FUNCTION get_script_file(p_run_id IN NUMBER)
+236  	 RETURN VARCHAR2
+237    IS
+238  	 l_script_file	     sosl_run_queue.script_file%TYPE;
+239  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SERVER';
+240  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_server.get_script_file';
+241    BEGIN
+242  	 l_script_file := '-1';
+243  	 IF sosl_sys.has_run_id(p_run_id)
+244  	 THEN
+245  	   SELECT script_file
+246  	     INTO l_script_file
+247  	     FROM sosl_run_queue
+248  	    WHERE run_id = p_run_id
+249  	   ;
+250  	 ELSE
+251  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Requested run id ' || p_run_id || ' does not exist.');
+252  	   l_script_file := '-1';
+253  	 END IF;
+254  	 RETURN l_script_file;
+255    EXCEPTION
+256  	 WHEN OTHERS THEN
+257  	   -- log the error instead of RAISE
+258  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+259  	   RETURN '-1';
+260    END get_script_file;
+261  
+262    FUNCTION get_script_schema(p_run_id IN NUMBER)
+263  	 RETURN VARCHAR2
+264    IS
+265  	 l_script_schema     sosl_executor_definition.function_owner%TYPE;
+266  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SERVER';
+267  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_server.get_script_file';
+268    BEGIN
+269  	 l_script_schema := TRIM(SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA'));
+270  	 IF sosl_sys.has_run_id(p_run_id)
+271  	 THEN
+272  	   SELECT sed.function_owner
+273  	     INTO l_script_schema
+274  	     FROM sosl_run_queue srq
+275  	     LEFT OUTER JOIN sosl_executor_definition sed
+276  	       ON srq.executor_id = sed.executor_id
+277  	    WHERE srq.run_id = p_run_id
+278  	   ;
+279  	 ELSE
+280  	   sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Requested run id ' || p_run_id || ' does not exist.');
+281  	   l_script_schema := TRIM(SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA'));
+282  	 END IF;
+283  	 RETURN l_script_schema;
+284    EXCEPTION
+285  	 WHEN OTHERS THEN
+286  	   -- log the error instead of RAISE
+287  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+288  	   RETURN TRIM(SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA'));
+289    END get_script_schema;
+290  
+291    FUNCTION set_script_started(p_run_id IN NUMBER)
+292  	 RETURN NUMBER
+293    IS
+294  	 l_return	     NUMBER;
+295    BEGIN
+296  	 IF sosl_sys.set_run_state(p_run_id, sosl_constants.RUN_STATE_STARTED)
+297  	 THEN
+298  	   l_return := 0;
+299  	 ELSE
+300  	   l_return := -1;
+301  	   -- error should be logged already by sosl_sys.get_run_state
+302  	 END IF;
+303  	 RETURN l_return;
+304    EXCEPTION
+305  	 WHEN OTHERS THEN
+306  	   -- log the error instead of RAISE
+307  	   sosl_log.exception_log('sosl_server.set_script_started', 'SOSL_SERVER', SQLERRM);
+308  	   RETURN -1;
+309    END set_script_started;
+310  
+311    FUNCTION set_script_running(p_run_id IN NUMBER)
+312  	 RETURN NUMBER
+313    IS
+314  	 l_return	     NUMBER;
+315    BEGIN
+316  	 IF sosl_sys.set_run_state(p_run_id, sosl_constants.RUN_STATE_RUNNING)
+317  	 THEN
+318  	   l_return := 0;
+319  	 ELSE
+320  	   l_return := -1;
+321  	   -- error should be logged already by sosl_sys.get_run_state
+322  	 END IF;
+323  	 RETURN l_return;
+324    EXCEPTION
+325  	 WHEN OTHERS THEN
+326  	   -- log the error instead of RAISE
+327  	   sosl_log.exception_log('sosl_server.set_script_running', 'SOSL_SERVER', SQLERRM);
+328  	   RETURN -1;
+329    END set_script_running;
+330  
+331    FUNCTION set_script_finished(p_run_id IN NUMBER)
+332  	 RETURN NUMBER
+333    IS
+334  	 l_return	     NUMBER;
+335    BEGIN
+336  	 IF sosl_sys.set_run_state(p_run_id, sosl_constants.RUN_STATE_FINISHED)
+337  	 THEN
+338  	   l_return := 0;
+339  	 ELSE
+340  	   l_return := -1;
+341  	   -- error should be logged already by sosl_sys.get_run_state
+342  	 END IF;
+343  	 RETURN l_return;
+344    EXCEPTION
+345  	 WHEN OTHERS THEN
+346  	   -- log the error instead of RAISE
+347  	   sosl_log.exception_log('sosl_server.set_script_finished', 'SOSL_SERVER', SQLERRM);
+348  	   RETURN -1;
+349    END set_script_finished;
+350  
+351    FUNCTION set_script_error(p_run_id IN NUMBER)
+352  	 RETURN NUMBER
+353    IS
+354  	 l_return	     NUMBER;
+355    BEGIN
+356  	 IF sosl_sys.set_run_state(p_run_id, sosl_constants.RUN_STATE_ERROR)
+357  	 THEN
+358  	   l_return := 0;
+359  	 ELSE
+360  	   l_return := -1;
+361  	   -- error should be logged already by sosl_sys.get_run_state
+362  	 END IF;
+363  	 RETURN l_return;
+364    EXCEPTION
+365  	 WHEN OTHERS THEN
+366  	   -- log the error instead of RAISE
+367  	   sosl_log.exception_log('sosl_server.set_script_error', 'SOSL_SERVER', SQLERRM);
+368  	   RETURN -1;
+369    END set_script_error;
+370  
+371    FUNCTION info_log( p_srv_caller	 IN VARCHAR2
+372  			, p_srv_message  IN VARCHAR2
+373  			, p_identifier	 IN VARCHAR2 DEFAULT NULL
+374  			, p_local_log	 IN VARCHAR2 DEFAULT NULL
+375  			, p_srv_run_id	 IN NUMBER   DEFAULT NULL
+376  			, p_srv_guid	 IN VARCHAR2 DEFAULT NULL
+377  			)
+378  	 RETURN VARCHAR2
+379    IS
+380  	 l_message   VARCHAR2(32767);
+381  	 l_payload   SOSL_PAYLOAD;
+382    BEGIN
+383  	 IF p_local_log IS NOT NULL
+384  	 THEN
+385  	   l_message := p_srv_message || ' local log file: ' || p_local_log;
+386  	 ELSE
+387  	   l_message := p_srv_message;
+388  	 END IF;
+389  	 IF p_srv_run_id IS NOT NULL
+390  	 THEN
+391  	   l_payload := sosl_sys.get_payload(p_srv_run_id);
+392  	 ELSE
+393  	   l_payload := SOSL_PAYLOAD(NULL, NULL, NULL);
+394  	 END IF;
+395  	 sosl_log.full_log( p_message => l_message
+396  			  , p_log_type => sosl_constants.LOG_INFO_TYPE
+397  			  , p_log_category => 'SOSL_SERVER'
+398  			  , p_caller => p_srv_caller
+399  			  , p_guid => p_srv_guid
+400  			  , p_sosl_identifier => p_identifier
+401  			  , p_executor_id => l_payload.executor_id
+402  			  , p_ext_script_id => l_payload.ext_script_id
+403  			  , p_script_file => l_payload.script_file
+404  			  , p_run_id => p_srv_run_id
+405  			  )
+406  	 ;
+407  	 RETURN p_srv_message;
+408    EXCEPTION
+409  	 WHEN OTHERS THEN
+410  	   -- log the error instead of RAISE
+411  	   sosl_log.exception_log('sosl_server.info_log', 'SOSL_SERVER', SQLERRM);
+412  	   RETURN SUBSTR(SQLERRM, 1, 4000);
+413    END info_log;
+414  
+415    FUNCTION warning_log( p_srv_caller   IN VARCHAR2
+416  			   , p_srv_message  IN VARCHAR2
+417  			   , p_identifier   IN VARCHAR2 DEFAULT NULL
+418  			   , p_local_log    IN VARCHAR2 DEFAULT NULL
+419  			   , p_srv_run_id   IN NUMBER	DEFAULT NULL
+420  			   , p_srv_guid     IN VARCHAR2 DEFAULT NULL
+421  			   )
+422  	 RETURN VARCHAR2
+423    IS
+424  	 l_message   VARCHAR2(32767);
+425  	 l_payload   SOSL_PAYLOAD;
+426    BEGIN
+427  	 IF p_local_log IS NOT NULL
+428  	 THEN
+429  	   l_message := p_srv_message || ' local log file: ' || p_local_log;
+430  	 ELSE
+431  	   l_message := p_srv_message;
+432  	 END IF;
+433  	 IF p_srv_run_id IS NOT NULL
+434  	 THEN
+435  	   l_payload := sosl_sys.get_payload(p_srv_run_id);
+436  	 ELSE
+437  	   l_payload := SOSL_PAYLOAD(NULL, NULL, NULL);
+438  	 END IF;
+439  	 sosl_log.full_log( p_message => l_message
+440  			  , p_log_type => sosl_constants.LOG_WARNING_TYPE
+441  			  , p_log_category => 'SOSL_SERVER'
+442  			  , p_caller => p_srv_caller
+443  			  , p_guid => p_srv_guid
+444  			  , p_sosl_identifier => p_identifier
+445  			  , p_executor_id => l_payload.executor_id
+446  			  , p_ext_script_id => l_payload.ext_script_id
+447  			  , p_script_file => l_payload.script_file
+448  			  , p_run_id => p_srv_run_id
+449  			  )
+450  	 ;
+451  	 RETURN p_srv_message;
+452    EXCEPTION
+453  	 WHEN OTHERS THEN
+454  	   -- log the error instead of RAISE
+455  	   sosl_log.exception_log('sosl_server.warning_log', 'SOSL_SERVER', SQLERRM);
+456  	   RETURN SUBSTR(SQLERRM, 1, 4000);
+457    END warning_log;
+458  
+459    FUNCTION error_log( p_srv_caller   IN VARCHAR2
+460  			 , p_srv_message  IN VARCHAR2
+461  			 , p_identifier   IN VARCHAR2 DEFAULT NULL
+462  			 , p_local_log	  IN VARCHAR2 DEFAULT NULL
+463  			 , p_srv_run_id   IN NUMBER   DEFAULT NULL
+464  			 , p_srv_guid	  IN VARCHAR2 DEFAULT NULL
+465  			 )
+466  	 RETURN VARCHAR2
+467    IS
+468  	 l_message   VARCHAR2(32767);
+469  	 l_payload   SOSL_PAYLOAD;
+470    BEGIN
+471  	 IF p_local_log IS NOT NULL
+472  	 THEN
+473  	   l_message := p_srv_message || ' local log file: ' || p_local_log;
+474  	 ELSE
+475  	   l_message := p_srv_message;
+476  	 END IF;
+477  	 IF p_srv_run_id IS NOT NULL
+478  	 THEN
+479  	   l_payload := sosl_sys.get_payload(p_srv_run_id);
+480  	 ELSE
+481  	   l_payload := SOSL_PAYLOAD(NULL, NULL, NULL);
+482  	 END IF;
+483  	 sosl_log.full_log( p_message => l_message
+484  			  , p_log_type => sosl_constants.LOG_ERROR_TYPE
+485  			  , p_log_category => 'SOSL_SERVER'
+486  			  , p_caller => p_srv_caller
+487  			  , p_guid => p_srv_guid
+488  			  , p_sosl_identifier => p_identifier
+489  			  , p_executor_id => l_payload.executor_id
+490  			  , p_ext_script_id => l_payload.ext_script_id
+491  			  , p_script_file => l_payload.script_file
+492  			  , p_run_id => p_srv_run_id
+493  			  )
+494  	 ;
+495  	 RETURN p_srv_message;
+496    EXCEPTION
+497  	 WHEN OTHERS THEN
+498  	   -- log the error instead of RAISE
+499  	   sosl_log.exception_log('sosl_server.error_log', 'SOSL_SERVER', SQLERRM);
+500  	   RETURN SUBSTR(SQLERRM, 1, 4000);
+501    END error_log;
+502  
+503    FUNCTION has_scripts
+504  	 RETURN NUMBER
+505    IS
+506  	 l_return NUMBER;
+507    BEGIN
+508  	 l_return := sosl_sys.has_scripts;
+509  	 RETURN l_return;
+510    EXCEPTION
+511  	 WHEN OTHERS THEN
+512  	   -- log the error instead of RAISE
+513  	   sosl_log.exception_log('sosl_server.has_scripts', 'SOSL_SERVER', SQLERRM);
+514  	   RETURN -1;
+515    END has_scripts;
+516  
+517    FUNCTION get_next_script
+518  	 RETURN NUMBER
+519    IS
+520  	 l_return NUMBER;
+521    BEGIN
+522  	 l_return := sosl_sys.get_next_script;
+523  	 RETURN l_return;
+524    EXCEPTION
+525  	 WHEN OTHERS THEN
+526  	   -- log the error instead of RAISE
+527  	   sosl_log.exception_log('sosl_server.get_next_script', 'SOSL_SERVER', SQLERRM);
+528  	   RETURN -1;
+529    END get_next_script;
+530  
+531    FUNCTION update_run_id( p_run_id      IN NUMBER
+532  			     , p_identifier  IN VARCHAR2
+533  			     , p_guid	     IN VARCHAR2 DEFAULT NULL
+534  			     )
+535  	 RETURN NUMBER
+536    IS
+537  	 l_return  NUMBER;
+538  	 l_result  NUMBER;
+539    BEGIN
+540  	 l_return := -1;
+541  	 l_result := sosl_server.set_identifier(p_run_id, p_identifier);
+542  	 IF l_result = 0
+543  	 THEN
+544  	   l_return := 0;
+545  	 END IF;
+546  	 IF p_guid IS NOT NULL
+547  	 THEN
+548  	   l_result := sosl_server.set_guid(p_run_id, p_guid);
+549  	   IF l_result != 0
+550  	   THEN
+551  	     l_return := -1;
+552  	   END IF;
+553  	 END IF;
+554  	 RETURN l_return;
+555    EXCEPTION
+556  	 WHEN OTHERS THEN
+557  	   -- log the error instead of RAISE
+558  	   sosl_log.exception_log('sosl_server.update_run_id', 'SOSL_SERVER', SQLERRM);
+559  	   RETURN -1;
+560    END update_run_id;
+561  
+562  END;
+563  /
 
 Package body created.
 
