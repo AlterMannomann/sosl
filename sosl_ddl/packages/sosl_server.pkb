@@ -314,13 +314,7 @@ AS
   IS
     l_return            NUMBER;
   BEGIN
-    IF sosl_sys.set_run_state(p_run_id, sosl_constants.RUN_STATE_STARTED)
-    THEN
-      l_return := 0;
-    ELSE
-      l_return := -1;
-      -- error should be logged already by sosl_sys.get_run_state
-    END IF;
+    l_return := sosl_sys.set_script_status(p_run_id, sosl_constants.RUN_STATE_STARTED);
     RETURN l_return;
   EXCEPTION
     WHEN OTHERS THEN
@@ -334,13 +328,7 @@ AS
   IS
     l_return            NUMBER;
   BEGIN
-    IF sosl_sys.set_run_state(p_run_id, sosl_constants.RUN_STATE_RUNNING)
-    THEN
-      l_return := 0;
-    ELSE
-      l_return := -1;
-      -- error should be logged already by sosl_sys.get_run_state
-    END IF;
+    l_return := sosl_sys.set_script_status(p_run_id, sosl_constants.RUN_STATE_RUNNING);
     RETURN l_return;
   EXCEPTION
     WHEN OTHERS THEN
@@ -354,13 +342,7 @@ AS
   IS
     l_return            NUMBER;
   BEGIN
-    IF sosl_sys.set_run_state(p_run_id, sosl_constants.RUN_STATE_FINISHED)
-    THEN
-      l_return := 0;
-    ELSE
-      l_return := -1;
-      -- error should be logged already by sosl_sys.get_run_state
-    END IF;
+    l_return := sosl_sys.set_script_status(p_run_id, sosl_constants.RUN_STATE_FINISHED);
     RETURN l_return;
   EXCEPTION
     WHEN OTHERS THEN
@@ -374,13 +356,7 @@ AS
   IS
     l_return            NUMBER;
   BEGIN
-    IF sosl_sys.set_run_state(p_run_id, sosl_constants.RUN_STATE_ERROR)
-    THEN
-      l_return := 0;
-    ELSE
-      l_return := -1;
-      -- error should be logged already by sosl_sys.get_run_state
-    END IF;
+    l_return := sosl_sys.set_script_status(p_run_id, sosl_constants.RUN_STATE_ERROR);
     RETURN l_return;
   EXCEPTION
     WHEN OTHERS THEN
