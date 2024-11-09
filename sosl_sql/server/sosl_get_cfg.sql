@@ -32,7 +32,7 @@ SELECT CASE
                                    )
          ELSE '&2. ' ||
               sosl_server.info_log( p_srv_caller => '../sosl_sql/server/sosl_get_cfg.sql'
-                                  , p_srv_message => 'Fetched sosl_server.get_executor_cfg: &LOGIN_CFG with run id &3. '
+                                  , p_srv_message => 'Fetched login file by sosl_server.get_executor_cfg with run id &3. '
                                   , p_identifier => '&1'
                                   , p_local_log => '&5'
                                   , p_srv_guid => '&6'

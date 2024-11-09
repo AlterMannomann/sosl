@@ -96,6 +96,7 @@ BEGIN
                              , 'SOSL_SERVER_STATE'
                              , 'SOSL_START_JOBS'
                              , 'SOSL_STOP_JOBS'
+                             , 'SOSL_SCHEMA'
                              )
   THEN
     sosl_log.log_column_change(:OLD.config_name, :NEW.config_name, 'SOSL_CONFIG.CONFIG_NAME', l_self_caller, TRUE);
@@ -106,6 +107,18 @@ BEGIN
                               )
     ;
     RAISE_APPLICATION_ERROR(-20012, 'The given system config_name ' || :OLD.config_name || ' cannot be changed.');
+  END IF;
+  IF      :OLD.config_name   = 'SOSL_SCHEMA'
+     AND  :OLD.config_value != :NEW.config_value
+  THEN
+    sosl_log.log_column_change(:OLD.config_value, :NEW.config_value, 'SOSL_CONFIG.CONFIG_VALUE', l_self_caller, TRUE);
+    sosl_log.minimal_error_log( l_self_caller
+                              , l_self_log_category
+                              , '-20014 The SOSL_SCHEMA value ' || :OLD.config_value || ' cannot be changed.'
+                              , 'Tried to change SOSL_SCHEMA in SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                              )
+    ;
+    RAISE_APPLICATION_ERROR(-20014, '-20014 The SOSL_SCHEMA value ' || :OLD.config_value || ' cannot be changed.');
   END IF;
   -- report value changes allowed
   sosl_log.log_column_change(:OLD.config_value, :NEW.config_value, :OLD.config_name, l_self_caller, FALSE);
@@ -177,6 +190,7 @@ BEGIN
                          , 'SOSL_SERVER_STATE'
                          , 'SOSL_START_JOBS'
                          , 'SOSL_STOP_JOBS'
+                         , 'SOSL_SCHEMA'
                          )
   THEN
     sosl_log.minimal_error_log( 'sosl_config_del_trg'
