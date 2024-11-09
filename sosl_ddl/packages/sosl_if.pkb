@@ -88,7 +88,7 @@ AS
     IF l_payload IS NOT NULL
     THEN
       -- transform to internal type
-      l_script_id   := TRIM(TO_NUMBER(l_payload.ext_script_id));
+      l_script_id   := TO_NUMBER(l_payload.ext_script_id);
       l_executor_id := l_payload.executor_id;
       -- update internal script table
       UPDATE sosl_if_script
