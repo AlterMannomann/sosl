@@ -32,8 +32,3 @@ GOTO :TIMEFRAME_EXIT
 REM Error situation, set runtime not ok always
 SET CUR_RUNTIME_OK=-1
 :TIMEFRAME_EXIT
-REM Now check the results and document them in the log if in error
-IF %CUR_RUNTIME_OK%==-1 (
-  SET SOSL_ERRMSG=Time frame does not match for start %SOSL_START_JOBS% and stop %SOSL_STOP_JOBS%
-  CALL sosl_log.cmd "%SOSL_ERRMSG%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
-)

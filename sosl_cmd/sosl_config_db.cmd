@@ -158,6 +158,17 @@ IF NOT %SOSL_EXITCODE%==0 (
 )
 FOR /F %%c IN (%TMP_FILE%) DO SET SOSL_STOP_JOBS=%%c
 REM *****************************************************************************************************
+REM The SOSL schema as configured on installation.
+REM Fetch SOSL_SCHEMA
+SET IDENTIFIER=%SOSL_GUID%_load_sosl_schema
+CALL sosl_sql_cfg.cmd "@@..\sosl_sql\server\sosl_get_config.sql" "%IDENTIFIER%" "%SOSL_DATETIME%" "SOSL_SCHEMA" "%TMP_FILE%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%" "%SOSL_GUID%"
+SET SOSL_EXITCODE=%ERRORLEVEL%
+IF NOT %SOSL_EXITCODE%==0 (
+  SET SOSL_ERRMSG=Error executing sosl_get_config.sql with SOSL_SCHEMA
+  GOTO :SOSL_CFG_ERROR
+)
+FOR /F %%c IN (%TMP_FILE%) DO SET SOSL_SCHEMA=%%c
+REM *****************************************************************************************************
 REM Now update the database with the current settings we are running.
 REM Set SOSL_PATH_CFG
 SET IDENTIFIER=%SOSL_GUID%_set_path_cfg

@@ -87,4 +87,9 @@ INSERT INTO sosl_config
   VALUES
   ('SOSL_EXT_ERROR', 'err', 'Information only. The default process error file extension. Set by SOSL server.')
 ;
+INSERT INTO sosl_config
+  (config_name, config_value, config_max_length, config_description)
+  VALUES
+  ('SOSL_SCHEMA', TRIM(SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')), 128, 'Information only. The schema SOSL uses. Defined on setup. No update or delete allowed.')
+;
 COMMIT;

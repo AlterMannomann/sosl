@@ -266,7 +266,7 @@ AS
   IS
     l_script_schema     sosl_executor_definition.function_owner%TYPE;
     l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SERVER';
-    l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_server.get_script_file';
+    l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_server.get_script_schema';
   BEGIN
     l_script_schema := TRIM(SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA'));
     IF sosl_sys.has_run_id(p_run_id)
@@ -289,6 +289,25 @@ AS
       sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
       RETURN TRIM(SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA'));
   END get_script_schema;
+
+  FUNCTION get_sosl_schema
+    RETURN VARCHAR2
+  IS
+    l_sosl_schema       VARCHAR2(128);
+  BEGIN
+    SELECT config_value
+      INTO l_sosl_schema
+      FROM sosl_config
+     WHERE config_name = 'SOSL_SCHEMA'
+    ;
+    RETURN l_sosl_schema;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log('sosl_server.get_sosl_schema', 'SOSL_SERVER', SQLERRM);
+      -- return PUBLIC to guarantee errors if used as schema prefix. Issues must be fixed before.
+      RETURN 'PUBLIC';
+  END get_sosl_schema;
 
   FUNCTION set_script_started(p_run_id IN NUMBER)
     RETURN NUMBER

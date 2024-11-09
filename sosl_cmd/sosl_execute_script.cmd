@@ -5,16 +5,16 @@ REM This means, it may read the variables of the caller session but they are onl
 REM if this variables are stable for the whole time.
 REM Expects the following parameter, all parameter are expected to be enclosed in ".
 REM Parameter 1: login config filename including relative or absolute path used for login
-REM Parameter 2: the script file name including relative or absolute path to execute
-REM Parameter 3: the schema the script file will operate in by ALTER SESSION CURRENT_SCHEMA
-REM Parameter 4: log file and relative path
-REM Parameter 5: GUID of the process
+REM Parameter 2: the run id associated with the script to run
+REM Parameter 3: log file and relative path
+REM Parameter 4: GUID of the process
+REM Parameter 5: SOSL schema to use for SOSL packages and functions
 REM Build own parameter set
 SET SESSION_LOGIN=%~1
-SET SESSION_SCRIPT=%~2
-SET SESSION_SCHEMA=%~3
-SET SESSION_LOG=%~4
-SET SESSION_GUID=%~5
+SET SESSION_RUN_ID=%~2
+SET SESSION_LOG=%~3
+SET SESSION_GUID=%~4
+SET SESSION_SOSL_SCHEMA=%~5
 SET SESSION_TMP_FILE=%SOSL_PATH_TMP%%SESSION_GUID%_execute.tmp
 SET SESSION_IDENTIFIER=%SESSION_GUID%_execute
 REM Build a run lock file
@@ -27,10 +27,10 @@ FOR /f %%a IN ('WMIC OS GET LocalDateTime ^| FIND "."') DO (
 REM format string
 SET SESSION_DATETIME=%DTS:~0,4%-%DTS:~4,2%-%DTS:~6,2% %DTS:~8,2%:%DTS:~10,2%:%DTS:~12,2%.%DTS:~15,6%
 SET SESSION_DATETIME=%SESSION_DATETIME% -
-CALL sosl_sql_execute.cmd "@@..\sosl_sql\server\sosl_execute.sql" "%SESSION_LOGIN%" "%SESSION_SCRIPT%" "%SESSION_SCHEMA%" "%SESSION_IDENTIFIER%" "%SESSION_DATETIME%" "%SESSION_LOG%" "%SESSION_GUID%"
+CALL sosl_sql_execute.cmd "%SESSION_LOGIN%" "@@..\sosl_sql\server\sosl_execute.sql" "%SESSION_RUN_ID%" "%SESSION_IDENTIFIER%" "%SESSION_DATETIME%" "%SESSION_LOG%" "%SESSION_GUID%" "%SESSION_SOSL_SCHEMA%"
 SET SESSION_EXITCODE=%ERRORLEVEL%
 IF NOT %SESSION_EXITCODE%==0 (
-  SET SESSION_ERRMSG=Error executing sosl_execute.sql with %SESSION_SCRIPT%
+  SET SESSION_ERRMSG=Error executing sosl_execute.sql with run id %SESSION_RUN_ID%
   GOTO :SESSION_ERROR
 )
 GOTO :SESSION_END

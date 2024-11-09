@@ -143,6 +143,16 @@ AS
     RETURN VARCHAR2
   ;
 
+  /* FUNCTION SOSL_SERVER.GET_SOSL_SCHEMA
+  * Retrieves the current SOSL schema from table SOSL_CONFIG. Used for prefixing SOSL packages and functions when executing
+  * scripts for an executor. Errors get logged. Fix any issue on SOSL schema before running the server component locally.
+  *
+  * @return The SOSL schema as defined on installation. On errors will return PUBLIC, so any package prefixed with this virtual schema will fail.
+  */
+  FUNCTION get_sosl_schema
+    RETURN VARCHAR2
+  ;
+
   /* FUNCTION SOSL_SERVER.SET_SCRIPT_STARTED
   * Short cut function for sosl_sys.set_run_state to guarantee correct run states. On errors the script state will
   * be set to error. Before calling this function at least GUID should be set for the current script.

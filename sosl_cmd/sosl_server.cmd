@@ -75,6 +75,8 @@ REM Defines the end hour:minutes for the SOSL server in 24h format, ignored if S
 REM After this hour, the SOSL server will not make any connections to the database until SOSL_START_JOBS
 REM hour is reached. Local log will be written with alive pings.
 SET SOSL_STOP_JOBS=18:30
+REM The SOSL schema to use for prefixing SOSL packages and functions.
+SET SOSL_SCHEMA=SOSL
 REM *****************************************************************************************************
 REM Define internal variables
 REM Current login file name for execution. Will be used whenever acting as an executor. Will be overwritten
