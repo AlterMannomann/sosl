@@ -27,7 +27,7 @@ FOR /f %%a IN ('WMIC OS GET LocalDateTime ^| FIND "."') DO (
 REM format string
 SET SESSION_DATETIME=%DTS:~0,4%-%DTS:~4,2%-%DTS:~6,2% %DTS:~8,2%:%DTS:~10,2%:%DTS:~12,2%.%DTS:~15,6%
 SET SESSION_DATETIME=%SESSION_DATETIME% -
-CALL sosl_sql_execute.cmd "%SESSION_LOGIN%" "@@..\sosl_sql\server\sosl_execute.sql" "%SESSION_RUN_ID%" "%SESSION_IDENTIFIER%" "%SESSION_DATETIME%" "%SESSION_LOG%" "%SESSION_GUID%" "%SESSION_SOSL_SCHEMA%"
+CALL sosl_sql_execute.cmd "%SESSION_LOGIN%" "@@..\sosl_sql\server\sosl_execute.sql" "%SESSION_RUN_ID%" "%SESSION_IDENTIFIER%" "%SESSION_DATETIME%" "%SESSION_LOG%" "%SESSION_GUID%" "%SESSION_SOSL_SCHEMA%" > %SESSION_TMP_FILE% 2>&1
 SET SESSION_EXITCODE=%ERRORLEVEL%
 IF NOT %SESSION_EXITCODE%==0 (
   SET SESSION_ERRMSG=Error executing sosl_execute.sql with run id %SESSION_RUN_ID%

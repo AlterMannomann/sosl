@@ -11,4 +11,4 @@ REM Parameter 6: log file and relative path
 REM Parameter 7: GUID of the process
 REM Parameter 8: SOSL schema to use for SOSL packages and functions
 REM Add an extra line echo if last empty line is missing, errors must be handled by the caller
-(TYPE %~1 && ECHO. && ECHO %~2 %3 %4 %5 %6 %7 %8) | sqlplus
+CHCP 65001 && (TYPE %~1 && ECHO. && ECHO %~2 %3 %4 %5 %6 %7 %8) | sqlplus

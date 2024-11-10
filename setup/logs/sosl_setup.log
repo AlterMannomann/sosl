@@ -6886,7 +6886,7 @@ SQL> INSERT INTO sosl_config
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_max_length, config_description)
   3    VALUES
-  4    ('SOSL_START_JOBS', '22:00', 5, 'Defines the hour:minutes (24 hour format with leading zeros) where SOSL should start running scripts. If set to -1 this parameter is ignored and SOSL server runs until stopped. Otherwise the server will not start to request scripts before this hour. Either both hours are given for start and stop or -1 on one value deactivates the time frame.')
+  4    ('SOSL_START_JOBS', '14:00', 5, 'Defines the hour:minutes (24 hour format with leading zeros) where SOSL should start running scripts. If set to -1 this parameter is ignored and SOSL server runs until stopped. Otherwise the server will not start to request scripts before this hour. Either both hours are given for start and stop or -1 on one value deactivates the time frame.')
   5  ;
 
 1 row created.
@@ -6894,7 +6894,7 @@ SQL> INSERT INTO sosl_config
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_max_length, config_description)
   3    VALUES
-  4    ('SOSL_STOP_JOBS', '03:30', 5, 'Defines the hour:minutes (24 hour format with leading zeros) where SOSL should stop running scripts. If set to -1 this parameter is ignored and SOSL server runs until stopped. Otherwise the server will stop to request scripts after this hour. Either both hours are given for start and stop or -1 on one value deactivates the time frame.')
+  4    ('SOSL_STOP_JOBS', '05:30', 5, 'Defines the hour:minutes (24 hour format with leading zeros) where SOSL should stop running scripts. If set to -1 this parameter is ignored and SOSL server runs until stopped. Otherwise the server will stop to request scripts after this hour. Either both hours are given for start and stop or -1 on one value deactivates the time frame.')
   5  ;
 
 1 row created.
