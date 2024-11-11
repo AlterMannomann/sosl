@@ -1,3 +1,12 @@
+SQL> -- create schema synonyms for sys views
+SQL> CREATE SYNONYM sosl_role_privs FOR sys.sosl_role_privs;
+
+Synonym created.
+
+SQL> CREATE SYNONYM sosl_sessions FOR sys.sosl_sessions;
+
+Synonym created.
+
 SQL> -- roles
 SQL> @@../sosl_ddl/roles/create_roles.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
@@ -2641,191 +2650,192 @@ SQL> CREATE OR REPLACE PACKAGE sosl_util
 117    ;
 118  
 119    /* FUNCTION SOSL_UTIL.HAS_ROLE
-120    * This function determines if a given database user has the requested role granted.
-121    *
-122    * @param p_db_user The database user to check. Has to be a valid database user.
-123    * @param p_role The role to check. Limited to roles starting with SOSL. Must be a valid and existing role.
-124    *
-125    * @return Will return TRUE, if user has the role assigned, otherwise FALSE, also in case of errors which get logged.
-126    */
-127    FUNCTION has_role( p_db_user IN VARCHAR2
-128  			, p_role    IN VARCHAR2
-129  			)
-130  	 RETURN BOOLEAN
-131    ;
-132  
-133    /* FUNCTION SOSL_UTIL.GRANT_ROLE
-134    * This function grants a given database user the given role.
-135    *
-136    * @param p_db_user The database user to get the role grant. Has to be a valid database user.
-137    * @param p_role The role to grant. Limited to roles starting with SOSL. Must be a valid and existing role with ADMIN rights for SOSL schema.
-138    *
-139    * @return Will return TRUE, if user has the role or has been granted the role successfully, otherwise FALSE, also in case of errors which get logged.
-140    */
-141    FUNCTION grant_role( p_db_user IN VARCHAR2
-142  			  , p_role    IN VARCHAR2
-143  			  )
-144  	 RETURN BOOLEAN
-145    ;
-146  
-147    /* FUNCTION SOSL_UTIL.REVOKE_ROLE
-148    * This function revoke a given role from a given database user.
-149    *
-150    * @param p_db_user The database user to remove the role grant. Has to be a valid database user.
-151    * @param p_role The role to remove. Limited to roles starting with SOSL. Must be a valid and existing role with ADMIN rights for SOSL schema.
-152    *
-153    * @return Will return TRUE, if user has not the role or has been revoked the role successfully, otherwise FALSE, also in case of errors which get logged.
-154    */
-155    FUNCTION revoke_role( p_db_user IN VARCHAR2
-156  			   , p_role    IN VARCHAR2
-157  			   )
-158  	 RETURN BOOLEAN
-159    ;
-160  
-161    /* FUNCTION SOSL_UTIL.UTC_MAIL_DATE
-162    * Returns the current date timestamp as a formatted string for date values in mail.
-163    *
-164    * @return A date string conform to RFC5322 for using mail or NULL on errors.
-165    *
-166    * @see https://datatracker.ietf.org/doc/html/rfc5322
-167    */
-168    FUNCTION utc_mail_date
-169  	 RETURN VARCHAR2
-170    ;
-171  
-172    /* FUNCTION SOSL_UTIL.FORMAT_MAIL
-173    * This function formats a mail message conforming to RFC5322. The content of p_message is not checked against RFC. This is
-174    * the repsonsibility of the user. This is for small messages that do not exceed 32k in total.
-175    *
-176    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
-177    * @param p_recipients The semicolon separated list of mail recipient addresses.
-178    * @param p_subject A preferablly short subject for the mail.
-179    * @param p_message The correctly formatted mail message.
-180    *
-181    * @return A formatted string with complete mail message that can be used with RFC compliant mail servers or NULL on errors.
-182    */
-183    FUNCTION format_mail( p_sender	   IN VARCHAR2
-184  			   , p_recipients  IN VARCHAR2
-185  			   , p_subject	   IN VARCHAR2
-186  			   , p_message	   IN VARCHAR2
-187  			   )
-188  	 RETURN VARCHAR2
-189    ;
-190  
-191    /* FUNCTION SOSL_UTIL.CHECK_MAIL_ADDRESS
-192    * Checks the format of an email address roughly. Does not check if this is a valid and working email address.
-193    * Format checking based on a minimal email address like a@b.io, which requires a minimum length of six chars
-194    * and having the @ and the . as domain separator in the email address. Errors will get logged.
-195    *
-196    * @param The email address to check, basic expected format is user@company.domain.
-197    *
-198    * @return Return TRUE if the address fulfills the minimum criteria for a mail address otherwise FALSE, including for errors.
-199    */
-200    FUNCTION check_mail_address_format(p_mail_address IN VARCHAR2)
-201  	 RETURN BOOLEAN
-202    ;
-203  
-204    /* FUNCTION SOSL_UTIL.DUMMY_MAIL
-205    * This is a testing function that will NOT send any mail. It will log the mail message created in SOSL_SERVER_LOG using
-206    * the field full_message, so output can be controlled.
-207    *
-208    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
-209    * @param p_recipients The semicolon separated list of mail recipient addresses.
-210    * @param p_subject A preferablly short subject for the mail.
-211    * @param p_message The correctly formatted mail message.
-212    *
-213    * @return Will return 0 on success or -1 on errors.
-214    */
-215    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
-216  			  , p_recipients  IN VARCHAR2
-217  			  , p_subject	  IN VARCHAR2
-218  			  , p_message	  IN VARCHAR2
-219  			  )
-220  	 RETURN NUMBER
-221    ;
-222  
-223    /* FUNCTION SOSL_UTIL.TXT_BOOLEAN
-224    * Provides text values to display instead of BOOLEAN or NUMBER values interpreted as BOOLEAN. Numbers are interpreted
-225    * similar to Oracle SQL, where 0 is FALSE and 1 is TRUE. 1 is considered as TRUE, any other value as FALSE. NULL values
-226    * are interpreted as sosl_sys.NA_TYPE. Maximum 10 characters for TRUE/FALSE equation.
-227    *
-228    * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
-229    * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
-230    * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
-231    *
-232    * @return The text equation for the given p_bool value or sosl_constants.GEN_NA_TYPE on errors.
-233    */
-234    FUNCTION txt_boolean( p_bool   IN BOOLEAN
-235  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
-236  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
-237  			   )
-238  	 RETURN VARCHAR2
-239  	 DETERMINISTIC
-240  	 PARALLEL_ENABLE
-241    ;
-242    FUNCTION txt_boolean( p_bool   IN NUMBER
-243  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
-244  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
-245  			   )
-246  	 RETURN VARCHAR2
-247  	 DETERMINISTIC
-248  	 PARALLEL_ENABLE
-249    ;
-250  
-251    /* FUNCTION SOSL_UTIL.YES_NO
-252    * A simple wrapper for txt_boolean with YES/NO instead of TRUE/FALSE.
-253    *
-254    * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
-255    * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
-256    * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
-257    *
-258    * @return The text equation for the given p_bool value or sosl_constants.GEN_NA_TYPE on errors.
-259    */
-260    FUNCTION yes_no( p_bool	 IN BOOLEAN
-261  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
-262  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
-263  		      )
-264  	 RETURN VARCHAR2
-265  	 DETERMINISTIC
-266  	 PARALLEL_ENABLE
-267    ;
-268    FUNCTION yes_no( p_bool	 IN NUMBER
-269  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
-270  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
-271  		      )
-272  	 RETURN VARCHAR2
-273  	 DETERMINISTIC
-274  	 PARALLEL_ENABLE
-275    ;
-276  
-277    /* FUNCTION SOSL_UTIL.OBJECT_DATE
-278    * Works only for objects in the current schema, using USER_OBJECTS. Will return the LAST_DDL_TIME or the NA date type
-279    * from SOSL_CONSTANTS if the object could not be found. Object type has to conform to object types used in USER_OBJECTS.
-280    *
-281    * @param p_object_name The name of the object, will be transformed to UPPERCASE as SOSL does not use mixed case.
-282    * @param p_object_type A valid object type for USER_OBJECTS, e.g. FUNCTION, PACKAGE, PACKAGE BODY, PROCEDURE.
-283    *
-284    * @return The LAST_DDL_TIME as noted in USER_OBJECTS or SOSL_CONSTANTS.GEN_NA_DATE_TYPE on errors or not found.
-285    */
-286    FUNCTION object_date( p_object_name IN VARCHAR2
-287  			   , p_object_type IN VARCHAR2
-288  			   )
-289  	 RETURN DATE
-290    ;
-291  
-292    /* FUNCTION SOSL_UTIL.GET_VALID_RUN_STATE
-293    * Checks if given run state in valid and returns the valid run state or error state.
-294    *
-295    * @param The run state to check. See SOSL_CONSTANTS for defined run states.
-296    *
-297    * @return Either the given run state if valid or SOSL_CONSTANTS.RUN_STATE_ERROR.
-298    */
-299    FUNCTION get_valid_run_state(p_run_state IN NUMBER)
-300  	 RETURN NUMBER
-301    ;
-302  
-303  END;
-304  /
+120    * This function determines if a given database user has the requested role granted. This will also include
+121    * implicite roles granted by role hierarchy.
+122    *
+123    * @param p_db_user The database user to check. Has to be a valid database user.
+124    * @param p_role The role to check. Limited to roles starting with SOSL. Must be a valid and existing role.
+125    *
+126    * @return Will return TRUE, if user has the role assigned, otherwise FALSE, also in case of errors which get logged.
+127    */
+128    FUNCTION has_role( p_db_user IN VARCHAR2
+129  			, p_role    IN VARCHAR2
+130  			)
+131  	 RETURN BOOLEAN
+132    ;
+133  
+134    /* FUNCTION SOSL_UTIL.GRANT_ROLE
+135    * This function grants a given database user the given role.
+136    *
+137    * @param p_db_user The database user to get the role grant. Has to be a valid database user.
+138    * @param p_role The role to grant. Limited to roles starting with SOSL. Must be a valid and existing role with ADMIN rights for SOSL schema.
+139    *
+140    * @return Will return TRUE, if user has the role or has been granted the role successfully, otherwise FALSE, also in case of errors which get logged.
+141    */
+142    FUNCTION grant_role( p_db_user IN VARCHAR2
+143  			  , p_role    IN VARCHAR2
+144  			  )
+145  	 RETURN BOOLEAN
+146    ;
+147  
+148    /* FUNCTION SOSL_UTIL.REVOKE_ROLE
+149    * This function revoke a given role from a given database user.
+150    *
+151    * @param p_db_user The database user to remove the role grant. Has to be a valid database user.
+152    * @param p_role The role to remove. Limited to roles starting with SOSL. Must be a valid and existing role with ADMIN rights for SOSL schema.
+153    *
+154    * @return Will return TRUE, if user has not the role or has been revoked the role successfully, otherwise FALSE, also in case of errors which get logged.
+155    */
+156    FUNCTION revoke_role( p_db_user IN VARCHAR2
+157  			   , p_role    IN VARCHAR2
+158  			   )
+159  	 RETURN BOOLEAN
+160    ;
+161  
+162    /* FUNCTION SOSL_UTIL.UTC_MAIL_DATE
+163    * Returns the current date timestamp as a formatted string for date values in mail.
+164    *
+165    * @return A date string conform to RFC5322 for using mail or NULL on errors.
+166    *
+167    * @see https://datatracker.ietf.org/doc/html/rfc5322
+168    */
+169    FUNCTION utc_mail_date
+170  	 RETURN VARCHAR2
+171    ;
+172  
+173    /* FUNCTION SOSL_UTIL.FORMAT_MAIL
+174    * This function formats a mail message conforming to RFC5322. The content of p_message is not checked against RFC. This is
+175    * the repsonsibility of the user. This is for small messages that do not exceed 32k in total.
+176    *
+177    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
+178    * @param p_recipients The semicolon separated list of mail recipient addresses.
+179    * @param p_subject A preferablly short subject for the mail.
+180    * @param p_message The correctly formatted mail message.
+181    *
+182    * @return A formatted string with complete mail message that can be used with RFC compliant mail servers or NULL on errors.
+183    */
+184    FUNCTION format_mail( p_sender	   IN VARCHAR2
+185  			   , p_recipients  IN VARCHAR2
+186  			   , p_subject	   IN VARCHAR2
+187  			   , p_message	   IN VARCHAR2
+188  			   )
+189  	 RETURN VARCHAR2
+190    ;
+191  
+192    /* FUNCTION SOSL_UTIL.CHECK_MAIL_ADDRESS
+193    * Checks the format of an email address roughly. Does not check if this is a valid and working email address.
+194    * Format checking based on a minimal email address like a@b.io, which requires a minimum length of six chars
+195    * and having the @ and the . as domain separator in the email address. Errors will get logged.
+196    *
+197    * @param The email address to check, basic expected format is user@company.domain.
+198    *
+199    * @return Return TRUE if the address fulfills the minimum criteria for a mail address otherwise FALSE, including for errors.
+200    */
+201    FUNCTION check_mail_address_format(p_mail_address IN VARCHAR2)
+202  	 RETURN BOOLEAN
+203    ;
+204  
+205    /* FUNCTION SOSL_UTIL.DUMMY_MAIL
+206    * This is a testing function that will NOT send any mail. It will log the mail message created in SOSL_SERVER_LOG using
+207    * the field full_message, so output can be controlled.
+208    *
+209    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
+210    * @param p_recipients The semicolon separated list of mail recipient addresses.
+211    * @param p_subject A preferablly short subject for the mail.
+212    * @param p_message The correctly formatted mail message.
+213    *
+214    * @return Will return 0 on success or -1 on errors.
+215    */
+216    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
+217  			  , p_recipients  IN VARCHAR2
+218  			  , p_subject	  IN VARCHAR2
+219  			  , p_message	  IN VARCHAR2
+220  			  )
+221  	 RETURN NUMBER
+222    ;
+223  
+224    /* FUNCTION SOSL_UTIL.TXT_BOOLEAN
+225    * Provides text values to display instead of BOOLEAN or NUMBER values interpreted as BOOLEAN. Numbers are interpreted
+226    * similar to Oracle SQL, where 0 is FALSE and 1 is TRUE. 1 is considered as TRUE, any other value as FALSE. NULL values
+227    * are interpreted as sosl_sys.NA_TYPE. Maximum 10 characters for TRUE/FALSE equation.
+228    *
+229    * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
+230    * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+231    * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+232    *
+233    * @return The text equation for the given p_bool value or sosl_constants.GEN_NA_TYPE on errors.
+234    */
+235    FUNCTION txt_boolean( p_bool   IN BOOLEAN
+236  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+237  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+238  			   )
+239  	 RETURN VARCHAR2
+240  	 DETERMINISTIC
+241  	 PARALLEL_ENABLE
+242    ;
+243    FUNCTION txt_boolean( p_bool   IN NUMBER
+244  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+245  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+246  			   )
+247  	 RETURN VARCHAR2
+248  	 DETERMINISTIC
+249  	 PARALLEL_ENABLE
+250    ;
+251  
+252    /* FUNCTION SOSL_UTIL.YES_NO
+253    * A simple wrapper for txt_boolean with YES/NO instead of TRUE/FALSE.
+254    *
+255    * @param p_bool The BOOLEAN or NUMBER value that should be interpreted.
+256    * @param p_true The text equation for TRUE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+257    * @param p_false The text equation for FALSE, maximum 10 characters. Longer strings get cut. Case is not controlled.
+258    *
+259    * @return The text equation for the given p_bool value or sosl_constants.GEN_NA_TYPE on errors.
+260    */
+261    FUNCTION yes_no( p_bool	 IN BOOLEAN
+262  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
+263  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
+264  		      )
+265  	 RETURN VARCHAR2
+266  	 DETERMINISTIC
+267  	 PARALLEL_ENABLE
+268    ;
+269    FUNCTION yes_no( p_bool	 IN NUMBER
+270  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
+271  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
+272  		      )
+273  	 RETURN VARCHAR2
+274  	 DETERMINISTIC
+275  	 PARALLEL_ENABLE
+276    ;
+277  
+278    /* FUNCTION SOSL_UTIL.OBJECT_DATE
+279    * Works only for objects in the current schema, using USER_OBJECTS. Will return the LAST_DDL_TIME or the NA date type
+280    * from SOSL_CONSTANTS if the object could not be found. Object type has to conform to object types used in USER_OBJECTS.
+281    *
+282    * @param p_object_name The name of the object, will be transformed to UPPERCASE as SOSL does not use mixed case.
+283    * @param p_object_type A valid object type for USER_OBJECTS, e.g. FUNCTION, PACKAGE, PACKAGE BODY, PROCEDURE.
+284    *
+285    * @return The LAST_DDL_TIME as noted in USER_OBJECTS or SOSL_CONSTANTS.GEN_NA_DATE_TYPE on errors or not found.
+286    */
+287    FUNCTION object_date( p_object_name IN VARCHAR2
+288  			   , p_object_type IN VARCHAR2
+289  			   )
+290  	 RETURN DATE
+291    ;
+292  
+293    /* FUNCTION SOSL_UTIL.GET_VALID_RUN_STATE
+294    * Checks if given run state in valid and returns the valid run state or error state.
+295    *
+296    * @param The run state to check. See SOSL_CONSTANTS for defined run states.
+297    *
+298    * @return Either the given run state if valid or SOSL_CONSTANTS.RUN_STATE_ERROR.
+299    */
+300    FUNCTION get_valid_run_state(p_run_state IN NUMBER)
+301  	 RETURN NUMBER
+302    ;
+303  
+304  END;
+305  /
 
 Package created.
 
@@ -3074,303 +3084,308 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_util
 240  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_util.has_role';
 241    BEGIN
 242  	 l_return := FALSE;
-243  	 SELECT COUNT(*)
-244  	   INTO l_count
-245  	   FROM dba_role_privs
-246  	  WHERE granted_role LIKE 'SOSL%'
-247  	    AND grantee      = UPPER(p_db_user)
-248  	    AND granted_role = UPPER(p_role)
-249  	 ;
-250  	 l_return := (l_count != 0);
-251  	 RETURN l_return;
-252    EXCEPTION
-253  	 WHEN OTHERS THEN
-254  	   -- log event instead of raise
-255  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-256  	   RETURN FALSE;
-257    END has_role;
-258  
-259    FUNCTION grant_role( p_db_user IN VARCHAR2
-260  			  , p_role    IN VARCHAR2
-261  			  )
-262  	 RETURN BOOLEAN
-263    IS
-264  	 PRAGMA AUTONOMOUS_TRANSACTION;
-265  	 l_return	     BOOLEAN;
-266  	 l_statement	     VARCHAR2(1024);
-267  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_UTIL';
-268  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_util.grant_role';
-269    BEGIN
-270  	 l_return := FALSE;
-271  	 IF has_role(p_db_user, p_role)
-272  	 THEN
-273  	   -- has grant everything is okay
-274  	   l_return := TRUE;
-275  	 ELSE
-276  	   -- give grant
-277  	   l_statement := 'GRANT ' || p_role || ' TO ' || p_db_user;
-278  	   BEGIN
-279  	     EXECUTE IMMEDIATE l_statement;
-280  	     l_return := TRUE;
-281  	   EXCEPTION
-282  	     WHEN OTHERS THEN
-283  	       -- log error
-284  	       sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM || ' - Could not execute: ' || l_statement);
-285  	       l_return := FALSE;
-286  	   END;
-287  	 END IF;
-288  	 RETURN l_return;
-289    EXCEPTION
-290  	 WHEN OTHERS THEN
-291  	   -- log event instead of raise
-292  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-293  	   RETURN FALSE;
-294    END grant_role;
-295  
-296    FUNCTION revoke_role( p_db_user IN VARCHAR2
-297  			   , p_role    IN VARCHAR2
-298  			   )
-299  	 RETURN BOOLEAN
-300    IS
-301  	 PRAGMA AUTONOMOUS_TRANSACTION;
-302  	 l_return	     BOOLEAN;
-303  	 l_statement	     VARCHAR2(1024);
-304  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_UTIL';
-305  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_util.revoke_role';
-306    BEGIN
-307  	 l_return := FALSE;
-308  	 IF NOT has_role(p_db_user, p_role)
-309  	 THEN
-310  	   -- role not given or revoked
-311  	   l_return := TRUE;
-312  	 ELSE
-313  	   -- give grant
-314  	   l_statement := 'REVOKE ' || p_role || ' FROM ' || p_db_user;
-315  	   BEGIN
-316  	     EXECUTE IMMEDIATE l_statement;
-317  	     l_return := TRUE;
-318  	   EXCEPTION
-319  	     WHEN OTHERS THEN
-320  	       -- log error
-321  	       sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM || ' - Could not execute: ' || l_statement);
-322  	       l_return := FALSE;
-323  	   END;
-324  	 END IF;
-325  	 RETURN l_return;
-326    EXCEPTION
-327  	 WHEN OTHERS THEN
-328  	   -- log event instead of raise
-329  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-330  	   RETURN FALSE;
-331    END revoke_role;
-332  
-333    FUNCTION utc_mail_date
-334  	 RETURN VARCHAR2
-335    IS
-336  	 l_date VARCHAR2(500);
-337    BEGIN
-338  	 l_date := TO_CHAR(SYSTIMESTAMP AT TIME ZONE SESSIONTIMEZONE, 'Dy, DD Mon YYYY HH24:MI:SS TZHTZM');
-339  	 RETURN l_date;
-340    EXCEPTION
-341  	 WHEN OTHERS THEN
-342  	   -- log event instead of raise
-343  	   sosl_log.exception_log('sosl_util.utc_mail_date', 'SOSL_UTIL', SQLERRM);
-344  	   RETURN NULL;
-345    END utc_mail_date;
-346  
-347    FUNCTION format_mail( p_sender	   IN VARCHAR2
-348  			   , p_recipients  IN VARCHAR2
-349  			   , p_subject	   IN VARCHAR2
-350  			   , p_message	   IN VARCHAR2
-351  			   )
-352  	 RETURN VARCHAR2
-353    IS
-354  	 l_crlf 	 VARCHAR2(2)	   := CHR(13) || CHR(10);
-355  	 l_mail_message  VARCHAR2(32767);
-356    BEGIN
-357  	 l_mail_message := 'From: ' || p_sender || l_crlf ||
-358  			   'To: ' || p_recipients || l_crlf ||
-359  			   'Date: ' || sosl_util.utc_mail_date || l_crlf ||
-360  			   'Subject: ' || p_subject || l_crlf ||
-361  			   p_message
-362  	 ;
-363  	 RETURN l_mail_message;
-364    EXCEPTION
-365  	 WHEN OTHERS THEN
-366  	   -- log event instead of raise
-367  	   sosl_log.exception_log('sosl_util.format_mail', 'SOSL_UTIL', SQLERRM);
-368  	   RETURN NULL;
-369    END format_mail;
-370  
-371    FUNCTION check_mail_address_format(p_mail_address IN VARCHAR2)
-372  	 RETURN BOOLEAN
-373    IS
-374  	 l_return	     BOOLEAN;
-375  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_UTIL';
-376  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_util.check_mail_address_format';
-377    BEGIN
-378  	 l_return := FALSE;
-379  	 IF	 LENGTH(p_mail_address) > 5
-380  	    AND  INSTR(p_mail_address, '@') > 0
-381  	    AND  INSTR(p_mail_address, '.') > 0
-382  	 THEN
-383  	   l_return := TRUE;
-384  	 END IF;
-385  	 RETURN l_return;
-386    EXCEPTION
-387  	 WHEN OTHERS THEN
-388  	   -- log event instead of raise
-389  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-390  	   RETURN FALSE;
-391    END check_mail_address_format;
-392  
-393    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
-394  			  , p_recipients  IN VARCHAR2
-395  			  , p_subject	  IN VARCHAR2
-396  			  , p_message	  IN VARCHAR2
-397  			  )
-398  	 RETURN NUMBER
-399    IS
-400  	 l_message	     VARCHAR2(32767);
-401  	 l_self_log_category sosl_server_log.log_category%TYPE	 := 'MAIL DUMMY';
-402  	 l_self_caller	     sosl_server_log.caller%TYPE	 := 'sosl_util.dummy_mail';
-403    BEGIN
-404  	 l_message := sosl_util.format_mail(p_sender, p_recipients, p_subject, p_message);
-405  	 sosl_log.minimal_info_log(l_self_caller, l_self_log_category, 'Fake mail with subject "' || p_subject || '" created in full_message. Check the results.', l_message);
-406  	 RETURN sosl_constants.NUM_SUCCESS;
-407    EXCEPTION
-408  	 WHEN OTHERS THEN
-409  	   -- log the error instead of RAISE
-410  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-411  	   RETURN sosl_constants.NUM_ERROR;
-412    END dummy_mail;
-413  
-414    FUNCTION txt_boolean( p_bool   IN BOOLEAN
-415  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
-416  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
-417  			   )
-418  	 RETURN VARCHAR2
-419  	 DETERMINISTIC
-420  	 PARALLEL_ENABLE
-421    IS
-422    BEGIN
-423  	 IF p_bool
-424  	 THEN
-425  	   RETURN TRIM(SUBSTR(NVL(p_true, 'TRUE'), 1, 10));
-426  	 ELSE
-427  	   RETURN TRIM(SUBSTR(NVL(p_false, 'FALSE'), 1, 10));
-428  	 END IF;
-429    EXCEPTION
-430  	 WHEN OTHERS THEN
-431  	   sosl_log.exception_log('sosl_util.txt_boolean BOOLEAN', 'SOSL_UTIL', SQLERRM);
-432  	   RETURN sosl_constants.GEN_NA_TYPE;
-433    END txt_boolean; -- boolean input
-434  
-435    FUNCTION txt_boolean( p_bool   IN NUMBER
-436  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
-437  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
-438  			   )
-439  	 RETURN VARCHAR2
-440  	 DETERMINISTIC
-441  	 PARALLEL_ENABLE
-442    IS
-443    BEGIN
-444  	 RETURN sosl_util.txt_boolean((p_bool = 1), p_true, p_false);
-445    EXCEPTION
-446  	 WHEN OTHERS THEN
-447  	   sosl_log.exception_log('sosl_util.txt_boolean NUMBER', 'SOSL_UTIL', SQLERRM);
-448  	   RETURN sosl_constants.GEN_NA_TYPE;
-449    END txt_boolean; -- number input
-450  
-451    FUNCTION yes_no( p_bool	 IN BOOLEAN
-452  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
-453  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
-454  		      )
-455  	 RETURN VARCHAR2
-456  	 DETERMINISTIC
-457  	 PARALLEL_ENABLE
-458    IS
-459    BEGIN
-460  	 RETURN sosl_util.txt_boolean(p_bool, p_true, p_false);
-461    EXCEPTION
-462  	 WHEN OTHERS THEN
-463  	   sosl_log.exception_log('sosl_util.yes_no BOOLEAN', 'SOSL_UTIL', SQLERRM);
-464  	   RETURN sosl_constants.GEN_NA_TYPE;
-465    END yes_no;
-466  
-467    FUNCTION yes_no( p_bool	 IN NUMBER
-468  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
-469  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
-470  		      )
-471  	 RETURN VARCHAR2
-472  	 DETERMINISTIC
-473  	 PARALLEL_ENABLE
-474    IS
-475    BEGIN
-476  	 RETURN sosl_util.txt_boolean((p_bool = 1), p_true, p_false);
-477    EXCEPTION
-478  	 WHEN OTHERS THEN
-479  	   sosl_log.exception_log('sosl_util.yes_no NUMBER', 'SOSL_UTIL', SQLERRM);
-480  	   RETURN sosl_constants.GEN_NA_TYPE;
-481    END yes_no;
-482  
-483    FUNCTION object_date( p_object_name IN VARCHAR2
-484  			   , p_object_type IN VARCHAR2
-485  			   )
-486  	 RETURN DATE
-487    IS
-488  	 l_has_object  NUMBER;
-489  	 l_return      DATE;
-490    BEGIN
-491  	 l_return := sosl_constants.GEN_NA_DATE_TYPE;
-492  	 SELECT COUNT(*)
-493  	   INTO l_has_object
-494  	   FROM user_objects
-495  	  WHERE object_name = TRIM(UPPER(p_object_name))
-496  	    AND object_type = TRIM(UPPER(p_object_type))
-497  	 ;
-498  	 -- only if we have exactly one object
-499  	 IF l_has_object = 1
-500  	 THEN
-501  	   SELECT last_ddl_time
-502  	     INTO l_return
-503  	     FROM user_objects
-504  	    WHERE object_name = TRIM(UPPER(p_object_name))
-505  	      AND object_type = TRIM(UPPER(p_object_type))
-506  	   ;
-507  	 END IF;
-508  	 RETURN l_return;
-509    EXCEPTION
-510  	 WHEN OTHERS THEN
-511  	   sosl_log.exception_log('sosl_util.object_date', 'SOSL_UTIL', SQLERRM);
-512  	   RETURN sosl_constants.GEN_NA_DATE_TYPE;
-513    END object_date;
-514  
-515    FUNCTION get_valid_run_state(p_run_state IN NUMBER)
-516  	 RETURN NUMBER
-517    IS
-518    BEGIN
-519  	 IF p_run_state IN ( sosl_constants.RUN_STATE_WAITING
-520  			   , sosl_constants.RUN_STATE_ENQUEUED
-521  			   , sosl_constants.RUN_STATE_STARTED
-522  			   , sosl_constants.RUN_STATE_RUNNING
-523  			   , sosl_constants.RUN_STATE_FINISHED
-524  			   , sosl_constants.RUN_STATE_ERROR
-525  			   )
-526  	 THEN
-527  	   RETURN p_run_state;
-528  	 ELSE
-529  	   sosl_log.minimal_error_log('sosl_util.get_valid_run_state', 'SOSL_UTIL', 'Run state ' || p_run_state || ' not supported.');
-530  	   RETURN sosl_constants.RUN_STATE_ERROR;
-531  	 END IF;
-532    EXCEPTION
-533  	 WHEN OTHERS THEN
-534  	   sosl_log.exception_log('sosl_util.get_valid_run_state', 'SOSL_UTIL', SQLERRM);
-535  	   RETURN -1;
-536    END get_valid_run_state;
-537  
-538  END;
-539  /
+243  	 -- identify implicite roles first
+244  	   WITH rol AS
+245  		(SELECT DISTINCT granted_role
+246  		   FROM sosl_role_privs
+247  		  START WITH grantee = UPPER(p_db_user)
+248  		CONNECT BY PRIOR granted_role = grantee
+249  		)
+250  	 SELECT COUNT(*)
+251  	   INTO l_count
+252  	   FROM rol
+253  	  WHERE granted_role = UPPER(p_role)
+254  	 ;
+255  	 l_return := (l_count != 0);
+256  	 RETURN l_return;
+257    EXCEPTION
+258  	 WHEN OTHERS THEN
+259  	   -- log event instead of raise
+260  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+261  	   RETURN FALSE;
+262    END has_role;
+263  
+264    FUNCTION grant_role( p_db_user IN VARCHAR2
+265  			  , p_role    IN VARCHAR2
+266  			  )
+267  	 RETURN BOOLEAN
+268    IS
+269  	 PRAGMA AUTONOMOUS_TRANSACTION;
+270  	 l_return	     BOOLEAN;
+271  	 l_statement	     VARCHAR2(1024);
+272  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_UTIL';
+273  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_util.grant_role';
+274    BEGIN
+275  	 l_return := FALSE;
+276  	 IF has_role(p_db_user, p_role)
+277  	 THEN
+278  	   -- has grant everything is okay
+279  	   l_return := TRUE;
+280  	 ELSE
+281  	   -- give grant
+282  	   l_statement := 'GRANT ' || p_role || ' TO ' || p_db_user;
+283  	   BEGIN
+284  	     EXECUTE IMMEDIATE l_statement;
+285  	     l_return := TRUE;
+286  	   EXCEPTION
+287  	     WHEN OTHERS THEN
+288  	       -- log error
+289  	       sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM || ' - Could not execute: ' || l_statement);
+290  	       l_return := FALSE;
+291  	   END;
+292  	 END IF;
+293  	 RETURN l_return;
+294    EXCEPTION
+295  	 WHEN OTHERS THEN
+296  	   -- log event instead of raise
+297  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+298  	   RETURN FALSE;
+299    END grant_role;
+300  
+301    FUNCTION revoke_role( p_db_user IN VARCHAR2
+302  			   , p_role    IN VARCHAR2
+303  			   )
+304  	 RETURN BOOLEAN
+305    IS
+306  	 PRAGMA AUTONOMOUS_TRANSACTION;
+307  	 l_return	     BOOLEAN;
+308  	 l_statement	     VARCHAR2(1024);
+309  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_UTIL';
+310  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_util.revoke_role';
+311    BEGIN
+312  	 l_return := FALSE;
+313  	 IF NOT has_role(p_db_user, p_role)
+314  	 THEN
+315  	   -- role not given or revoked
+316  	   l_return := TRUE;
+317  	 ELSE
+318  	   -- give grant
+319  	   l_statement := 'REVOKE ' || p_role || ' FROM ' || p_db_user;
+320  	   BEGIN
+321  	     EXECUTE IMMEDIATE l_statement;
+322  	     l_return := TRUE;
+323  	   EXCEPTION
+324  	     WHEN OTHERS THEN
+325  	       -- log error
+326  	       sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM || ' - Could not execute: ' || l_statement);
+327  	       l_return := FALSE;
+328  	   END;
+329  	 END IF;
+330  	 RETURN l_return;
+331    EXCEPTION
+332  	 WHEN OTHERS THEN
+333  	   -- log event instead of raise
+334  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+335  	   RETURN FALSE;
+336    END revoke_role;
+337  
+338    FUNCTION utc_mail_date
+339  	 RETURN VARCHAR2
+340    IS
+341  	 l_date VARCHAR2(500);
+342    BEGIN
+343  	 l_date := TO_CHAR(SYSTIMESTAMP AT TIME ZONE SESSIONTIMEZONE, 'Dy, DD Mon YYYY HH24:MI:SS TZHTZM');
+344  	 RETURN l_date;
+345    EXCEPTION
+346  	 WHEN OTHERS THEN
+347  	   -- log event instead of raise
+348  	   sosl_log.exception_log('sosl_util.utc_mail_date', 'SOSL_UTIL', SQLERRM);
+349  	   RETURN NULL;
+350    END utc_mail_date;
+351  
+352    FUNCTION format_mail( p_sender	   IN VARCHAR2
+353  			   , p_recipients  IN VARCHAR2
+354  			   , p_subject	   IN VARCHAR2
+355  			   , p_message	   IN VARCHAR2
+356  			   )
+357  	 RETURN VARCHAR2
+358    IS
+359  	 l_crlf 	 VARCHAR2(2)	   := CHR(13) || CHR(10);
+360  	 l_mail_message  VARCHAR2(32767);
+361    BEGIN
+362  	 l_mail_message := 'From: ' || p_sender || l_crlf ||
+363  			   'To: ' || p_recipients || l_crlf ||
+364  			   'Date: ' || sosl_util.utc_mail_date || l_crlf ||
+365  			   'Subject: ' || p_subject || l_crlf ||
+366  			   p_message
+367  	 ;
+368  	 RETURN l_mail_message;
+369    EXCEPTION
+370  	 WHEN OTHERS THEN
+371  	   -- log event instead of raise
+372  	   sosl_log.exception_log('sosl_util.format_mail', 'SOSL_UTIL', SQLERRM);
+373  	   RETURN NULL;
+374    END format_mail;
+375  
+376    FUNCTION check_mail_address_format(p_mail_address IN VARCHAR2)
+377  	 RETURN BOOLEAN
+378    IS
+379  	 l_return	     BOOLEAN;
+380  	 l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_UTIL';
+381  	 l_self_caller	     sosl_server_log.caller%TYPE       := 'sosl_util.check_mail_address_format';
+382    BEGIN
+383  	 l_return := FALSE;
+384  	 IF	 LENGTH(p_mail_address) > 5
+385  	    AND  INSTR(p_mail_address, '@') > 0
+386  	    AND  INSTR(p_mail_address, '.') > 0
+387  	 THEN
+388  	   l_return := TRUE;
+389  	 END IF;
+390  	 RETURN l_return;
+391    EXCEPTION
+392  	 WHEN OTHERS THEN
+393  	   -- log event instead of raise
+394  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+395  	   RETURN FALSE;
+396    END check_mail_address_format;
+397  
+398    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
+399  			  , p_recipients  IN VARCHAR2
+400  			  , p_subject	  IN VARCHAR2
+401  			  , p_message	  IN VARCHAR2
+402  			  )
+403  	 RETURN NUMBER
+404    IS
+405  	 l_message	     VARCHAR2(32767);
+406  	 l_self_log_category sosl_server_log.log_category%TYPE	 := 'MAIL DUMMY';
+407  	 l_self_caller	     sosl_server_log.caller%TYPE	 := 'sosl_util.dummy_mail';
+408    BEGIN
+409  	 l_message := sosl_util.format_mail(p_sender, p_recipients, p_subject, p_message);
+410  	 sosl_log.minimal_info_log(l_self_caller, l_self_log_category, 'Fake mail with subject "' || p_subject || '" created in full_message. Check the results.', l_message);
+411  	 RETURN sosl_constants.NUM_SUCCESS;
+412    EXCEPTION
+413  	 WHEN OTHERS THEN
+414  	   -- log the error instead of RAISE
+415  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+416  	   RETURN sosl_constants.NUM_ERROR;
+417    END dummy_mail;
+418  
+419    FUNCTION txt_boolean( p_bool   IN BOOLEAN
+420  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+421  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+422  			   )
+423  	 RETURN VARCHAR2
+424  	 DETERMINISTIC
+425  	 PARALLEL_ENABLE
+426    IS
+427    BEGIN
+428  	 IF p_bool
+429  	 THEN
+430  	   RETURN TRIM(SUBSTR(NVL(p_true, 'TRUE'), 1, 10));
+431  	 ELSE
+432  	   RETURN TRIM(SUBSTR(NVL(p_false, 'FALSE'), 1, 10));
+433  	 END IF;
+434    EXCEPTION
+435  	 WHEN OTHERS THEN
+436  	   sosl_log.exception_log('sosl_util.txt_boolean BOOLEAN', 'SOSL_UTIL', SQLERRM);
+437  	   RETURN sosl_constants.GEN_NA_TYPE;
+438    END txt_boolean; -- boolean input
+439  
+440    FUNCTION txt_boolean( p_bool   IN NUMBER
+441  			   , p_true   IN VARCHAR2 DEFAULT 'TRUE'
+442  			   , p_false  IN VARCHAR2 DEFAULT 'FALSE'
+443  			   )
+444  	 RETURN VARCHAR2
+445  	 DETERMINISTIC
+446  	 PARALLEL_ENABLE
+447    IS
+448    BEGIN
+449  	 RETURN sosl_util.txt_boolean((p_bool = 1), p_true, p_false);
+450    EXCEPTION
+451  	 WHEN OTHERS THEN
+452  	   sosl_log.exception_log('sosl_util.txt_boolean NUMBER', 'SOSL_UTIL', SQLERRM);
+453  	   RETURN sosl_constants.GEN_NA_TYPE;
+454    END txt_boolean; -- number input
+455  
+456    FUNCTION yes_no( p_bool	 IN BOOLEAN
+457  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
+458  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
+459  		      )
+460  	 RETURN VARCHAR2
+461  	 DETERMINISTIC
+462  	 PARALLEL_ENABLE
+463    IS
+464    BEGIN
+465  	 RETURN sosl_util.txt_boolean(p_bool, p_true, p_false);
+466    EXCEPTION
+467  	 WHEN OTHERS THEN
+468  	   sosl_log.exception_log('sosl_util.yes_no BOOLEAN', 'SOSL_UTIL', SQLERRM);
+469  	   RETURN sosl_constants.GEN_NA_TYPE;
+470    END yes_no;
+471  
+472    FUNCTION yes_no( p_bool	 IN NUMBER
+473  		      , p_true	 IN VARCHAR2 DEFAULT 'YES'
+474  		      , p_false  IN VARCHAR2 DEFAULT 'NO'
+475  		      )
+476  	 RETURN VARCHAR2
+477  	 DETERMINISTIC
+478  	 PARALLEL_ENABLE
+479    IS
+480    BEGIN
+481  	 RETURN sosl_util.txt_boolean((p_bool = 1), p_true, p_false);
+482    EXCEPTION
+483  	 WHEN OTHERS THEN
+484  	   sosl_log.exception_log('sosl_util.yes_no NUMBER', 'SOSL_UTIL', SQLERRM);
+485  	   RETURN sosl_constants.GEN_NA_TYPE;
+486    END yes_no;
+487  
+488    FUNCTION object_date( p_object_name IN VARCHAR2
+489  			   , p_object_type IN VARCHAR2
+490  			   )
+491  	 RETURN DATE
+492    IS
+493  	 l_has_object  NUMBER;
+494  	 l_return      DATE;
+495    BEGIN
+496  	 l_return := sosl_constants.GEN_NA_DATE_TYPE;
+497  	 SELECT COUNT(*)
+498  	   INTO l_has_object
+499  	   FROM user_objects
+500  	  WHERE object_name = TRIM(UPPER(p_object_name))
+501  	    AND object_type = TRIM(UPPER(p_object_type))
+502  	 ;
+503  	 -- only if we have exactly one object
+504  	 IF l_has_object = 1
+505  	 THEN
+506  	   SELECT last_ddl_time
+507  	     INTO l_return
+508  	     FROM user_objects
+509  	    WHERE object_name = TRIM(UPPER(p_object_name))
+510  	      AND object_type = TRIM(UPPER(p_object_type))
+511  	   ;
+512  	 END IF;
+513  	 RETURN l_return;
+514    EXCEPTION
+515  	 WHEN OTHERS THEN
+516  	   sosl_log.exception_log('sosl_util.object_date', 'SOSL_UTIL', SQLERRM);
+517  	   RETURN sosl_constants.GEN_NA_DATE_TYPE;
+518    END object_date;
+519  
+520    FUNCTION get_valid_run_state(p_run_state IN NUMBER)
+521  	 RETURN NUMBER
+522    IS
+523    BEGIN
+524  	 IF p_run_state IN ( sosl_constants.RUN_STATE_WAITING
+525  			   , sosl_constants.RUN_STATE_ENQUEUED
+526  			   , sosl_constants.RUN_STATE_STARTED
+527  			   , sosl_constants.RUN_STATE_RUNNING
+528  			   , sosl_constants.RUN_STATE_FINISHED
+529  			   , sosl_constants.RUN_STATE_ERROR
+530  			   )
+531  	 THEN
+532  	   RETURN p_run_state;
+533  	 ELSE
+534  	   sosl_log.minimal_error_log('sosl_util.get_valid_run_state', 'SOSL_UTIL', 'Run state ' || p_run_state || ' not supported.');
+535  	   RETURN sosl_constants.RUN_STATE_ERROR;
+536  	 END IF;
+537    EXCEPTION
+538  	 WHEN OTHERS THEN
+539  	   sosl_log.exception_log('sosl_util.get_valid_run_state', 'SOSL_UTIL', SQLERRM);
+540  	   RETURN -1;
+541    END get_valid_run_state;
+542  
+543  END;
+544  /
 
 Package body created.
 
@@ -6793,20 +6808,175 @@ SQL> GRANT EXECUTE ON has_scripts TO sosl_guest;
 Grant succeeded.
 
 SQL> -- views
+SQL> @@../sosl_ddl/views/sosl_config_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> CREATE OR REPLACE VIEW sosl_config_v
+  2  AS
+  3  	 WITH cfg AS
+  4  	      (SELECT config_name
+  5  		    , CASE
+  6  			WHEN config_name != 'SOSL_PATH_CFG'
+  7  			THEN config_value
+  8  			ELSE CASE
+  9  			       WHEN sosl_util.has_role(SYS_CONTEXT('USERENV', 'CURRENT_USER'), 'SOSL_REVIEWER')
+ 10  			       THEN config_value
+ 11  			       ELSE '***'
+ 12  			     END
+ 13  		      END AS config_value
+ 14  		    , CASE
+ 15  			WHEN config_name = 'SOSL_SCHEMA'
+ 16  			THEN 'Schema setup'
+ 17  			WHEN config_name = 'SOSL_RUNMODE'
+ 18  			THEN 'Database and server'
+ 19  			WHEN config_name IN ( 'SOSL_MAX_PARALLEL'
+ 20  					    , 'SOSL_DEFAULT_WAIT'
+ 21  					    , 'SOSL_NOJOB_WAIT'
+ 22  					    , 'SOSL_PAUSE_WAIT'
+ 23  					    , 'SOSL_START_JOBS'
+ 24  					    , 'SOSL_STOP_JOBS'
+ 25  					    )
+ 26  			THEN 'Database configuration'
+ 27  			WHEN config_name IN ( 'SOSL_SERVER_STATE'
+ 28  					    , 'SOSL_PATH_CFG'
+ 29  					    , 'SOSL_PATH_TMP'
+ 30  					    , 'SOSL_PATH_LOG'
+ 31  					    , 'SOSL_START_LOG'
+ 32  					    , 'SOSL_BASE_LOG'
+ 33  					    , 'SOSL_EXT_LOG'
+ 34  					    , 'SOSL_EXT_TMP'
+ 35  					    , 'SOSL_EXT_LOCK'
+ 36  					    , 'SOSL_EXT_ERROR'
+ 37  					    )
+ 38  			THEN 'Server configuration'
+ 39  			ELSE 'Unknown parameter'
+ 40  		      END						   AS configuration_by
+ 41  		    , config_type
+ 42  		    , CASE
+ 43  			WHEN config_max_length = -1
+ 44  			 AND config_type       = 'CHAR'
+ 45  			THEN '4000 chars'
+ 46  			WHEN config_max_length = -1
+ 47  			 AND config_type       = 'NUMBER'
+ 48  			THEN 'max int length'
+ 49  			ELSE TO_CHAR(config_max_length) || ' chars'
+ 50  		      END						   AS length_limit
+ 51  		    , config_description
+ 52  		    , TO_CHAR(updated, 'YYYY-MM-DD HH24:MI:SS') 	   AS updated
+ 53  		    , updated_by
+ 54  		    , updated_by_os
+ 55  		    , TO_CHAR(created, 'YYYY-MM-DD HH24:MI:SS') 	   AS created
+ 56  		    , created_by
+ 57  		    , created_by_os
+ 58  		    , CASE
+ 59  			WHEN config_name = 'SOSL_SCHEMA'
+ 60  			THEN 7
+ 61  			WHEN config_name = 'SOSL_RUNMODE'
+ 62  			THEN 1
+ 63  			WHEN config_name IN ( 'SOSL_START_JOBS'
+ 64  					    , 'SOSL_STOP_JOBS'
+ 65  					    )
+ 66  			THEN 2
+ 67  			WHEN config_name = 'SOSL_MAX_PARALLEL'
+ 68  			THEN 3
+ 69  			WHEN config_name IN ( 'SOSL_DEFAULT_WAIT'
+ 70  					    , 'SOSL_NOJOB_WAIT'
+ 71  					    , 'SOSL_PAUSE_WAIT'
+ 72  					    )
+ 73  			THEN 4
+ 74  			WHEN config_name = 'SOSL_SERVER_STATE'
+ 75  			THEN 5
+ 76  			WHEN config_name IN ( 'SOSL_PATH_CFG'
+ 77  					    , 'SOSL_PATH_TMP'
+ 78  					    , 'SOSL_PATH_LOG'
+ 79  					    , 'SOSL_START_LOG'
+ 80  					    , 'SOSL_BASE_LOG'
+ 81  					    , 'SOSL_EXT_LOG'
+ 82  					    , 'SOSL_EXT_TMP'
+ 83  					    , 'SOSL_EXT_LOCK'
+ 84  					    , 'SOSL_EXT_ERROR'
+ 85  					    )
+ 86  			THEN 6
+ 87  			ELSE 8
+ 88  		      END						   AS config_order
+ 89  		 FROM sosl_config
+ 90  	      )
+ 91    SELECT cfg.config_name
+ 92  	    , cfg.config_value
+ 93  	    , cfg.configuration_by
+ 94  	    , cfg.config_type
+ 95  	    , cfg.length_limit
+ 96  	    , cfg.config_description
+ 97  	    , cfg.updated
+ 98  	    , cfg.updated_by
+ 99  	    , cfg.updated_by_os
+100  	    , cfg.created
+101  	    , cfg.created_by
+102  	    , cfg.created_by_os
+103  	 FROM cfg
+104  	ORDER BY cfg.config_order
+105  	       , cfg.config_name
+106  ;
+
+View created.
+
+SQL> GRANT SELECT ON sosl_config_v TO sosl_user;
+
+Grant succeeded.
+
+SQL> @@../sosl_ddl/views/sosl_executors_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> CREATE OR REPLACE VIEW sosl_executors_v
+  2  AS
+  3    SELECT executor_name
+  4  	    , function_owner
+  5  	    , sosl_util.yes_no(use_mail) AS use_mail
+  6  	    , sosl_util.yes_no(executor_active) AS executor_active
+  7  	    , sosl_util.yes_no(executor_reviewed) AS executor_reviewed
+  8  	    , fn_has_scripts
+  9  	    , fn_get_next_script
+ 10  	    , fn_set_script_status
+ 11  	    , fn_send_db_mail
+ 12  	    , script_schema
+ 13  	    , CASE
+ 14  		WHEN sosl_util.has_role(SYS_CONTEXT('USERENV', 'CURRENT_USER'), 'SOSL_REVIEWER')
+ 15  		THEN cfg_file
+ 16  		ELSE '***'
+ 17  	      END AS cfg_file
+ 18  	    , executor_description
+ 19  	    , executor_id
+ 20  	    , created
+ 21  	    , created_by
+ 22  	    , created_by_os
+ 23  	    , updated
+ 24  	    , updated_by
+ 25  	    , updated_by_os
+ 26  	 FROM sosl_executor_definition
+ 27  ;
+
+View created.
+
+SQL> GRANT SELECT ON sosl_executors_v TO sosl_user;
+
+Grant succeeded.
+
 SQL> @@../sosl_ddl/views/sosl_run_queue_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> CREATE OR REPLACE VIEW sosl_run_queue_v
   2  AS
-  3    SELECT srq.script_file
-  4  	    , sosl_constants.run_state_text(srq.run_state) AS run_state
-  5  	    , srq.run_id
-  6  	    , srq.ext_script_id
-  7  	    , sed.executor_name
-  8  	    , srq.created
-  9  	    , srq.waiting
- 10  	    , srq.enqueued
- 11  	    , srq.started
- 12  	    , srq.running_since
- 13  	    , srq.finished
+  3    SELECT srq.run_id
+  4  	    , sed.executor_name
+  5  	    , srq.script_file
+  6  	    , sosl_constants.run_state_text(srq.run_state)	       AS run_state
+  7  	    , srq.ext_script_id
+  8  	    , TO_CHAR(srq.created, 'YYYY-MM-DD HH24:MI:SS.FF9')        AS created
+  9  	    , TO_CHAR(srq.waiting, 'YYYY-MM-DD HH24:MI:SS.FF9')        AS waiting
+ 10  	    , TO_CHAR(srq.enqueued, 'YYYY-MM-DD HH24:MI:SS.FF9')       AS enqueued
+ 11  	    , TO_CHAR(srq.started, 'YYYY-MM-DD HH24:MI:SS.FF9')        AS started
+ 12  	    , TO_CHAR(srq.running_since, 'YYYY-MM-DD HH24:MI:SS.FF9')  AS running_since
+ 13  	    , TO_CHAR(srq.finished, 'YYYY-MM-DD HH24:MI:SS.FF9')       AS finished
  14  	    , srq.created_by
  15  	    , srq.waiting_by
  16  	    , srq.enqueued_by
@@ -6820,14 +6990,89 @@ SQL> CREATE OR REPLACE VIEW sosl_run_queue_v
  24  	    , srq.running_by_os
  25  	    , srq.finished_by_os
  26  	    , srq.executor_id
- 27  	    , srq.run_state AS run_state_num
+ 27  	    , srq.run_state					       AS run_state_num
  28  	 FROM sosl_run_queue srq
  29  	 LEFT OUTER JOIN sosl_executor_definition sed
  30  	   ON srq.executor_id = sed.executor_id
- 31  	ORDER BY created DESC
- 32  ;
+ 31  	-- first all scripts pending or running
+ 32  	ORDER BY srq.run_state
+ 33  	       , srq.created DESC
+ 34  ;
 
 View created.
+
+SQL> GRANT SELECT ON sosl_run_queue_v TO sosl_user;
+
+Grant succeeded.
+
+SQL> @@../sosl_ddl/views/sosl_run_stats_by_executor_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> CREATE OR REPLACE VIEW sosl_run_stats_by_executor_v
+  2  AS
+  3  	 WITH run_stats AS
+  4  	      (SELECT /*+MATERIALIZE*/
+  5  		      executor_id
+  6  		    , run_state
+  7  		    , COUNT(*) AS script_count
+  8  		 FROM sosl_run_queue
+  9  		GROUP BY executor_id
+ 10  		       , run_state
+ 11  	      )
+ 12    SELECT sed.executor_name
+ 13  	    , sosl_constants.run_state_text(run_stats.run_state) AS run_state
+ 14  	    , script_count
+ 15  	 FROM run_stats
+ 16  	 LEFT OUTER JOIN sosl_executor_definition sed
+ 17  	   ON run_stats.executor_id = sed.executor_id
+ 18  	ORDER BY run_stats.run_state
+ 19  	       , run_stats.executor_id
+ 20  ;
+
+View created.
+
+SQL> GRANT SELECT ON sosl_run_stats_by_executor_v TO sosl_user;
+
+Grant succeeded.
+
+SQL> @@../sosl_ddl/views/sosl_run_stats_total_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> CREATE OR REPLACE VIEW sosl_run_stats_total_v
+  2  AS
+  3  	 WITH run_states AS
+  4  	      (SELECT -1 AS run_state FROM dual
+  5  		UNION ALL
+  6  	       SELECT 0 AS run_state FROM dual
+  7  		UNION ALL
+  8  	       SELECT 1 AS run_state FROM dual
+  9  		UNION ALL
+ 10  	       SELECT 2 AS run_state FROM dual
+ 11  		UNION ALL
+ 12  	       SELECT 3 AS run_state FROM dual
+ 13  		UNION ALL
+ 14  	       SELECT 4 AS run_state FROM dual
+ 15  	      )
+ 16  	    , run_stats AS
+ 17  	      (SELECT /*+MATERIALIZE*/
+ 18  		      run_state
+ 19  		    , COUNT(*) AS script_count
+ 20  		 FROM sosl_run_queue
+ 21  		GROUP BY run_state
+ 22  	      )
+ 23    SELECT sosl_constants.run_state_text(run_states.run_state) AS run_state
+ 24  	    , NVL(run_stats.script_count, 0) AS script_count
+ 25  	 FROM run_states
+ 26  	 LEFT OUTER JOIN run_stats
+ 27  	   ON run_states.run_state = run_stats.run_state
+ 28  	ORDER BY run_states.run_state
+ 29  ;
+
+View created.
+
+SQL> GRANT SELECT ON sosl_run_stats_total_v TO sosl_user;
+
+Grant succeeded.
 
 SQL> -- load basic config data
 SQL> @@sosl_config_defaults.sql

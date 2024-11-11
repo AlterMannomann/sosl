@@ -242,12 +242,17 @@ AS
     l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_util.has_role';
   BEGIN
     l_return := FALSE;
+    -- identify implicite roles first
+      WITH rol AS
+           (SELECT DISTINCT granted_role
+              FROM sosl_role_privs
+             START WITH grantee = UPPER(p_db_user)
+           CONNECT BY PRIOR granted_role = grantee
+           )
     SELECT COUNT(*)
       INTO l_count
-      FROM dba_role_privs
-     WHERE granted_role LIKE 'SOSL%'
-       AND grantee      = UPPER(p_db_user)
-       AND granted_role = UPPER(p_role)
+      FROM rol
+     WHERE granted_role = UPPER(p_role)
     ;
     l_return := (l_count != 0);
     RETURN l_return;

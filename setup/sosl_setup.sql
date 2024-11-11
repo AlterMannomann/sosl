@@ -12,6 +12,9 @@ SET ERRORLOGGING ON
 SET ERRORLOGGING ON IDENTIFIER &IDENT
 -- ==============INSTALL start==============
 SPOOL logs/sosl_setup.log
+-- create schema synonyms for sys views
+CREATE SYNONYM sosl_role_privs FOR sys.sosl_role_privs;
+CREATE SYNONYM sosl_sessions FOR sys.sosl_sessions;
 -- roles
 @@../sosl_ddl/roles/create_roles.sql
 -- types
@@ -53,7 +56,11 @@ SPOOL logs/sosl_setup.log
 -- wrapper functions
 @@../sosl_ddl/functions/has_scripts.sql
 -- views
+@@../sosl_ddl/views/sosl_config_v.sql
+@@../sosl_ddl/views/sosl_executors_v.sql
 @@../sosl_ddl/views/sosl_run_queue_v.sql
+@@../sosl_ddl/views/sosl_run_stats_by_executor_v.sql
+@@../sosl_ddl/views/sosl_run_stats_total_v.sql
 -- load basic config data
 @@sosl_config_defaults.sql
 -- ==============INSTALL done==============

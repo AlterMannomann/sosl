@@ -15,16 +15,24 @@ PAUSE &SOSL_MSG
 SET ECHO ON
 DROP USER sosl CASCADE;
 DROP TABLESPACE sosl_tablespace DROP QUOTA INCLUDING CONTENTS AND DATAFILES;
--- do not exit if role drop fails
-WHENEVER SQLERROR CONTINUE
-WHENEVER OSERROR CONTINUE
--- drop sosl roles if still exist
-@@../sosl_ddl/roles/drop/drop_roles.sql
+DROP VIEW sosl_role_privs;
+DROP VIEW sosl_sessions;
+-- drop SOSL roles if they still exist dynamically
 SET ECHO OFF
+SET FEEDBACK OFF
+SET SERVEROUTPUT ON SIZE UNLIMITED
+BEGIN
+  FOR rec IN (SELECT 'DROP ROLE ' || role AS exec_cmd FROM dba_roles WHERE role LIKE 'SOSL%')
+  LOOP
+    DBMS_OUTPUT.PUT_LINE(rec.exec_cmd || ';');
+    EXECUTE IMMEDIATE rec.exec_cmd;
+  END LOOP;
+END;
+/
 SELECT 'Executed: ' || TO_CHAR(SYSTIMESTAMP) || CHR(13) || CHR(10) ||
        'User SOSL dropped' || CHR(13) || CHR(10) ||
-       'Still existing SOSL roles dropped' || CHR(13) || CHR(10) ||
        'Tablespace SOSL_TABLESPACE and datafile dropped' || CHR(13) || CHR(10) ||
+       'View SOSL_ROLE_PRIVS and SOSL_SESSIONS dropped' || CHR(13) || CHR(10) ||
        'by ' || SYS_CONTEXT('USERENV', 'OS_USER') || CHR(13) || CHR(10) ||
        'using ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || CHR(13) || CHR(10) ||
        'on database ' || SYS_CONTEXT('USERENV', 'DB_NAME') || CHR(13) || CHR(10) ||

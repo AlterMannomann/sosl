@@ -1,6 +1,72 @@
 SQL> -- view objects
+SQL> @@../sosl_ddl/views/drop/drop_sosl_run_stats_total_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> REVOKE SELECT ON sosl_run_stats_total_v FROM sosl_user;
+REVOKE SELECT ON sosl_run_stats_total_v FROM sosl_user
+                 *
+ERROR at line 1:
+ORA-00942: table or view "SOSL"."SOSL_RUN_STATS_TOTAL_V" does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+
+
+SQL> DROP VIEW sosl_run_stats_total_v;
+DROP VIEW sosl_run_stats_total_v
+*
+ERROR at line 1:
+ORA-00942: table or view "SOSL"."SOSL_RUN_STATS_TOTAL_V" does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+
+
+SQL> @@../sosl_ddl/views/drop/drop_sosl_run_stats_by_executor_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> REVOKE SELECT ON sosl_run_stats_by_executor_v FROM sosl_user;
+REVOKE SELECT ON sosl_run_stats_by_executor_v FROM sosl_user
+                 *
+ERROR at line 1:
+ORA-00942: table or view "SOSL"."SOSL_RUN_STATS_BY_EXECUTOR_V" does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+
+
+SQL> DROP VIEW sosl_run_stats_by_executor_v;
+DROP VIEW sosl_run_stats_by_executor_v
+*
+ERROR at line 1:
+ORA-00942: table or view "SOSL"."SOSL_RUN_STATS_BY_EXECUTOR_V" does not exist
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+
+
 SQL> @@../sosl_ddl/views/drop/drop_sosl_run_queue_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> REVOKE SELECT ON sosl_run_queue_v FROM sosl_user;
+
+Revoke succeeded.
+
 SQL> DROP VIEW sosl_run_queue_v;
+
+View dropped.
+
+SQL> @@../sosl_ddl/views/drop/drop_sosl_executors_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> REVOKE SELECT ON sosl_executors_v FROM sosl_user;
+
+Revoke succeeded.
+
+SQL> DROP VIEW sosl_executors_v;
+
+View dropped.
+
+SQL> @@../sosl_ddl/views/drop/drop_sosl_config_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> REVOKE SELECT ON sosl_config_v FROM sosl_user;
+
+Revoke succeeded.
+
+SQL> DROP VIEW sosl_config_v;
 
 View dropped.
 
@@ -215,10 +281,27 @@ SQL> DROP ROLE sosl_guest;
 
 Role dropped.
 
+SQL> -- synonyms
+SQL> DROP SYNONYM sosl_role_privs;
+
+Synonym dropped.
+
+SQL> DROP SYNONYM sosl_sessions;
+
+Synonym dropped.
+
 SQL> -- ==============UNINSTALL done==============
 SQL> @@../sosl_sql/util/log_silent.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> SET ECHO OFF
-SUCCESS - no errors found during cleanup          0
+ERROR - cleanup script has errors                -1
+ORA-00942: table or view "SOSL"."SOSL_RUN_STATS_TOTAL_V" does not exist Help: https://docs.oracle.com/error-help/db/ora-00942/
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+ORA-00942: table or view "SOSL"."SOSL_RUN_STATS_TOTAL_V" does not exist Help: https://docs.oracle.com/error-help/db/ora-00942/
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+ORA-00942: table or view "SOSL"."SOSL_RUN_STATS_BY_EXECUTOR_V" does not exist Help: https://docs.oracle.com/error-help/db/ora-00942/
+Help: https://docs.oracle.com/error-help/db/ora-00942/
+ORA-00942: table or view "SOSL"."SOSL_RUN_STATS_BY_EXECUTOR_V" does not exist Help: https://docs.oracle.com/error-help/db/ora-00942/
+Help: https://docs.oracle.com/error-help/db/ora-00942/
 SPERRORLOG is not deleted, as we do not know if schema is exclusive. You may drop it manually with: DROP TABLE sperrorlog PURGE;

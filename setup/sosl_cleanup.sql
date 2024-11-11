@@ -13,7 +13,11 @@ SET ERRORLOGGING ON IDENTIFIER &IDENT
 -- ==============UNINSTALL start==============
 SPOOL logs/sosl_cleanup.log
 -- view objects
+@@../sosl_ddl/views/drop/drop_sosl_run_stats_total_v.sql
+@@../sosl_ddl/views/drop/drop_sosl_run_stats_by_executor_v.sql
 @@../sosl_ddl/views/drop/drop_sosl_run_queue_v.sql
+@@../sosl_ddl/views/drop/drop_sosl_executors_v.sql
+@@../sosl_ddl/views/drop/drop_sosl_config_v.sql
 -- packages and functions
 @@../sosl_ddl/functions/drop/drop_has_scripts.sql
 @@../sosl_ddl/packages/drop/drop_sosl_if_pkb.sql
@@ -41,6 +45,9 @@ SPOOL logs/sosl_cleanup.log
 @@../sosl_ddl/types/drop/drop_sosl_payload.sql
 -- roles
 @@../sosl_ddl/roles/drop/drop_roles.sql
+-- synonyms
+DROP SYNONYM sosl_role_privs;
+DROP SYNONYM sosl_sessions;
 -- ==============UNINSTALL done==============
 @@../sosl_sql/util/log_silent.sql
 -- check errors and display them, if so
