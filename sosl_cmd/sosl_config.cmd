@@ -4,10 +4,10 @@ REM Use this file to redefine the default values of variables, remove comment fo
 REM adjusted. Otherwise the defaults from sosl_server.cmd are used.
 REM *****************************************************************************************************
 REM Path to temporary files the SOSL server uses. Parameter for sql files, limited to 239 chars.
-SET SOSL_PATH_TMP=..\..\tmp\
+SET SOSL_PATH_TMP=..\..\sosl_tmp\
 REM *****************************************************************************************************
 REM Path to log files the SOSL server creates. Parameter for sql files, limited to 239 chars.
-SET SOSL_PATH_LOG=..\..\log\
+SET SOSL_PATH_LOG=..\..\sosl_log\
 REM *****************************************************************************************************
 REM Default login file name of SOSL schema login. Will be used whenever not acting as an executor.
 SET SOSL_LOGIN=sosl_login.cfg
@@ -15,7 +15,7 @@ REM ****************************************************************************
 REM Path to configuration files the SOSL server uses. As configuration files contain credentials and
 REM secrets the path should be in a safe space with controlled user rights. Must be correct configured if
 REM security is important.
-REM SET SOSL_PATH_CFG=..\..\cfg\
+SET SOSL_PATH_CFG=..\..\sosl_cfg\
 REM *****************************************************************************************************
 REM Log file extension to use.
 REM SET SOSL_EXT_LOG=log

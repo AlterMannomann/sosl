@@ -11,4 +11,4 @@ REM Parameter 4: temporary content file and relative path
 REM Parameter 5: log file and relative path
 REM Parameter 6: GUID of the process
 REM Add an extra line echo if last empty line is missing, errors must be handled by the caller
-(TYPE %CUR_SOSL_LOGIN% && ECHO. && ECHO %~1 %2 %3 %4 %5 %6) | sqlplus
+CHCP 65001 && (TYPE %CUR_SOSL_LOGIN% && ECHO. && ECHO %~1 %2 %3 %4 %5 %6) | sqlplus

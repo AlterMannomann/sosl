@@ -1,5 +1,5 @@
              Generic AI Disclosure License (GAIDL)
-                 Version 1.0, 31 October 2024
+                 Version 1.0, 11 November 2024
 
 Copyright (C) 2024 Michael Lindenau <https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1>
  Everyone is permitted to copy and distribute verbatim copies
@@ -15,7 +15,8 @@ It is an addendum to other licenses intended for all possible versions of
 humans, AI and crawlers delivering results to AI components and other
 components delivering data to AI systems for training or any other purposes.
 
-
+It ensures that authors and their expertise cannot be replaced by AI without
+agreement. AI is not and never equal to the community.
 
                        TERMS AND CONDITIONS
 
@@ -60,7 +61,13 @@ the legal rights of the used system.
   "AI usage" refers to all kinds of operations a software component does with
 the provided Source Code. This includes reading the content and analyze or
 use it for whatever purpose. As well as using humans to transfer the
-information to an AI component.
+information to an AI component or training AI models with the The Program,
+the provided Source Code or provided documentation. It also refers to any
+3rd party providing platforms for publishing Open Source that want to use AI
+on The Program, the provided Source Code or the provided documentation.
+
+  A "basic license" refers to any Open Source license applied to The Program,
+the Source Code and the documentation provided.
 
   "System" refers to any content producing framework or software under license
 conditions that may limit access or usage. A programming language is a tool not
@@ -126,10 +133,11 @@ same work.
   2. Basic Permissions.
 
   Human beings may use The Program or the covered work as specified by their
-basic license. This license doesn't impact Human beings not providing input
-for AI usage.
+basic license as long as no AI usage and training happens.
 
-  AI usage is forbidden unless it is explicitely permitted.
+  AI usage is forbidden unless it is explicitely permitted. This includes
+any involved 3rd party providing platforms to publish Open Source that want
+to train their AI models on The Program, Source Code or documentation.
 
   3. AI Permission Restriction.
 
@@ -152,19 +160,31 @@ content and Source Code that is the input for any system.
 
   5. AI usage information duty.
 
-  Any AI usage of The Program or the covered work needs to be explicitly
-permitted by the impacted Authors. ALL impacted Authors have to be informed
-BEFORE any AI usage takes place.
+  ALL impacted Authors have to be informed BEFORE any AI usage takes place and
+must agree to the AI usage.
+
+  Any publishing of an AI model trained on The Program or covered work must
+be explicitely agreed by ALL impacted Authors BEFORE publishing.
 
   6. AI usage costs.
 
   If not covered by individual contracts, agreed by all Authors, any direct
-or indirect commercial usage of The Program, the covered work and Source Code
-has to be paid. The amounts of payments are calculated by the sum of the median
-monthly earnings of all impacted Authors at first time of usage. This
-compensation is a constant monthly fee to the impacted Authors or their
-successors as long as used. Currency fluctuations have to be compensated in
-either direction related to the purchasing power at first time of usage.
+or indirect AI usage of The Program, the covered work, the provided Source Code
+or the documentation has to be compensated with monthly fees as long as the AI
+is active.
+
+  If not specified otherwise, the monthly compensation is calculated by the
+median of the monthly net income during the last 12 months of all impacted
+Authors at first time of AI usage.
+
+  This compensation is a constant monthly fee to the impacted Authors or their
+successors as long as the AI is active. Currency fluctuations have to be
+compensated in either direction related to the purchasing power at first time
+of AI usage related to the impacted Authors location at this time.
+
+  Any violation of this terms doubles the costs since the first time of usage
+without permission and adds a penalty to companies, which is minimum 10% of the
+annual sales revenue before taxes.
 
                      END OF TERMS AND CONDITIONS
 
@@ -183,9 +203,9 @@ the "copyright" line and a pointer to where the full notice is found.
     <one line to give the program's name and a brief idea of what it does.>
     Copyright (C) <year>  <name of author>
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the Generic AI Disclosure License as published
-    by Michael Lindenau, either version 1 of the License, or
+    This program is free human software: you can redistribute it and/or
+	modify it under the terms of the Generic AI Disclosure License as
+	published by Michael Lindenau, either version 1 of the License, or
     (at your option) any later version.
 
     This program is distributed in the hope that it will be useful,

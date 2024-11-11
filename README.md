@@ -48,7 +48,7 @@ Given this structure it is possible to reference scripts relative to the SOSL re
 
 SOSL can handle relative repository paths to start scripts relative to the given repository directory. Otherwise you can use a script filename using the full path.
 
-The configuration path for SOSL will hold the sosl_login.cfg as well as login files for the different user with which the scripts will get started.
+The configuration path for SOSL will hold the sosl_login.cfg and might as well contain login files for the different users with which the scripts will get started. Executors can defined the path and name of the login config file.
 
     sosl_cfg (the default SOSL directory for SQLPlus login secrets)
     - sosl_login.cfg (the login secrets for sosl)
@@ -66,13 +66,13 @@ The basic server design is
         - wait as defined
 
 ## Interface
-The basic interface consist of views, packages and the table SOSLERRORLOG. You may define to whom to grant the interface using the table SOSL_EXECUTORS. If defining PUBLIC, consider that only one login config file for every executor is possible. It is recommended that you use defined executors.
+The basic interface consist of views, packages and the table SOSLERRORLOG. You may define to whom to grant the interface using the table SOSL_EXECUTOR_DEFINITION. PUBLIC is no schema, so you must use a defined schema for every defined executor.
 ## API
-To use this application, interfaces exist, that must be configured in SOSL_EXECUTOR. Only one set of API can be generated per executor. Executors may share the same function owner and function. In this case the interface API functions must handle themselves the internal script states for the different executors running.
+To use this application, interfaces exist, that must be configured in SOSL_EXECUTOR_DEFINITION. Only one set of API can be generated per executor. Executors may share the same function owner and function. In this case the interface API functions must handle themselves the internal script states for the different executors running.
 
-Error logging apart from noticing the error are out of scope for SOSL, the provided API function must manage this on its own. All configured functions must be granted as executable to SOSL, and afterwards configured in SOSL_EXECUTOR. Functions must be visible for SOSL in ALL_OBJECTS and ALL_TAB_PRIVS. Package functions must be visible in ALL_ATTRIBUTES for SOSL.
+Error logging apart from noticing the error are out of scope for SOSL, the provided API function must manage this on its own. All configured functions must be granted as executable to the role SOSL_EXECUTOR, and afterwards configured in SOSL_EXECUTOR_DEFINITION. Functions must be visible for SOSL in ALL_OBJECTS and ALL_TAB_PRIVS. Package functions must be visible in ALL_ATTRIBUTES for SOSL.
 
-    GRANT EXECUTE ON your_api_function TO SOSL;
+    GRANT EXECUTE ON your_api_function TO SOSL_EXECUTOR;
 
 The basic API consist of wrapper functions.
 ### has_scripts
@@ -143,7 +143,7 @@ To enhance security you may limit access to SOSL schema and check the compile da
 
 Find a better solution. If you know what scripts to execute, put them in the database. You should not quick fix production systems as they have an reliable and accepted state. Use a hotfix for those issues and avoid those issues before going to production due to proper testing.
 ### Roles
-On database level several roles are available: SOSL_ADMIN, SOSL_EXECUTOR, SOSL_REVIEWER, SOSL_USER, SOSL_GUEST.
+On database level several cascading roles are available: SOSL_ADMIN, SOSL_EXECUTOR, SOSL_REVIEWER, SOSL_USER, SOSL_GUEST.
 
     SOSL_ADMIN
     |- DELETE rights
@@ -156,10 +156,9 @@ On database level several roles are available: SOSL_ADMIN, SOSL_EXECUTOR, SOSL_R
           |_ SOSL_GUEST
             |- limited select rights
 
-The application manages necessary role grants for configured function owners. Only reviewed executors will get roles granted, otherwise
-roles, if exist, get revoked.
+The application manages necessary role grants for configured function owners. Only reviewed executors will get the role SOSL_EXECUTOR granted, otherwise this role, if it exists for an invalid executor, gets revoked.
 
-Grant any privilege needed to the role SOSL_EXECUTOR instead of granting it directly to SOSL schema.
+Grant any privilege needed to the role SOSL_EXECUTOR instead of granting it directly to SOSL schema. You should not grant SOSL objects to SOSL roles. Grant a SOSL role to database users according to their tasks. If the database user differs from the function owner, it is quite enough to grant SOSL_USER or SOSL_REVIEWER to this user. The roles SOSL_EXECUTOR and SOSL_ADMIN should be used very limited.
 ## Disclaimer
 Use this software at your own risk. No liabilities or warranties are given, no support is guaranteed. Any result of executing this software is under the responsibility of the legal entity using this software. For details see license.
 
