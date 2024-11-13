@@ -19,10 +19,10 @@ AS
          END AS cfg_file
        , executor_description
        , executor_id
-       , created
+       , TO_CHAR(created, 'YYYY-MM-DD HH24:MI:SS')            AS created
        , created_by
        , created_by_os
-       , updated
+       , TO_CHAR(updated, 'YYYY-MM-DD HH24:MI:SS')            AS updated
        , updated_by
        , updated_by_os
     FROM sosl_executor_definition

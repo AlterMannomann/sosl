@@ -75,6 +75,10 @@ SQL> CREATE OR REPLACE TYPE sosl_payload
 
 Type created.
 
+SQL> GRANT EXECUTE ON sosl_payload TO sosl_executor;
+
+Grant succeeded.
+
 SQL> -- SQLPlus error logging table
 SQL> @@../sosl_ddl/tables/soslerrorlog.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
@@ -5734,282 +5738,6 @@ SQL> GRANT EXECUTE ON sosl_api TO sosl_executor;
 
 Grant succeeded.
 
-SQL> @@../sosl_ddl/packages/sosl_if.pks
-SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
-SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> -- interface package of the Simple Oracle Script Loader
-SQL> CREATE OR REPLACE PACKAGE sosl_if
-  2  AS
-  3    /**
-  4    * This package contains the internal interface to SOSL used by the Simple Oracle Script Loader.
-  5    * Can be seen as tutorial and implementation hint for own interfaces.
-  6    */
-  7  
-  8    /** Function SOSL_IF.HAS_SCRIPTS
-  9    * Determines if script ids are available to be executed. To be defined in SOSL_EXECUTOR_DEFINITION.
- 10    *
- 11    * @return The number of script ids waiting for execution.
- 12    */
- 13    FUNCTION has_scripts
- 14  	 RETURN NUMBER
- 15    ;
- 16  
- 17    /** Function SOSL_IF.GET_NEXT_SCRIPT
- 18    * Returns the next script id to execute. To be defined in SOSL_EXECUTOR_DEFINITION.
- 19    *
- 20    * @return The id of the next script to execute.
- 21    */
- 22    FUNCTION get_next_script
- 23  	 RETURN SOSL.SOSL_PAYLOAD
- 24    ;
- 25  
- 26    /** Function SOSL_IF.SET_SCRIPT_STATUS
- 27    * Sets the status of a script. To be defined in SOSL_EXECUTOR_DEFINITION.
- 28    *
- 29    * @param p_run_id The valid run id of the script that should change run state.
- 30    * @param p_status A valid status as defined in SOSL_CONSTANTS for run states.
- 31    *
- 32    * @return Return 0 if successful executed otherwise -1.
- 33    */
- 34    FUNCTION set_script_status( p_run_id IN NUMBER
- 35  				 , p_status IN NUMBER
- 36  				 )
- 37  	 RETURN NUMBER
- 38    ;
- 39  
- 40    /* FUNCTION SOSL_IF.SEND_MAIL
- 41    * This interface function is mainly used for testing. In the default setting, it will only send the mail message to
- 42    * SOSL_SERVER_LOG. To be defined in SOSL_EXECUTOR_DEFINITION. Will be called on every status change, if mail is activated.
- 43    *
- 44    * @param p_run_id The valid run id of the script that should change run state.
- 45    * @param p_status A valid status as defined in SOSL_CONSTANTS for run states.
- 46    *
- 47    * @return Return 0 if successful executed otherwise -1.
- 48    */
- 49    FUNCTION send_mail( p_run_id IN NUMBER
- 50  			 , p_status IN NUMBER
- 51  			 )
- 52  	 RETURN NUMBER
- 53    ;
- 54  
- 55  END;
- 56  /
-
-Package created.
-
-SQL> @@../sosl_ddl/packages/sosl_if.pkb
-SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
-SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> CREATE OR REPLACE PACKAGE BODY sosl_if
-  2  AS
-  3    -- see package header for documentation
-  4    FUNCTION has_scripts
-  5  	 RETURN NUMBER
-  6    IS
-  7  	 l_return NUMBER;
-  8    BEGIN
-  9  	 SELECT COUNT(*)
- 10  	   INTO l_return
- 11  	   FROM sosl_if_script
- 12  		-- internal conditions about scripts ready to execute
- 13  	  WHERE script_active = sosl_constants.NUM_YES
- 14  	    AND run_state     = sosl_constants.RUN_STATE_WAITING
- 15  		-- we need an assigned executor for the payload
- 16  	    AND executor_id   IS NOT NULL
- 17  	 ;
- 18  	 RETURN l_return;
- 19    EXCEPTION
- 20  	 WHEN OTHERS THEN
- 21  	   -- log the error instead of RAISE
- 22  	   sosl_log.exception_log('sosl_if.has_scripts', 'SOSL_IF', SQLERRM);
- 23  	   RETURN -1;
- 24    END has_scripts;
- 25  
- 26    FUNCTION get_next_script
- 27  	 RETURN SOSL.SOSL_PAYLOAD
- 28    IS
- 29  	 l_payload	 SOSL.SOSL_PAYLOAD;
- 30  	 l_executor_id	 NUMBER;
- 31  	 l_ext_script_id VARCHAR2(4000);
- 32  	 l_script_file	 VARCHAR2(4000);
- 33  	 CURSOR cur_script_data
- 34  	 IS
- 35  	   SELECT executor_id
- 36  		, TRIM(TO_CHAR(script_id)) AS ext_script_id
- 37  		, script_name AS script_file
- 38  	     FROM sosl_if_script
- 39  		  -- internal conditions about scripts ready to execute
- 40  	    WHERE script_active = sosl_constants.NUM_YES
- 41  	      AND run_state	= sosl_constants.RUN_STATE_WAITING
- 42  		  -- we need an assigned executor for the payload
- 43  	      AND executor_id	IS NOT NULL
- 44  		  -- adjust the order in which scripts get delivered
- 45  	    ORDER BY run_group
- 46  		   , run_order
- 47  	 ;
- 48    BEGIN
- 49  	 l_payload := NULL;
- 50  	 -- check if we have scripts
- 51  	 IF sosl_if.has_scripts > 0
- 52  	 THEN
- 53  	   -- fetch only the first record, statement apart from order is identical to has_scripts statement
- 54  	   OPEN cur_script_data;
- 55  	   FETCH cur_script_data INTO l_executor_id, l_ext_script_id, l_script_file;
- 56  	   CLOSE cur_script_data;
- 57  	   -- you may want to add checks for the payload data before building the SOSL_PAYLOAD
- 58  	   l_payload := SOSL.SOSL_PAYLOAD(l_executor_id, l_ext_script_id, l_script_file);
- 59  	 ELSE
- 60  	   -- log error information
- 61  	   sosl_log.minimal_error_log('sosl_if.get_next_script', 'SOSL_IF', 'get_next_script called without having scripts to run');
- 62  	   l_payload := NULL;
- 63  	 END IF;
- 64  	 RETURN l_payload;
- 65    EXCEPTION
- 66  	 WHEN OTHERS THEN
- 67  	   -- log the error instead of RAISE
- 68  	   sosl_log.exception_log('sosl_if.get_next_script', 'SOSL_IF', SQLERRM);
- 69  	   RETURN NULL;
- 70    END get_next_script;
- 71  
- 72    FUNCTION set_script_status( p_run_id IN NUMBER
- 73  				 , p_status IN NUMBER
- 74  				 )
- 75  	 RETURN NUMBER
- 76    IS
- 77  	 PRAGMA AUTONOMOUS_TRANSACTION;
- 78  	 l_return      NUMBER;
- 79  	 l_script_id   NUMBER;
- 80  	 l_executor_id NUMBER;
- 81  	 l_payload     SOSL.SOSL_PAYLOAD;
- 82    BEGIN
- 83  	 l_return := -1;
- 84  	 -- get payload for own identifiers as send by get_next_script
- 85  	 l_payload := sosl_api.get_payload(p_run_id);
- 86  	 IF l_payload IS NOT NULL
- 87  	 THEN
- 88  	   -- transform to internal type
- 89  	   l_script_id	 := TO_NUMBER(l_payload.ext_script_id);
- 90  	   l_executor_id := l_payload.executor_id;
- 91  	   -- update internal script table
- 92  	   UPDATE sosl_if_script
- 93  	      SET run_state = p_status
- 94  	    WHERE script_id    = l_script_id
- 95  	      AND executor_id  = l_executor_id
- 96  	   ;
- 97  	   COMMIT;
- 98  	   l_return := 0;
- 99  	 ELSE
-100  	   -- log error information
-101  	   sosl_log.minimal_error_log('sosl_if.set_script_status', 'SOSL_IF', 'Invalid SOSL_PAYLOAD for run_id: ' || p_run_id || ' and run state ' || p_status);
-102  	   l_return := -1;
-103  	 END IF;
-104  	 RETURN l_return;
-105    EXCEPTION
-106  	 WHEN OTHERS THEN
-107  	   -- log the error instead of RAISE
-108  	   sosl_log.exception_log('sosl_if.set_script_status', 'SOSL_IF', SQLERRM);
-109  	   RETURN -1;
-110    END set_script_status;
-111  
-112    FUNCTION send_mail( p_run_id IN NUMBER
-113  			 , p_status IN NUMBER
-114  			 )
-115  	 RETURN NUMBER
-116    IS
-117  	 l_return	 NUMBER;
-118  	 l_mail_subject  VARCHAR2(256);
-119  	 l_mail_body	 VARCHAR2(32767);
-120  	 l_sender	 VARCHAR2(128);
-121  	 l_recipients	 VARCHAR2(1024);
-122  	 l_payload	 SOSL.SOSL_PAYLOAD;
-123    BEGIN
-124  	 l_return := -1;
-125  	 -- define basic objects
-126  	 l_mail_subject  := 'SOSL ' || sosl_constants.run_state_text(p_status) || ' ';
-127  	 l_sender	 := 'fake_sender@fake_domain.com';
-128  	 l_recipients	 := 'fake_recipient_group@fake_domain.com; fake_recipient_special@fake_domain.com';
-129  	 IF sosl_api.has_run_id(p_run_id)
-130  	 THEN
-131  	   -- get payload for own identifiers as send by get_next_script
-132  	   l_payload := sosl_api.get_payload(p_run_id);
-133  	   IF l_payload IS NOT NULL
-134  	   THEN
-135  	     -- prepare mail
-136  	     l_mail_subject  := l_mail_subject || 'Script: ' || TRIM(l_payload.script_file);
-137  	     -- format mail body RFC conform, use LF, CR is also valid, but NOT CRLF
-138  	     l_mail_body     := 'Dear SOSL user' || sosl_constants.LF || sosl_constants.LF ||
-139  				CASE
-140  				  WHEN p_status = sosl_constants.RUN_STATE_ERROR
-141  				  THEN 'An ERROR happened during script execution.'
-142  				  ELSE 'The state of the script execution has changed to ' || sosl_constants.run_state_text(p_status)
-143  				END || sosl_constants.LF ||
-144  				'Script: ' || l_payload.script_file || sosl_constants.LF ||
-145  				'Executor ID: ' || l_payload.executor_id || sosl_constants.LF ||
-146  				'Script ID: ' || l_payload.ext_script_id || sosl_constants.LF ||
-147  				'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || sosl_constants.LF ||
-148  				sosl_constants.LF ||
-149  				'Best regards' || sosl_constants.LF ||
-150  				'Your SOSL team'|| sosl_constants.LF ||
-151  				sosl_constants.LF ||
-152  				'Contact fake_admin@fake_domain.com for more information.'
-153  	     ;
-154  	   ELSE
-155  	     -- we still have data for the mail
-156  	     l_mail_subject := l_mail_subject || 'RUN_ID: ' || p_run_id;
-157  	     l_mail_body     := 'Dear SOSL user' || sosl_constants.LF || sosl_constants.LF ||
-158  				'An SEVERE ERROR happened during script execution.' || sosl_constants.LF ||
-159  				'Script cannot be identified or SOSL_API.GET_PAYLOAD has failed.' || sosl_constants.LF ||
-160  				'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || sosl_constants.LF ||
-161  				'Intended state change to: ' || sosl_constants.run_state_text(p_status) || sosl_constants.LF ||
-162  				sosl_constants.LF ||
-163  				'Best regards' || sosl_constants.LF ||
-164  				'Your SOSL team'|| sosl_constants.LF ||
-165  				sosl_constants.LF ||
-166  				'Contact fake_admin@fake_domain.com for more information.'
-167  	     ;
-168  	   END IF;
-169  	   IF sosl_api.dummy_mail(l_sender, l_recipients, l_mail_subject, l_mail_body)
-170  	   THEN
-171  	     l_return := 0;
-172  	   ELSE
-173  	     sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'Could not send fake mail to log.');
-174  	     l_return := -1;
-175  	   END IF;
-176  	 ELSE
-177  	   sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'RUN_ID ' || p_run_id || ' does not exist.');
-178  	   l_mail_subject := l_mail_subject || 'Invalid RUN_ID: ' || p_run_id;
-179  	   l_mail_body	   := 'Dear SOSL user' || sosl_constants.LF || sosl_constants.LF ||
-180  			      'An SEVERE ERROR happened during script execution.' || sosl_constants.LF ||
-181  			      'Given RUN_ID does not exist in table SOSL_RUN_QUEUE.' || sosl_constants.LF ||
-182  			      'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || sosl_constants.LF ||
-183  			      'Intended state change to: ' || sosl_constants.run_state_text(p_status) || sosl_constants.LF ||
-184  			      sosl_constants.LF ||
-185  			      'Best regards' || sosl_constants.LF ||
-186  			      'Your SOSL team'|| sosl_constants.LF ||
-187  			      sosl_constants.LF ||
-188  			      'Contact fake_admin@fake_domain.com for more information.'
-189  	   ;
-190  	   IF sosl_api.dummy_mail(l_sender, l_recipients, l_mail_subject, l_mail_body)
-191  	   THEN
-192  	     l_return := 0;
-193  	   ELSE
-194  	     sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'Could not send fake mail to log.');
-195  	     l_return := -1;
-196  	   END IF;
-197  	 END IF;
-198  	 RETURN l_return;
-199    EXCEPTION
-200  	 WHEN OTHERS THEN
-201  	   -- log the error instead of RAISE
-202  	   sosl_log.exception_log('sosl_if.send_mail', 'SOSL_IF', SQLERRM);
-203  	   RETURN -1;
-204    END send_mail;
-205  
-206  END;
-207  /
-
-Package body created.
-
 SQL> -- table trigger using packages and tables defined
 SQL> @@../sosl_ddl/trigger/sosl_server_log_trg.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
@@ -6773,307 +6501,6 @@ SQL> CREATE OR REPLACE TRIGGER sosl_if_script_upd_trg
 
 Trigger created.
 
-SQL> -- wrapper functions
-SQL> @@../sosl_ddl/functions/has_scripts.sql
-SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
-SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> CREATE OR REPLACE FUNCTION has_scripts
-  2    RETURN NUMBER
-  3  IS
-  4    /* Wrapper function for defined executor has_scripts functions.
-  5    * Collects and sums the output of all defined executor has_scripts functions of active and reviewed executors that
-  6    * return a number greater 0. Will log all functions in error.
-  7    *
-  8    * @return The amount of scripts waiting for all valid executor has_scripts functions or -1 if all functions have errors.
-  9    */
- 10    l_return 	   NUMBER;
- 11    l_self_log_category sosl_server_log.log_category%TYPE := 'HAS_SCRIPTS';
- 12    l_self_caller	   sosl_server_log.caller%TYPE	     := 'has_scripts wrapper';
- 13  BEGIN
- 14    l_return := sosl_sys.has_scripts;
- 15    RETURN l_return;
- 16  EXCEPTION
- 17    WHEN OTHERS THEN
- 18  	 -- log the error instead of RAISE
- 19  	 sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
- 20  	 RETURN -1;
- 21  END;
- 22  /
-
-Function created.
-
-SQL> -- grants, everyone can see if scripts are available, inherited by others
-SQL> GRANT EXECUTE ON has_scripts TO sosl_guest;
-
-Grant succeeded.
-
-SQL> -- views
-SQL> @@../sosl_ddl/views/sosl_config_v.sql
-SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
-SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> CREATE OR REPLACE VIEW sosl_config_v
-  2  AS
-  3  	 WITH cfg AS
-  4  	      (SELECT config_name
-  5  		    , CASE
-  6  			WHEN config_name != 'SOSL_PATH_CFG'
-  7  			THEN config_value
-  8  			ELSE CASE
-  9  			       WHEN sosl_util.has_role(SYS_CONTEXT('USERENV', 'CURRENT_USER'), 'SOSL_REVIEWER')
- 10  			       THEN config_value
- 11  			       ELSE '***'
- 12  			     END
- 13  		      END AS config_value
- 14  		    , CASE
- 15  			WHEN config_name = 'SOSL_SCHEMA'
- 16  			THEN 'Schema setup'
- 17  			WHEN config_name = 'SOSL_RUNMODE'
- 18  			THEN 'Database and server'
- 19  			WHEN config_name IN ( 'SOSL_MAX_PARALLEL'
- 20  					    , 'SOSL_DEFAULT_WAIT'
- 21  					    , 'SOSL_NOJOB_WAIT'
- 22  					    , 'SOSL_PAUSE_WAIT'
- 23  					    , 'SOSL_START_JOBS'
- 24  					    , 'SOSL_STOP_JOBS'
- 25  					    )
- 26  			THEN 'Database configuration'
- 27  			WHEN config_name IN ( 'SOSL_SERVER_STATE'
- 28  					    , 'SOSL_PATH_CFG'
- 29  					    , 'SOSL_PATH_TMP'
- 30  					    , 'SOSL_PATH_LOG'
- 31  					    , 'SOSL_START_LOG'
- 32  					    , 'SOSL_BASE_LOG'
- 33  					    , 'SOSL_EXT_LOG'
- 34  					    , 'SOSL_EXT_TMP'
- 35  					    , 'SOSL_EXT_LOCK'
- 36  					    , 'SOSL_EXT_ERROR'
- 37  					    )
- 38  			THEN 'Server configuration'
- 39  			ELSE 'Unknown parameter'
- 40  		      END						   AS configuration_by
- 41  		    , config_type
- 42  		    , CASE
- 43  			WHEN config_max_length = -1
- 44  			 AND config_type       = 'CHAR'
- 45  			THEN '4000 chars'
- 46  			WHEN config_max_length = -1
- 47  			 AND config_type       = 'NUMBER'
- 48  			THEN 'max int length'
- 49  			ELSE TO_CHAR(config_max_length) || ' chars'
- 50  		      END						   AS length_limit
- 51  		    , config_description
- 52  		    , TO_CHAR(updated, 'YYYY-MM-DD HH24:MI:SS') 	   AS updated
- 53  		    , updated_by
- 54  		    , updated_by_os
- 55  		    , TO_CHAR(created, 'YYYY-MM-DD HH24:MI:SS') 	   AS created
- 56  		    , created_by
- 57  		    , created_by_os
- 58  		    , CASE
- 59  			WHEN config_name = 'SOSL_SCHEMA'
- 60  			THEN 7
- 61  			WHEN config_name = 'SOSL_RUNMODE'
- 62  			THEN 1
- 63  			WHEN config_name IN ( 'SOSL_START_JOBS'
- 64  					    , 'SOSL_STOP_JOBS'
- 65  					    )
- 66  			THEN 2
- 67  			WHEN config_name = 'SOSL_MAX_PARALLEL'
- 68  			THEN 3
- 69  			WHEN config_name IN ( 'SOSL_DEFAULT_WAIT'
- 70  					    , 'SOSL_NOJOB_WAIT'
- 71  					    , 'SOSL_PAUSE_WAIT'
- 72  					    )
- 73  			THEN 4
- 74  			WHEN config_name = 'SOSL_SERVER_STATE'
- 75  			THEN 5
- 76  			WHEN config_name IN ( 'SOSL_PATH_CFG'
- 77  					    , 'SOSL_PATH_TMP'
- 78  					    , 'SOSL_PATH_LOG'
- 79  					    , 'SOSL_START_LOG'
- 80  					    , 'SOSL_BASE_LOG'
- 81  					    , 'SOSL_EXT_LOG'
- 82  					    , 'SOSL_EXT_TMP'
- 83  					    , 'SOSL_EXT_LOCK'
- 84  					    , 'SOSL_EXT_ERROR'
- 85  					    )
- 86  			THEN 6
- 87  			ELSE 8
- 88  		      END						   AS config_order
- 89  		 FROM sosl_config
- 90  	      )
- 91    SELECT cfg.config_name
- 92  	    , cfg.config_value
- 93  	    , cfg.configuration_by
- 94  	    , cfg.config_type
- 95  	    , cfg.length_limit
- 96  	    , cfg.config_description
- 97  	    , cfg.updated
- 98  	    , cfg.updated_by
- 99  	    , cfg.updated_by_os
-100  	    , cfg.created
-101  	    , cfg.created_by
-102  	    , cfg.created_by_os
-103  	 FROM cfg
-104  	ORDER BY cfg.config_order
-105  	       , cfg.config_name
-106  ;
-
-View created.
-
-SQL> GRANT SELECT ON sosl_config_v TO sosl_user;
-
-Grant succeeded.
-
-SQL> @@../sosl_ddl/views/sosl_executors_v.sql
-SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
-SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> CREATE OR REPLACE VIEW sosl_executors_v
-  2  AS
-  3    SELECT executor_name
-  4  	    , function_owner
-  5  	    , sosl_util.yes_no(use_mail) AS use_mail
-  6  	    , sosl_util.yes_no(executor_active) AS executor_active
-  7  	    , sosl_util.yes_no(executor_reviewed) AS executor_reviewed
-  8  	    , fn_has_scripts
-  9  	    , fn_get_next_script
- 10  	    , fn_set_script_status
- 11  	    , fn_send_db_mail
- 12  	    , script_schema
- 13  	    , CASE
- 14  		WHEN sosl_util.has_role(SYS_CONTEXT('USERENV', 'CURRENT_USER'), 'SOSL_REVIEWER')
- 15  		THEN cfg_file
- 16  		ELSE '***'
- 17  	      END AS cfg_file
- 18  	    , executor_description
- 19  	    , executor_id
- 20  	    , created
- 21  	    , created_by
- 22  	    , created_by_os
- 23  	    , updated
- 24  	    , updated_by
- 25  	    , updated_by_os
- 26  	 FROM sosl_executor_definition
- 27  ;
-
-View created.
-
-SQL> GRANT SELECT ON sosl_executors_v TO sosl_user;
-
-Grant succeeded.
-
-SQL> @@../sosl_ddl/views/sosl_run_queue_v.sql
-SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
-SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> CREATE OR REPLACE VIEW sosl_run_queue_v
-  2  AS
-  3    SELECT srq.run_id
-  4  	    , sed.executor_name
-  5  	    , srq.script_file
-  6  	    , sosl_constants.run_state_text(srq.run_state)	       AS run_state
-  7  	    , srq.ext_script_id
-  8  	    , TO_CHAR(srq.created, 'YYYY-MM-DD HH24:MI:SS.FF9')        AS created
-  9  	    , TO_CHAR(srq.waiting, 'YYYY-MM-DD HH24:MI:SS.FF9')        AS waiting
- 10  	    , TO_CHAR(srq.enqueued, 'YYYY-MM-DD HH24:MI:SS.FF9')       AS enqueued
- 11  	    , TO_CHAR(srq.started, 'YYYY-MM-DD HH24:MI:SS.FF9')        AS started
- 12  	    , TO_CHAR(srq.running_since, 'YYYY-MM-DD HH24:MI:SS.FF9')  AS running_since
- 13  	    , TO_CHAR(srq.finished, 'YYYY-MM-DD HH24:MI:SS.FF9')       AS finished
- 14  	    , srq.created_by
- 15  	    , srq.waiting_by
- 16  	    , srq.enqueued_by
- 17  	    , srq.started_by
- 18  	    , srq.running_by
- 19  	    , srq.finished_by
- 20  	    , srq.created_by_os
- 21  	    , srq.waiting_by_os
- 22  	    , srq.enqueued_by_os
- 23  	    , srq.started_by_os
- 24  	    , srq.running_by_os
- 25  	    , srq.finished_by_os
- 26  	    , srq.executor_id
- 27  	    , srq.run_state					       AS run_state_num
- 28  	 FROM sosl_run_queue srq
- 29  	 LEFT OUTER JOIN sosl_executor_definition sed
- 30  	   ON srq.executor_id = sed.executor_id
- 31  	-- first all scripts pending or running
- 32  	ORDER BY srq.run_state
- 33  	       , srq.created DESC
- 34  ;
-
-View created.
-
-SQL> GRANT SELECT ON sosl_run_queue_v TO sosl_user;
-
-Grant succeeded.
-
-SQL> @@../sosl_ddl/views/sosl_run_stats_by_executor_v.sql
-SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
-SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> CREATE OR REPLACE VIEW sosl_run_stats_by_executor_v
-  2  AS
-  3  	 WITH run_stats AS
-  4  	      (SELECT /*+MATERIALIZE*/
-  5  		      executor_id
-  6  		    , run_state
-  7  		    , COUNT(*) AS script_count
-  8  		 FROM sosl_run_queue
-  9  		GROUP BY executor_id
- 10  		       , run_state
- 11  	      )
- 12    SELECT sed.executor_name
- 13  	    , sosl_constants.run_state_text(run_stats.run_state) AS run_state
- 14  	    , script_count
- 15  	 FROM run_stats
- 16  	 LEFT OUTER JOIN sosl_executor_definition sed
- 17  	   ON run_stats.executor_id = sed.executor_id
- 18  	ORDER BY run_stats.run_state
- 19  	       , run_stats.executor_id
- 20  ;
-
-View created.
-
-SQL> GRANT SELECT ON sosl_run_stats_by_executor_v TO sosl_user;
-
-Grant succeeded.
-
-SQL> @@../sosl_ddl/views/sosl_run_stats_total_v.sql
-SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
-SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> CREATE OR REPLACE VIEW sosl_run_stats_total_v
-  2  AS
-  3  	 WITH run_states AS
-  4  	      (SELECT -1 AS run_state FROM dual
-  5  		UNION ALL
-  6  	       SELECT 0 AS run_state FROM dual
-  7  		UNION ALL
-  8  	       SELECT 1 AS run_state FROM dual
-  9  		UNION ALL
- 10  	       SELECT 2 AS run_state FROM dual
- 11  		UNION ALL
- 12  	       SELECT 3 AS run_state FROM dual
- 13  		UNION ALL
- 14  	       SELECT 4 AS run_state FROM dual
- 15  	      )
- 16  	    , run_stats AS
- 17  	      (SELECT /*+MATERIALIZE*/
- 18  		      run_state
- 19  		    , COUNT(*) AS script_count
- 20  		 FROM sosl_run_queue
- 21  		GROUP BY run_state
- 22  	      )
- 23    SELECT sosl_constants.run_state_text(run_states.run_state) AS run_state
- 24  	    , NVL(run_stats.script_count, 0) AS script_count
- 25  	 FROM run_states
- 26  	 LEFT OUTER JOIN run_stats
- 27  	   ON run_states.run_state = run_stats.run_state
- 28  	ORDER BY run_states.run_state
- 29  ;
-
-View created.
-
-SQL> GRANT SELECT ON sosl_run_stats_total_v TO sosl_user;
-
-Grant succeeded.
-
 SQL> -- load basic config data
 SQL> @@sosl_config_defaults.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
@@ -7227,6 +6654,713 @@ SQL> INSERT INTO sosl_config
 SQL> COMMIT;
 
 Commit complete.
+
+SQL> -- internal interface definition for simple script execution
+SQL> @@../sosl_ddl/packages/sosl_if.pks
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> -- interface package of the Simple Oracle Script Loader
+SQL> -- As this package depends on the schema SOSL is installed, getting fully qualified calls must be determined
+SQL> -- dynamically using SQLPlus variable SOSL_SCHEMA. Fully qualifying is only used for example code of interfacing.
+SQL> COLUMN SOSL_SCHEMA NEW_VAL SOSL_SCHEMA
+SQL> SELECT config_value AS SOSL_SCHEMA FROM sosl_config WHERE config_name = 'SOSL_SCHEMA';
+SOSL
+
+1 row selected.
+
+SQL> 
+SQL> CREATE OR REPLACE PACKAGE sosl_if
+  2  AS
+  3    /**
+  4    * This package contains the internal interface to SOSL used by the Simple Oracle Script Loader.
+  5    * Can be seen as tutorial and implementation hint for own interfaces.
+  6    */
+  7  
+  8    /** Function SOSL_IF.HAS_SCRIPTS
+  9    * Determines if script ids are available to be executed. To be defined in SOSL_EXECUTOR_DEFINITION.
+ 10    *
+ 11    * @return The number of script ids waiting for execution.
+ 12    */
+ 13    FUNCTION has_scripts
+ 14  	 RETURN NUMBER
+ 15    ;
+ 16  
+ 17    /** Function SOSL_IF.GET_NEXT_SCRIPT
+ 18    * Returns the next script id to execute. To be defined in SOSL_EXECUTOR_DEFINITION.
+ 19    *
+ 20    * @return The id of the next script to execute.
+ 21    */
+ 22    FUNCTION get_next_script
+ 23  	 RETURN &SOSL_SCHEMA..SOSL_PAYLOAD
+ 24    ;
+ 25  
+ 26    /** Function SOSL_IF.SET_SCRIPT_STATUS
+ 27    * Sets the status of a script. To be defined in SOSL_EXECUTOR_DEFINITION.
+ 28    *
+ 29    * @param p_run_id The valid run id of the script that should change run state.
+ 30    * @param p_status A valid status as defined in SOSL_CONSTANTS for run states.
+ 31    *
+ 32    * @return Return 0 if successful executed otherwise -1.
+ 33    */
+ 34    FUNCTION set_script_status( p_run_id IN NUMBER
+ 35  				 , p_status IN NUMBER
+ 36  				 )
+ 37  	 RETURN NUMBER
+ 38    ;
+ 39  
+ 40    /* FUNCTION SOSL_IF.SEND_MAIL
+ 41    * This interface function is mainly used for testing. In the default setting, it will only send the mail message to
+ 42    * SOSL_SERVER_LOG. To be defined in SOSL_EXECUTOR_DEFINITION. Will be called on every status change, if mail is activated.
+ 43    *
+ 44    * @param p_run_id The valid run id of the script that should change run state.
+ 45    * @param p_status A valid status as defined in SOSL_CONSTANTS for run states.
+ 46    *
+ 47    * @return Return 0 if successful executed otherwise -1.
+ 48    */
+ 49    FUNCTION send_mail( p_run_id IN NUMBER
+ 50  			 , p_status IN NUMBER
+ 51  			 )
+ 52  	 RETURN NUMBER
+ 53    ;
+ 54  
+ 55  END;
+ 56  /
+old  23:     RETURN &SOSL_SCHEMA..SOSL_PAYLOAD
+new  23:     RETURN SOSL.SOSL_PAYLOAD
+
+Package created.
+
+SQL> @@../sosl_ddl/packages/sosl_if.pkb
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> -- As this package depends on the schema SOSL is installed, getting fully qualified calls must be determined
+SQL> -- dynamically using SQLPlus variable SOSL_SCHEMA.
+SQL> COLUMN SOSL_SCHEMA NEW_VAL SOSL_SCHEMA
+SQL> SELECT config_value AS SOSL_SCHEMA FROM sosl_config WHERE config_name = 'SOSL_SCHEMA';
+SOSL
+
+1 row selected.
+
+SQL> 
+SQL> CREATE OR REPLACE PACKAGE BODY sosl_if
+  2  AS
+  3    -- see package header for documentation, can be used as an template for own interface functions
+  4    -- therefore all packages calls are fully qualified
+  5    FUNCTION has_scripts
+  6  	 RETURN NUMBER
+  7    IS
+  8  	 l_return NUMBER;
+  9    BEGIN
+ 10  	 -- for your own interface function replace the following part with your routine to detect scripts waiting
+ 11  	 SELECT COUNT(*)
+ 12  	   INTO l_return
+ 13  	   FROM sosl_if_script
+ 14  		-- internal conditions about scripts ready to execute
+ 15  	  WHERE script_active = &SOSL_SCHEMA..sosl_constants.NUM_YES
+ 16  	    AND run_state     = &SOSL_SCHEMA..sosl_constants.RUN_STATE_WAITING
+ 17  		-- we need an assigned executor for the payload
+ 18  	    AND executor_id   IS NOT NULL
+ 19  	 ;
+ 20  	 -- end of individual section
+ 21  	 RETURN l_return;
+ 22    EXCEPTION
+ 23  	 WHEN OTHERS THEN
+ 24  	   -- log the error instead of RAISE, replace parameters with your function or package names and categories
+ 25  	   &SOSL_SCHEMA..sosl_log.exception_log('sosl_if.has_scripts', 'SOSL_IF', SQLERRM);
+ 26  	   RETURN -1;
+ 27    END has_scripts;
+ 28  
+ 29    FUNCTION get_next_script
+ 30  	 RETURN &SOSL_SCHEMA..SOSL_PAYLOAD
+ 31    IS
+ 32  	 l_payload	 &SOSL_SCHEMA..SOSL_PAYLOAD;
+ 33  	 l_executor_id	 NUMBER;
+ 34  	 l_ext_script_id VARCHAR2(4000);
+ 35  	 l_script_file	 VARCHAR2(4000);
+ 36  	 CURSOR cur_script_data
+ 37  	 IS
+ 38  	   -- replace select with your own definition that delivers the executor id, the external script id as CHAR and the
+ 39  	   -- script file name including full or relative path
+ 40  	   SELECT executor_id
+ 41  		, TRIM(TO_CHAR(script_id)) AS ext_script_id
+ 42  		, script_name AS script_file
+ 43  	     FROM sosl_if_script
+ 44  		  -- internal conditions about scripts ready to execute
+ 45  	    WHERE script_active = &SOSL_SCHEMA..sosl_constants.NUM_YES
+ 46  	      AND run_state	= &SOSL_SCHEMA..sosl_constants.RUN_STATE_WAITING
+ 47  		  -- we need an assigned executor for the payload
+ 48  	      AND executor_id	IS NOT NULL
+ 49  		  -- adjust the order in which scripts get delivered
+ 50  	    ORDER BY run_group
+ 51  		   , run_order
+ 52  	 ;
+ 53    BEGIN
+ 54  	 l_payload := NULL;
+ 55  	 -- check if we have scripts, replace with your own has_scripts function
+ 56  	 IF sosl_if.has_scripts > 0
+ 57  	 THEN
+ 58  	   -- fetch only the first record, statement apart from order is identical to has_scripts statement
+ 59  	   OPEN cur_script_data;
+ 60  	   FETCH cur_script_data INTO l_executor_id, l_ext_script_id, l_script_file;
+ 61  	   CLOSE cur_script_data;
+ 62  	   -- you may want to add checks for the payload data before building the SOSL_PAYLOAD
+ 63  	   l_payload := &SOSL_SCHEMA..SOSL_PAYLOAD(l_executor_id, l_ext_script_id, l_script_file);
+ 64  	 ELSE
+ 65  	   -- log error information
+ 66  	   &SOSL_SCHEMA..sosl_log.minimal_error_log('sosl_if.get_next_script', 'SOSL_IF', 'get_next_script called without having scripts to run');
+ 67  	   l_payload := NULL;
+ 68  	 END IF;
+ 69  	 RETURN l_payload;
+ 70    EXCEPTION
+ 71  	 WHEN OTHERS THEN
+ 72  	   -- log the error instead of RAISE
+ 73  	   &SOSL_SCHEMA..sosl_log.exception_log('sosl_if.get_next_script', 'SOSL_IF', SQLERRM);
+ 74  	   RETURN NULL;
+ 75    END get_next_script;
+ 76  
+ 77    FUNCTION set_script_status( p_run_id IN NUMBER
+ 78  				 , p_status IN NUMBER
+ 79  				 )
+ 80  	 RETURN NUMBER
+ 81    IS
+ 82  	 PRAGMA AUTONOMOUS_TRANSACTION;
+ 83  	 l_return      NUMBER;
+ 84  	 l_script_id   NUMBER;
+ 85  	 l_executor_id NUMBER;
+ 86  	 l_payload     &SOSL_SCHEMA..SOSL_PAYLOAD;
+ 87    BEGIN
+ 88  	 l_return := -1;
+ 89  	 -- get payload for own identifiers as send by get_next_script
+ 90  	 l_payload := &SOSL_SCHEMA..sosl_api.get_payload(p_run_id);
+ 91  	 IF l_payload IS NOT NULL
+ 92  	 THEN
+ 93  	   -- transform to internal type
+ 94  	   l_script_id	 := TO_NUMBER(l_payload.ext_script_id);
+ 95  	   l_executor_id := l_payload.executor_id;
+ 96  	   -- update internal script table, replace with your routine to update internal status
+ 97  	   UPDATE sosl_if_script
+ 98  	      SET run_state = p_status
+ 99  	    WHERE script_id    = l_script_id
+100  	      AND executor_id  = l_executor_id
+101  	   ;
+102  	   COMMIT;
+103  	   l_return := 0;
+104  	 ELSE
+105  	   -- log error information
+106  	   &SOSL_SCHEMA..sosl_log.minimal_error_log('sosl_if.set_script_status', 'SOSL_IF', 'Invalid SOSL_PAYLOAD for run_id: ' || p_run_id || ' and run state ' || p_status);
+107  	   l_return := -1;
+108  	 END IF;
+109  	 RETURN l_return;
+110    EXCEPTION
+111  	 WHEN OTHERS THEN
+112  	   -- log the error instead of RAISE
+113  	   &SOSL_SCHEMA..sosl_log.exception_log('sosl_if.set_script_status', 'SOSL_IF', SQLERRM);
+114  	   RETURN -1;
+115    END set_script_status;
+116  
+117    FUNCTION send_mail( p_run_id IN NUMBER
+118  			 , p_status IN NUMBER
+119  			 )
+120  	 RETURN NUMBER
+121    IS
+122  	 l_return	 NUMBER;
+123  	 l_mail_subject  VARCHAR2(256);
+124  	 l_mail_body	 VARCHAR2(32767);
+125  	 l_sender	 VARCHAR2(128);
+126  	 l_recipients	 VARCHAR2(1024);
+127  	 l_payload	 &SOSL_SCHEMA..SOSL_PAYLOAD;
+128    BEGIN
+129  	 l_return := -1;
+130  	 -- define basic objects
+131  	 l_mail_subject  := 'SOSL ' || &SOSL_SCHEMA..sosl_constants.run_state_text(p_status) || ' ';
+132  	 l_sender	 := 'fake_sender@fake_domain.com';
+133  	 l_recipients	 := 'fake_recipient_group@fake_domain.com; fake_recipient_special@fake_domain.com';
+134  	 IF &SOSL_SCHEMA..sosl_api.has_run_id(p_run_id)
+135  	 THEN
+136  	   -- get payload for own identifiers as send by get_next_script
+137  	   l_payload := &SOSL_SCHEMA..sosl_api.get_payload(p_run_id);
+138  	   IF l_payload IS NOT NULL
+139  	   THEN
+140  	     -- prepare mail
+141  	     l_mail_subject  := l_mail_subject || 'Script: ' || TRIM(l_payload.script_file);
+142  	     -- format mail body RFC conform, use LF, CR is also valid, but NOT CRLF
+143  	     l_mail_body     := 'Dear SOSL user' || &SOSL_SCHEMA..sosl_constants.LF || &SOSL_SCHEMA..sosl_constants.LF ||
+144  				CASE
+145  				  WHEN p_status = &SOSL_SCHEMA..sosl_constants.RUN_STATE_ERROR
+146  				  THEN 'An ERROR happened during script execution.'
+147  				  ELSE 'The state of the script execution has changed to ' || &SOSL_SCHEMA..sosl_constants.run_state_text(p_status)
+148  				END || &SOSL_SCHEMA..sosl_constants.LF ||
+149  				'Script: ' || l_payload.script_file || &SOSL_SCHEMA..sosl_constants.LF ||
+150  				'Executor ID: ' || l_payload.executor_id || &SOSL_SCHEMA..sosl_constants.LF ||
+151  				'Script ID: ' || l_payload.ext_script_id || &SOSL_SCHEMA..sosl_constants.LF ||
+152  				'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || &SOSL_SCHEMA..sosl_constants.LF ||
+153  				&SOSL_SCHEMA..sosl_constants.LF ||
+154  				'Best regards' || &SOSL_SCHEMA..sosl_constants.LF ||
+155  				'Your SOSL team'|| &SOSL_SCHEMA..sosl_constants.LF ||
+156  				&SOSL_SCHEMA..sosl_constants.LF ||
+157  				'Contact fake_admin@fake_domain.com for more information.'
+158  	     ;
+159  	   ELSE
+160  	     -- we still have data for the mail
+161  	     l_mail_subject := l_mail_subject || 'RUN_ID: ' || p_run_id;
+162  	     l_mail_body     := 'Dear SOSL user' || &SOSL_SCHEMA..sosl_constants.LF || &SOSL_SCHEMA..sosl_constants.LF ||
+163  				'An SEVERE ERROR happened during script execution.' || &SOSL_SCHEMA..sosl_constants.LF ||
+164  				'Script cannot be identified or SOSL_API.GET_PAYLOAD has failed.' || &SOSL_SCHEMA..sosl_constants.LF ||
+165  				'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || &SOSL_SCHEMA..sosl_constants.LF ||
+166  				'Intended state change to: ' || &SOSL_SCHEMA..sosl_constants.run_state_text(p_status) || &SOSL_SCHEMA..sosl_constants.LF ||
+167  				&SOSL_SCHEMA..sosl_constants.LF ||
+168  				'Best regards' || &SOSL_SCHEMA..sosl_constants.LF ||
+169  				'Your SOSL team'|| &SOSL_SCHEMA..sosl_constants.LF ||
+170  				&SOSL_SCHEMA..sosl_constants.LF ||
+171  				'Contact fake_admin@fake_domain.com for more information.'
+172  	     ;
+173  	   END IF;
+174  	   IF &SOSL_SCHEMA..sosl_api.dummy_mail(l_sender, l_recipients, l_mail_subject, l_mail_body)
+175  	   THEN
+176  	     l_return := 0;
+177  	   ELSE
+178  	     &SOSL_SCHEMA..sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'Could not send fake mail to log.');
+179  	     l_return := -1;
+180  	   END IF;
+181  	 ELSE
+182  	   &SOSL_SCHEMA..sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'RUN_ID ' || p_run_id || ' does not exist.');
+183  	   l_mail_subject := l_mail_subject || 'Invalid RUN_ID: ' || p_run_id;
+184  	   l_mail_body	   := 'Dear SOSL user' || &SOSL_SCHEMA..sosl_constants.LF || &SOSL_SCHEMA..sosl_constants.LF ||
+185  			      'An SEVERE ERROR happened during script execution.' || &SOSL_SCHEMA..sosl_constants.LF ||
+186  			      'Given RUN_ID does not exist in table SOSL_RUN_QUEUE.' || &SOSL_SCHEMA..sosl_constants.LF ||
+187  			      'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || &SOSL_SCHEMA..sosl_constants.LF ||
+188  			      'Intended state change to: ' || sosl_constants.run_state_text(p_status) || &SOSL_SCHEMA..sosl_constants.LF ||
+189  			      &SOSL_SCHEMA..sosl_constants.LF ||
+190  			      'Best regards' || &SOSL_SCHEMA..sosl_constants.LF ||
+191  			      'Your SOSL team'|| &SOSL_SCHEMA..sosl_constants.LF ||
+192  			      &SOSL_SCHEMA..sosl_constants.LF ||
+193  			      'Contact fake_admin@fake_domain.com for more information.'
+194  	   ;
+195  	   IF &SOSL_SCHEMA..sosl_api.dummy_mail(l_sender, l_recipients, l_mail_subject, l_mail_body)
+196  	   THEN
+197  	     l_return := 0;
+198  	   ELSE
+199  	     &SOSL_SCHEMA..sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'Could not send fake mail to log.');
+200  	     l_return := -1;
+201  	   END IF;
+202  	 END IF;
+203  	 RETURN l_return;
+204    EXCEPTION
+205  	 WHEN OTHERS THEN
+206  	   -- log the error instead of RAISE
+207  	   &SOSL_SCHEMA..sosl_log.exception_log('sosl_if.send_mail', 'SOSL_IF', SQLERRM);
+208  	   RETURN -1;
+209    END send_mail;
+210  
+211  END;
+212  /
+old  15:      WHERE script_active = &SOSL_SCHEMA..sosl_constants.NUM_YES
+new  15:      WHERE script_active = SOSL.sosl_constants.NUM_YES
+old  16:        AND run_state     = &SOSL_SCHEMA..sosl_constants.RUN_STATE_WAITING
+new  16:        AND run_state     = SOSL.sosl_constants.RUN_STATE_WAITING
+old  25:       &SOSL_SCHEMA..sosl_log.exception_log('sosl_if.has_scripts', 'SOSL_IF', SQLERRM);
+new  25:       SOSL.sosl_log.exception_log('sosl_if.has_scripts', 'SOSL_IF', SQLERRM);
+old  30:     RETURN &SOSL_SCHEMA..SOSL_PAYLOAD
+new  30:     RETURN SOSL.SOSL_PAYLOAD
+old  32:     l_payload       &SOSL_SCHEMA..SOSL_PAYLOAD;
+new  32:     l_payload       SOSL.SOSL_PAYLOAD;
+old  45:        WHERE script_active = &SOSL_SCHEMA..sosl_constants.NUM_YES
+new  45:        WHERE script_active = SOSL.sosl_constants.NUM_YES
+old  46:          AND run_state     = &SOSL_SCHEMA..sosl_constants.RUN_STATE_WAITING
+new  46:          AND run_state     = SOSL.sosl_constants.RUN_STATE_WAITING
+old  63:       l_payload := &SOSL_SCHEMA..SOSL_PAYLOAD(l_executor_id, l_ext_script_id, l_script_file);
+new  63:       l_payload := SOSL.SOSL_PAYLOAD(l_executor_id, l_ext_script_id, l_script_file);
+old  66:       &SOSL_SCHEMA..sosl_log.minimal_error_log('sosl_if.get_next_script', 'SOSL_IF', 'get_next_script called without having scripts to run');
+new  66:       SOSL.sosl_log.minimal_error_log('sosl_if.get_next_script', 'SOSL_IF', 'get_next_script called without having scripts to run');
+old  73:       &SOSL_SCHEMA..sosl_log.exception_log('sosl_if.get_next_script', 'SOSL_IF', SQLERRM);
+new  73:       SOSL.sosl_log.exception_log('sosl_if.get_next_script', 'SOSL_IF', SQLERRM);
+old  86:     l_payload     &SOSL_SCHEMA..SOSL_PAYLOAD;
+new  86:     l_payload     SOSL.SOSL_PAYLOAD;
+old  90:     l_payload := &SOSL_SCHEMA..sosl_api.get_payload(p_run_id);
+new  90:     l_payload := SOSL.sosl_api.get_payload(p_run_id);
+old 106:       &SOSL_SCHEMA..sosl_log.minimal_error_log('sosl_if.set_script_status', 'SOSL_IF', 'Invalid SOSL_PAYLOAD for run_id: ' || p_run_id || ' and run state ' || p_status);
+new 106:       SOSL.sosl_log.minimal_error_log('sosl_if.set_script_status', 'SOSL_IF', 'Invalid SOSL_PAYLOAD for run_id: ' || p_run_id || ' and run state ' || p_status);
+old 113:       &SOSL_SCHEMA..sosl_log.exception_log('sosl_if.set_script_status', 'SOSL_IF', SQLERRM);
+new 113:       SOSL.sosl_log.exception_log('sosl_if.set_script_status', 'SOSL_IF', SQLERRM);
+old 127:     l_payload       &SOSL_SCHEMA..SOSL_PAYLOAD;
+new 127:     l_payload       SOSL.SOSL_PAYLOAD;
+old 131:     l_mail_subject  := 'SOSL ' || &SOSL_SCHEMA..sosl_constants.run_state_text(p_status) || ' ';
+new 131:     l_mail_subject  := 'SOSL ' || SOSL.sosl_constants.run_state_text(p_status) || ' ';
+old 134:     IF &SOSL_SCHEMA..sosl_api.has_run_id(p_run_id)
+new 134:     IF SOSL.sosl_api.has_run_id(p_run_id)
+old 137:       l_payload := &SOSL_SCHEMA..sosl_api.get_payload(p_run_id);
+new 137:       l_payload := SOSL.sosl_api.get_payload(p_run_id);
+old 143:         l_mail_body     := 'Dear SOSL user' || &SOSL_SCHEMA..sosl_constants.LF || &SOSL_SCHEMA..sosl_constants.LF ||
+new 143:         l_mail_body     := 'Dear SOSL user' || SOSL.sosl_constants.LF || SOSL.sosl_constants.LF ||
+old 145:                              WHEN p_status = &SOSL_SCHEMA..sosl_constants.RUN_STATE_ERROR
+new 145:                              WHEN p_status = SOSL.sosl_constants.RUN_STATE_ERROR
+old 147:                              ELSE 'The state of the script execution has changed to ' || &SOSL_SCHEMA..sosl_constants.run_state_text(p_status)
+new 147:                              ELSE 'The state of the script execution has changed to ' || SOSL.sosl_constants.run_state_text(p_status)
+old 148:                            END || &SOSL_SCHEMA..sosl_constants.LF ||
+new 148:                            END || SOSL.sosl_constants.LF ||
+old 149:                            'Script: ' || l_payload.script_file || &SOSL_SCHEMA..sosl_constants.LF ||
+new 149:                            'Script: ' || l_payload.script_file || SOSL.sosl_constants.LF ||
+old 150:                            'Executor ID: ' || l_payload.executor_id || &SOSL_SCHEMA..sosl_constants.LF ||
+new 150:                            'Executor ID: ' || l_payload.executor_id || SOSL.sosl_constants.LF ||
+old 151:                            'Script ID: ' || l_payload.ext_script_id || &SOSL_SCHEMA..sosl_constants.LF ||
+new 151:                            'Script ID: ' || l_payload.ext_script_id || SOSL.sosl_constants.LF ||
+old 152:                            'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || &SOSL_SCHEMA..sosl_constants.LF ||
+new 152:                            'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || SOSL.sosl_constants.LF ||
+old 153:                            &SOSL_SCHEMA..sosl_constants.LF ||
+new 153:                            SOSL.sosl_constants.LF ||
+old 154:                            'Best regards' || &SOSL_SCHEMA..sosl_constants.LF ||
+new 154:                            'Best regards' || SOSL.sosl_constants.LF ||
+old 155:                            'Your SOSL team'|| &SOSL_SCHEMA..sosl_constants.LF ||
+new 155:                            'Your SOSL team'|| SOSL.sosl_constants.LF ||
+old 156:                            &SOSL_SCHEMA..sosl_constants.LF ||
+new 156:                            SOSL.sosl_constants.LF ||
+old 162:         l_mail_body     := 'Dear SOSL user' || &SOSL_SCHEMA..sosl_constants.LF || &SOSL_SCHEMA..sosl_constants.LF ||
+new 162:         l_mail_body     := 'Dear SOSL user' || SOSL.sosl_constants.LF || SOSL.sosl_constants.LF ||
+old 163:                            'An SEVERE ERROR happened during script execution.' || &SOSL_SCHEMA..sosl_constants.LF ||
+new 163:                            'An SEVERE ERROR happened during script execution.' || SOSL.sosl_constants.LF ||
+old 164:                            'Script cannot be identified or SOSL_API.GET_PAYLOAD has failed.' || &SOSL_SCHEMA..sosl_constants.LF ||
+new 164:                            'Script cannot be identified or SOSL_API.GET_PAYLOAD has failed.' || SOSL.sosl_constants.LF ||
+old 165:                            'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || &SOSL_SCHEMA..sosl_constants.LF ||
+new 165:                            'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || SOSL.sosl_constants.LF ||
+old 166:                            'Intended state change to: ' || &SOSL_SCHEMA..sosl_constants.run_state_text(p_status) || &SOSL_SCHEMA..sosl_constants.LF ||
+new 166:                            'Intended state change to: ' || SOSL.sosl_constants.run_state_text(p_status) || SOSL.sosl_constants.LF ||
+old 167:                            &SOSL_SCHEMA..sosl_constants.LF ||
+new 167:                            SOSL.sosl_constants.LF ||
+old 168:                            'Best regards' || &SOSL_SCHEMA..sosl_constants.LF ||
+new 168:                            'Best regards' || SOSL.sosl_constants.LF ||
+old 169:                            'Your SOSL team'|| &SOSL_SCHEMA..sosl_constants.LF ||
+new 169:                            'Your SOSL team'|| SOSL.sosl_constants.LF ||
+old 170:                            &SOSL_SCHEMA..sosl_constants.LF ||
+new 170:                            SOSL.sosl_constants.LF ||
+old 174:       IF &SOSL_SCHEMA..sosl_api.dummy_mail(l_sender, l_recipients, l_mail_subject, l_mail_body)
+new 174:       IF SOSL.sosl_api.dummy_mail(l_sender, l_recipients, l_mail_subject, l_mail_body)
+old 178:         &SOSL_SCHEMA..sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'Could not send fake mail to log.');
+new 178:         SOSL.sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'Could not send fake mail to log.');
+old 182:       &SOSL_SCHEMA..sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'RUN_ID ' || p_run_id || ' does not exist.');
+new 182:       SOSL.sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'RUN_ID ' || p_run_id || ' does not exist.');
+old 184:       l_mail_body     := 'Dear SOSL user' || &SOSL_SCHEMA..sosl_constants.LF || &SOSL_SCHEMA..sosl_constants.LF ||
+new 184:       l_mail_body     := 'Dear SOSL user' || SOSL.sosl_constants.LF || SOSL.sosl_constants.LF ||
+old 185:                          'An SEVERE ERROR happened during script execution.' || &SOSL_SCHEMA..sosl_constants.LF ||
+new 185:                          'An SEVERE ERROR happened during script execution.' || SOSL.sosl_constants.LF ||
+old 186:                          'Given RUN_ID does not exist in table SOSL_RUN_QUEUE.' || &SOSL_SCHEMA..sosl_constants.LF ||
+new 186:                          'Given RUN_ID does not exist in table SOSL_RUN_QUEUE.' || SOSL.sosl_constants.LF ||
+old 187:                          'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || &SOSL_SCHEMA..sosl_constants.LF ||
+new 187:                          'SOSL_RUN_QUEUE.RUN_ID: ' || p_run_id || SOSL.sosl_constants.LF ||
+old 188:                          'Intended state change to: ' || sosl_constants.run_state_text(p_status) || &SOSL_SCHEMA..sosl_constants.LF ||
+new 188:                          'Intended state change to: ' || sosl_constants.run_state_text(p_status) || SOSL.sosl_constants.LF ||
+old 189:                          &SOSL_SCHEMA..sosl_constants.LF ||
+new 189:                          SOSL.sosl_constants.LF ||
+old 190:                          'Best regards' || &SOSL_SCHEMA..sosl_constants.LF ||
+new 190:                          'Best regards' || SOSL.sosl_constants.LF ||
+old 191:                          'Your SOSL team'|| &SOSL_SCHEMA..sosl_constants.LF ||
+new 191:                          'Your SOSL team'|| SOSL.sosl_constants.LF ||
+old 192:                          &SOSL_SCHEMA..sosl_constants.LF ||
+new 192:                          SOSL.sosl_constants.LF ||
+old 195:       IF &SOSL_SCHEMA..sosl_api.dummy_mail(l_sender, l_recipients, l_mail_subject, l_mail_body)
+new 195:       IF SOSL.sosl_api.dummy_mail(l_sender, l_recipients, l_mail_subject, l_mail_body)
+old 199:         &SOSL_SCHEMA..sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'Could not send fake mail to log.');
+new 199:         SOSL.sosl_log.minimal_error_log('sosl_if.send_mail', 'SOSL_IF', 'Could not send fake mail to log.');
+old 207:       &SOSL_SCHEMA..sosl_log.exception_log('sosl_if.send_mail', 'SOSL_IF', SQLERRM);
+new 207:       SOSL.sosl_log.exception_log('sosl_if.send_mail', 'SOSL_IF', SQLERRM);
+
+Package body created.
+
+SQL> -- views
+SQL> @@../sosl_ddl/views/sosl_config_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> CREATE OR REPLACE VIEW sosl_config_v
+  2  AS
+  3  	 WITH cfg AS
+  4  	      (SELECT config_name
+  5  		    , CASE
+  6  			WHEN config_name != 'SOSL_PATH_CFG'
+  7  			THEN config_value
+  8  			ELSE CASE
+  9  			       WHEN sosl_util.has_role(SYS_CONTEXT('USERENV', 'CURRENT_USER'), 'SOSL_REVIEWER')
+ 10  			       THEN config_value
+ 11  			       ELSE '***'
+ 12  			     END
+ 13  		      END AS config_value
+ 14  		    , CASE
+ 15  			WHEN config_name = 'SOSL_SCHEMA'
+ 16  			THEN 'Schema setup'
+ 17  			WHEN config_name = 'SOSL_RUNMODE'
+ 18  			THEN 'Database and server'
+ 19  			WHEN config_name IN ( 'SOSL_MAX_PARALLEL'
+ 20  					    , 'SOSL_DEFAULT_WAIT'
+ 21  					    , 'SOSL_NOJOB_WAIT'
+ 22  					    , 'SOSL_PAUSE_WAIT'
+ 23  					    , 'SOSL_START_JOBS'
+ 24  					    , 'SOSL_STOP_JOBS'
+ 25  					    )
+ 26  			THEN 'Database configuration'
+ 27  			WHEN config_name IN ( 'SOSL_SERVER_STATE'
+ 28  					    , 'SOSL_PATH_CFG'
+ 29  					    , 'SOSL_PATH_TMP'
+ 30  					    , 'SOSL_PATH_LOG'
+ 31  					    , 'SOSL_START_LOG'
+ 32  					    , 'SOSL_BASE_LOG'
+ 33  					    , 'SOSL_EXT_LOG'
+ 34  					    , 'SOSL_EXT_TMP'
+ 35  					    , 'SOSL_EXT_LOCK'
+ 36  					    , 'SOSL_EXT_ERROR'
+ 37  					    )
+ 38  			THEN 'Server configuration'
+ 39  			ELSE 'Unknown parameter'
+ 40  		      END						   AS configuration_by
+ 41  		    , config_type
+ 42  		    , CASE
+ 43  			WHEN config_max_length = -1
+ 44  			 AND config_type       = 'CHAR'
+ 45  			THEN '4000 chars'
+ 46  			WHEN config_max_length = -1
+ 47  			 AND config_type       = 'NUMBER'
+ 48  			THEN 'max int length'
+ 49  			ELSE TO_CHAR(config_max_length) || ' chars'
+ 50  		      END						   AS length_limit
+ 51  		    , config_description
+ 52  		    , TO_CHAR(updated, 'YYYY-MM-DD HH24:MI:SS') 	   AS updated
+ 53  		    , updated_by
+ 54  		    , updated_by_os
+ 55  		    , TO_CHAR(created, 'YYYY-MM-DD HH24:MI:SS') 	   AS created
+ 56  		    , created_by
+ 57  		    , created_by_os
+ 58  		    , CASE
+ 59  			WHEN config_name = 'SOSL_SCHEMA'
+ 60  			THEN 7
+ 61  			WHEN config_name = 'SOSL_RUNMODE'
+ 62  			THEN 1
+ 63  			WHEN config_name IN ( 'SOSL_START_JOBS'
+ 64  					    , 'SOSL_STOP_JOBS'
+ 65  					    )
+ 66  			THEN 2
+ 67  			WHEN config_name = 'SOSL_MAX_PARALLEL'
+ 68  			THEN 3
+ 69  			WHEN config_name IN ( 'SOSL_DEFAULT_WAIT'
+ 70  					    , 'SOSL_NOJOB_WAIT'
+ 71  					    , 'SOSL_PAUSE_WAIT'
+ 72  					    )
+ 73  			THEN 4
+ 74  			WHEN config_name = 'SOSL_SERVER_STATE'
+ 75  			THEN 5
+ 76  			WHEN config_name IN ( 'SOSL_PATH_CFG'
+ 77  					    , 'SOSL_PATH_TMP'
+ 78  					    , 'SOSL_PATH_LOG'
+ 79  					    , 'SOSL_START_LOG'
+ 80  					    , 'SOSL_BASE_LOG'
+ 81  					    , 'SOSL_EXT_LOG'
+ 82  					    , 'SOSL_EXT_TMP'
+ 83  					    , 'SOSL_EXT_LOCK'
+ 84  					    , 'SOSL_EXT_ERROR'
+ 85  					    )
+ 86  			THEN 6
+ 87  			ELSE 8
+ 88  		      END						   AS config_order
+ 89  		 FROM sosl_config
+ 90  	      )
+ 91    SELECT cfg.config_name
+ 92  	    , cfg.config_value
+ 93  	    , cfg.configuration_by
+ 94  	    , cfg.config_type
+ 95  	    , cfg.length_limit
+ 96  	    , cfg.config_description
+ 97  	    , cfg.updated
+ 98  	    , cfg.updated_by
+ 99  	    , cfg.updated_by_os
+100  	    , cfg.created
+101  	    , cfg.created_by
+102  	    , cfg.created_by_os
+103  	 FROM cfg
+104  	ORDER BY cfg.config_order
+105  	       , cfg.config_name
+106  ;
+
+View created.
+
+SQL> GRANT SELECT ON sosl_config_v TO sosl_user;
+
+Grant succeeded.
+
+SQL> @@../sosl_ddl/views/sosl_executors_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> CREATE OR REPLACE VIEW sosl_executors_v
+  2  AS
+  3    SELECT executor_name
+  4  	    , function_owner
+  5  	    , sosl_util.yes_no(use_mail) AS use_mail
+  6  	    , sosl_util.yes_no(executor_active) AS executor_active
+  7  	    , sosl_util.yes_no(executor_reviewed) AS executor_reviewed
+  8  	    , fn_has_scripts
+  9  	    , fn_get_next_script
+ 10  	    , fn_set_script_status
+ 11  	    , fn_send_db_mail
+ 12  	    , script_schema
+ 13  	    , CASE
+ 14  		WHEN sosl_util.has_role(SYS_CONTEXT('USERENV', 'CURRENT_USER'), 'SOSL_REVIEWER')
+ 15  		THEN cfg_file
+ 16  		ELSE '***'
+ 17  	      END AS cfg_file
+ 18  	    , executor_description
+ 19  	    , executor_id
+ 20  	    , TO_CHAR(created, 'YYYY-MM-DD HH24:MI:SS') 	   AS created
+ 21  	    , created_by
+ 22  	    , created_by_os
+ 23  	    , TO_CHAR(updated, 'YYYY-MM-DD HH24:MI:SS') 	   AS updated
+ 24  	    , updated_by
+ 25  	    , updated_by_os
+ 26  	 FROM sosl_executor_definition
+ 27  ;
+
+View created.
+
+SQL> GRANT SELECT ON sosl_executors_v TO sosl_user;
+
+Grant succeeded.
+
+SQL> @@../sosl_ddl/views/sosl_run_queue_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> CREATE OR REPLACE VIEW sosl_run_queue_v
+  2  AS
+  3    SELECT srq.run_id
+  4  	    , sed.executor_name
+  5  	    , srq.script_file
+  6  	    , sosl_constants.run_state_text(srq.run_state)	       AS run_state
+  7  	    , srq.ext_script_id
+  8  	    , TO_CHAR(srq.created, 'YYYY-MM-DD HH24:MI:SS.FF9')        AS created
+  9  	    , TO_CHAR(srq.waiting, 'YYYY-MM-DD HH24:MI:SS.FF9')        AS waiting
+ 10  	    , TO_CHAR(srq.enqueued, 'YYYY-MM-DD HH24:MI:SS.FF9')       AS enqueued
+ 11  	    , TO_CHAR(srq.started, 'YYYY-MM-DD HH24:MI:SS.FF9')        AS started
+ 12  	    , TO_CHAR(srq.running_since, 'YYYY-MM-DD HH24:MI:SS.FF9')  AS running_since
+ 13  	    , TO_CHAR(srq.finished, 'YYYY-MM-DD HH24:MI:SS.FF9')       AS finished
+ 14  	    , srq.created_by
+ 15  	    , srq.waiting_by
+ 16  	    , srq.enqueued_by
+ 17  	    , srq.started_by
+ 18  	    , srq.running_by
+ 19  	    , srq.finished_by
+ 20  	    , srq.created_by_os
+ 21  	    , srq.waiting_by_os
+ 22  	    , srq.enqueued_by_os
+ 23  	    , srq.started_by_os
+ 24  	    , srq.running_by_os
+ 25  	    , srq.finished_by_os
+ 26  	    , srq.executor_id
+ 27  	    , srq.run_state					       AS run_state_num
+ 28  	 FROM sosl_run_queue srq
+ 29  	 LEFT OUTER JOIN sosl_executor_definition sed
+ 30  	   ON srq.executor_id = sed.executor_id
+ 31  	-- first all scripts pending or running
+ 32  	ORDER BY srq.run_state
+ 33  	       , srq.created DESC
+ 34  ;
+
+View created.
+
+SQL> GRANT SELECT ON sosl_run_queue_v TO sosl_user;
+
+Grant succeeded.
+
+SQL> @@../sosl_ddl/views/sosl_run_stats_by_executor_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> CREATE OR REPLACE VIEW sosl_run_stats_by_executor_v
+  2  AS
+  3  	 WITH run_stats AS
+  4  	      (SELECT /*+MATERIALIZE*/
+  5  		      executor_id
+  6  		    , run_state
+  7  		    , COUNT(*) AS script_count
+  8  		 FROM sosl_run_queue
+  9  		GROUP BY executor_id
+ 10  		       , run_state
+ 11  	      )
+ 12    SELECT sed.executor_name
+ 13  	    , sosl_constants.run_state_text(run_stats.run_state) AS run_state
+ 14  	    , script_count
+ 15  	 FROM run_stats
+ 16  	 LEFT OUTER JOIN sosl_executor_definition sed
+ 17  	   ON run_stats.executor_id = sed.executor_id
+ 18  	ORDER BY run_stats.run_state
+ 19  	       , run_stats.executor_id
+ 20  ;
+
+View created.
+
+SQL> GRANT SELECT ON sosl_run_stats_by_executor_v TO sosl_user;
+
+Grant succeeded.
+
+SQL> @@../sosl_ddl/views/sosl_run_stats_total_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> CREATE OR REPLACE VIEW sosl_run_stats_total_v
+  2  AS
+  3  	 WITH run_states AS
+  4  	      (SELECT -1 AS run_state FROM dual
+  5  		UNION ALL
+  6  	       SELECT 0 AS run_state FROM dual
+  7  		UNION ALL
+  8  	       SELECT 1 AS run_state FROM dual
+  9  		UNION ALL
+ 10  	       SELECT 2 AS run_state FROM dual
+ 11  		UNION ALL
+ 12  	       SELECT 3 AS run_state FROM dual
+ 13  		UNION ALL
+ 14  	       SELECT 4 AS run_state FROM dual
+ 15  	      )
+ 16  	    , run_stats AS
+ 17  	      (SELECT /*+MATERIALIZE*/
+ 18  		      run_state
+ 19  		    , COUNT(*) AS script_count
+ 20  		 FROM sosl_run_queue
+ 21  		GROUP BY run_state
+ 22  	      )
+ 23    SELECT sosl_constants.run_state_text(run_states.run_state) AS run_state
+ 24  	    , NVL(run_stats.script_count, 0) AS script_count
+ 25  	 FROM run_states
+ 26  	 LEFT OUTER JOIN run_stats
+ 27  	   ON run_states.run_state = run_stats.run_state
+ 28  	ORDER BY run_states.run_state
+ 29  ;
+
+View created.
+
+SQL> GRANT SELECT ON sosl_run_stats_total_v TO sosl_user;
+
+Grant succeeded.
+
+SQL> @@../sosl_ddl/views/sosl_server_log_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> CREATE OR REPLACE VIEW sosl_server_log_v
+  2  AS
+  3  SELECT TO_CHAR(exec_timestamp, 'YYYY-MM-DD HH24:MI:SS.FF9') AS exec_time
+  4  	  , log_type
+  5  	  , log_category
+  6  	  , message
+  7  	  , run_id
+  8  	  , executor_id
+  9  	  , guid
+ 10  	  , sosl_identifier
+ 11  	  , caller
+ 12  	  , ext_script_id
+ 13  	  , script_file
+ 14  	  , created_by
+ 15  	  , created_by_os
+ 16  	  , full_message
+ 17  	  , exec_timestamp
+ 18    FROM sosl_server_log
+ 19   ORDER BY exec_timestamp DESC
+ 20  ;
+
+View created.
+
+SQL> GRANT SELECT ON sosl_server_log_v TO sosl_user;
+
+Grant succeeded.
 
 SQL> -- ==============INSTALL done==============
 SQL> @@../sosl_sql/util/log_silent.sql

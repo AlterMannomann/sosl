@@ -45,24 +45,24 @@ CREATE SYNONYM sosl_sessions FOR sys.sosl_sessions;
 @@../sosl_ddl/packages/sosl_server.pkb
 @@../sosl_ddl/packages/sosl_api.pks
 @@../sosl_ddl/packages/sosl_api.pkb
-@@../sosl_ddl/packages/sosl_if.pks
-@@../sosl_ddl/packages/sosl_if.pkb
 -- table trigger using packages and tables defined
 @@../sosl_ddl/trigger/sosl_server_log_trg.sql
 @@../sosl_ddl/trigger/sosl_config_trg.sql
 @@../sosl_ddl/trigger/sosl_executor_definition_trg.sql
 @@../sosl_ddl/trigger/sosl_run_queue_trg.sql
 @@../sosl_ddl/trigger/sosl_if_script_trg.sql
--- wrapper functions
-@@../sosl_ddl/functions/has_scripts.sql
+-- load basic config data
+@@sosl_config_defaults.sql
+-- internal interface definition for simple script execution
+@@../sosl_ddl/packages/sosl_if.pks
+@@../sosl_ddl/packages/sosl_if.pkb
 -- views
 @@../sosl_ddl/views/sosl_config_v.sql
 @@../sosl_ddl/views/sosl_executors_v.sql
 @@../sosl_ddl/views/sosl_run_queue_v.sql
 @@../sosl_ddl/views/sosl_run_stats_by_executor_v.sql
 @@../sosl_ddl/views/sosl_run_stats_total_v.sql
--- load basic config data
-@@sosl_config_defaults.sql
+@@../sosl_ddl/views/sosl_server_log_v.sql
 -- ==============INSTALL done==============
 @@../sosl_sql/util/log_silent.sql
 -- check errors and display them, if so

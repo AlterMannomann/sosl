@@ -1,6 +1,11 @@
 -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 -- Not allowed to be used as AI training material without explicite permission.
 -- interface package of the Simple Oracle Script Loader
+-- As this package depends on the schema SOSL is installed, getting fully qualified calls must be determined
+-- dynamically using SQLPlus variable SOSL_SCHEMA. Fully qualifying is only used for example code of interfacing.
+COLUMN SOSL_SCHEMA NEW_VAL SOSL_SCHEMA
+SELECT config_value AS SOSL_SCHEMA FROM sosl_config WHERE config_name = 'SOSL_SCHEMA';
+
 CREATE OR REPLACE PACKAGE sosl_if
 AS
   /**
@@ -23,7 +28,7 @@ AS
   * @return The id of the next script to execute.
   */
   FUNCTION get_next_script
-    RETURN SOSL.SOSL_PAYLOAD
+    RETURN &SOSL_SCHEMA..SOSL_PAYLOAD
   ;
 
   /** Function SOSL_IF.SET_SCRIPT_STATUS

@@ -13,6 +13,7 @@ SET ERRORLOGGING ON IDENTIFIER &IDENT
 -- ==============UNINSTALL start==============
 SPOOL logs/sosl_cleanup.log
 -- view objects
+@@../sosl_ddl/views/drop/sosl_server_log_v.sql
 @@../sosl_ddl/views/drop/drop_sosl_run_stats_total_v.sql
 @@../sosl_ddl/views/drop/drop_sosl_run_stats_by_executor_v.sql
 @@../sosl_ddl/views/drop/drop_sosl_run_queue_v.sql
