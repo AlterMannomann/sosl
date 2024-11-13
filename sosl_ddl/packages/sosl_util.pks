@@ -120,7 +120,8 @@ AS
   ;
 
   /* FUNCTION SOSL_UTIL.HAS_ROLE
-  * This function determines if a given database user has the requested role granted.
+  * This function determines if a given database user has the requested role granted. This will also include
+  * implicite roles granted by role hierarchy.
   *
   * @param p_db_user The database user to check. Has to be a valid database user.
   * @param p_role The role to check. Limited to roles starting with SOSL. Must be a valid and existing role.

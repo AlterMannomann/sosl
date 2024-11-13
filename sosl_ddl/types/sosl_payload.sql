@@ -19,3 +19,4 @@ CREATE OR REPLACE TYPE sosl_payload
     )
 ;
 /
+GRANT EXECUTE ON sosl_payload TO sosl_executor;
