@@ -26,7 +26,7 @@ BEGIN
     :NEW.log_type := sosl_log.get_valid_log_type(:NEW.log_type);
   END IF;
   :NEW.exec_timestamp := SYSTIMESTAMP;
-  :NEW.created_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+  :NEW.created_by     := SYS_CONTEXT('USERENV', 'SESSION_USER');
   :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
   -- split messages
   IF NOT sosl_log.distribute(:NEW.message, :NEW.full_message, 4000)
@@ -50,7 +50,7 @@ BEGIN
   sosl_log.minimal_error_log( 'sosl_server_log_upd_trg'
                             , 'SOSL_TRIGGER'
                             , '-20000 No updates allowed on a log table.'
-                            , 'Forbidden UPDATE on log table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                            , 'Forbidden UPDATE on log table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                             )
   ;
   RAISE_APPLICATION_ERROR(-20000, 'No updates allowed on a log table.');
@@ -62,7 +62,7 @@ BEGIN
   sosl_log.minimal_error_log( 'sosl_server_log_del_trg'
                             , 'SOSL_TRIGGER'
                             , '-20001 Delete records from a log table is not allowed. This is an admin job which needs sufficient rights and usage of the SOSL API.'
-                            , 'Forbidden DELETE on log table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                            , 'Forbidden DELETE on log table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                             )
   ;
   RAISE_APPLICATION_ERROR(-20001, 'Delete records from a log table is not allowed. This is an admin job which needs sufficient rights and usage of the SOSL API.');

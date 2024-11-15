@@ -99,6 +99,7 @@ AS
     PRAGMA AUTONOMOUS_TRANSACTION;
     l_return            NUMBER;
     l_set_value         BOOLEAN;
+    l_check             NUMBER;
     l_config_value      sosl_config.config_value%TYPE;
     l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SERVER';
     l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_server.set_config';
@@ -109,7 +110,7 @@ AS
       l_set_value    := TRUE;
       l_config_value := TRIM(p_config_value);
       -- do some extra checks on config name SOSL_RUNMODE and SOSL_SERVER_STATE
-      IF p_config_name IN ('SOSL_RUNMODE', 'SOSL_SERVER_STATE')
+      IF p_config_name IN ('SOSL_RUNMODE', 'SOSL_SERVER_STATE', 'SOSL_START_JOBS', 'SOSL_STOP_JOBS')
       THEN
         -- make commands uppercase
         l_config_value := UPPER(l_config_value);
@@ -126,6 +127,50 @@ AS
           -- log the error and do not change the config value
           sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Invalid server state: ' || l_config_value || '. Configuration not changed');
           l_set_value := FALSE;
+        END IF;
+        IF p_config_name IN ('SOSL_START_JOBS', 'SOSL_STOP_JOBS')
+        THEN
+          -- exclude -1 value to disable timeframe
+          IF l_config_value != '-1'
+          THEN
+            -- check format
+            IF SUBSTR(l_config_value, 3, 1) != ':'
+            THEN
+              -- log the error and do not change the config value
+              sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Invalid ' || p_config_name || ': ' || l_config_value || ' - missing : delimiter. Configuration not changed');
+              l_set_value := FALSE;
+            END IF;
+            -- check hours
+            IF NOT REGEXP_LIKE(SUBSTR(l_config_value, 1, 2), '^[0-9][0-9]')
+            THEN
+              -- log the error and do not change the config value
+              sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Invalid ' || p_config_name || ': ' || l_config_value || ' - invalid hour string. Configuration not changed');
+              l_set_value := FALSE;
+            ELSE
+              l_check := TO_NUMBER(SUBSTR(l_config_value, 1, 2));
+              IF l_check > 23
+              THEN
+                -- log the error and do not change the config value
+                sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Invalid ' || p_config_name || ': ' || l_config_value || ' - invalid hour 00 - 23 allowed. Configuration not changed');
+                l_set_value := FALSE;
+              END IF;
+            END IF;
+            -- check minutes
+            IF NOT REGEXP_LIKE(SUBSTR(l_config_value, 4, 5), '^[0-9][0-9]')
+            THEN
+              -- log the error and do not change the config value
+              sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Invalid ' || p_config_name || ': ' || l_config_value || ' - invalid minute string. Configuration not changed');
+              l_set_value := FALSE;
+            ELSE
+              l_check := TO_NUMBER(SUBSTR(l_config_value, 4, 5));
+              IF l_check > 59
+              THEN
+                -- log the error and do not change the config value
+                sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Invalid ' || p_config_name || ': ' || l_config_value || ' - invalid minute 00 - 59 allowed. Configuration not changed');
+                l_set_value := FALSE;
+              END IF;
+            END IF;
+          END IF;
         END IF;
       END IF;
       IF l_set_value
@@ -555,6 +600,57 @@ AS
       sosl_log.exception_log('sosl_server.update_run_id', 'SOSL_SERVER', SQLERRM);
       RETURN -1;
   END update_run_id;
+
+  FUNCTION dummy_mail( p_sender      IN VARCHAR2
+                     , p_recipients  IN VARCHAR2
+                     , p_subject     IN VARCHAR2
+                     , p_message     IN VARCHAR2
+                     )
+    RETURN BOOLEAN
+  IS
+    l_result  NUMBER;
+    l_return  BOOLEAN;
+  BEGIN
+    l_result  := sosl_util.dummy_mail(p_sender, p_recipients, p_subject, p_message);
+    l_return  := (l_result = 0);
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log('sosl_server.dummy_mail', 'SOSL_SERVER', SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN FALSE;
+  END dummy_mail;
+
+  FUNCTION has_run_id(p_run_id IN NUMBER)
+    RETURN BOOLEAN
+  IS
+    l_return BOOLEAN;
+  BEGIN
+    l_return := sosl_sys.has_run_id(p_run_id);
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log('sosl_server.has_run_id', 'SOSL_SERVER', SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN FALSE;
+  END has_run_id;
+
+  FUNCTION get_payload(p_run_id IN NUMBER)
+    RETURN SOSL_PAYLOAD
+  IS
+    l_sosl_payload  SOSL_PAYLOAD;
+  BEGIN
+    l_sosl_payload := sosl_sys.get_payload(p_run_id);
+    RETURN l_sosl_payload;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log('sosl_server.get_payload', 'SOSL_SERVER', SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN NULL;
+  END get_payload;
 
 END;
 /

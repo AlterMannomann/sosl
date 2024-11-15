@@ -312,6 +312,47 @@ AS
     RETURN NUMBER
   ;
 
+  /* FUNCTION SOSL_SERVER.DUMMY_MAIL
+  * This is a testing function that will NOT send any mail. It will log the mail message created in SOSL_SERVER_LOG using
+  * the field full_message, so output can be controlled.
+  *
+  * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
+  * @param p_recipients The semicolon separated list of mail recipient addresses.
+  * @param p_subject A preferablly short subject for the mail.
+  * @param p_message The correctly formatted mail message.
+  *
+  * @return Will return TRUE on success or FALSE on errors.
+  */
+  FUNCTION dummy_mail( p_sender      IN VARCHAR2
+                     , p_recipients  IN VARCHAR2
+                     , p_subject     IN VARCHAR2
+                     , p_message     IN VARCHAR2
+                     )
+    RETURN BOOLEAN
+  ;
+
+  /* FUNCTION SOSL_SERVER.HAS_RUN_ID
+  * Checks if a given run id exists. Errors get logged.
+  *
+  * @param p_run_id The run id to verify.
+  *
+  * @return TRUE if run id exists otherwise FALSE.
+  */
+  FUNCTION has_run_id(p_run_id IN NUMBER)
+    RETURN BOOLEAN
+  ;
+
+  /* FUNCTION SOSL_SERVER.GET_PAYLOAD
+  * Builds a SOSL_PAYLOAD object from the given run id. Wrapper for SOSL_SYS.
+  *
+  * @param p_run_id The run id to get the SOSL_PAYLOAD object for.
+  *
+  * @return On success a valid SOSL_PAYLOAD object or NULL on errors.
+  */
+  FUNCTION get_payload(p_run_id IN NUMBER)
+    RETURN SOSL_PAYLOAD
+  ;
+
 END;
 /
 -- grants

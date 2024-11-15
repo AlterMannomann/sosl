@@ -14,7 +14,7 @@ BEGIN
   -- remove any leading and trailing blanks from config_value
   :NEW.config_value   := TRIM(:NEW.config_value);
   :NEW.created        := SYSDATE;
-  :NEW.created_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+  :NEW.created_by     := SYS_CONTEXT('USERENV', 'SESSION_USER');
   :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
   -- check max length if defined
   IF :NEW.config_type = 'CHAR'
@@ -26,7 +26,7 @@ BEGIN
         sosl_log.minimal_error_log( l_self_caller
                                   , l_self_log_category
                                   , '-20010 The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value)
-                                  , 'Wrong length of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                  , 'Wrong length of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                                   )
         ;
         RAISE_APPLICATION_ERROR(-20010, 'The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value));
@@ -50,7 +50,7 @@ BEGIN
       sosl_log.minimal_error_log( l_self_caller
                                 , l_self_log_category
                                 , '-20011 The given config_value "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" could not be converted successfully to a number.'
-                                , 'Wrong type of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                , 'Wrong type of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                                 )
       ;
       RAISE_APPLICATION_ERROR(-20011, 'The given config_value "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" could not be converted successfully to a number.');
@@ -103,7 +103,7 @@ BEGIN
     sosl_log.minimal_error_log( l_self_caller
                               , l_self_log_category
                               , '-20012 The given system config_name ' || :OLD.config_name || ' cannot be changed.'
-                              , 'Tried to change a system config name for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                              , 'Tried to change a system config name for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                               )
     ;
     RAISE_APPLICATION_ERROR(-20012, 'The given system config_name ' || :OLD.config_name || ' cannot be changed.');
@@ -115,7 +115,7 @@ BEGIN
     sosl_log.minimal_error_log( l_self_caller
                               , l_self_log_category
                               , '-20014 The SOSL_SCHEMA value ' || :OLD.config_value || ' cannot be changed.'
-                              , 'Tried to change SOSL_SCHEMA in SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                              , 'Tried to change SOSL_SCHEMA in SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                               )
     ;
     RAISE_APPLICATION_ERROR(-20014, '-20014 The SOSL_SCHEMA value ' || :OLD.config_value || ' cannot be changed.');
@@ -124,7 +124,7 @@ BEGIN
   sosl_log.log_column_change(:OLD.config_value, :NEW.config_value, :OLD.config_name, l_self_caller, FALSE);
   -- set updated
   :NEW.updated        := SYSDATE;
-  :NEW.updated_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+  :NEW.updated_by     := SYS_CONTEXT('USERENV', 'SESSION_USER');
   :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
   -- check max length if defined
   IF :NEW.config_type = 'CHAR'
@@ -136,7 +136,7 @@ BEGIN
         sosl_log.minimal_error_log( l_self_caller
                                   , l_self_log_category
                                   , '-20010 The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value)
-                                  , 'Wrong length of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                  , 'Wrong length of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                                   )
         ;
         RAISE_APPLICATION_ERROR(-20010, 'The config_value exceeds the defined config_max_length. Current length: ' || LENGTH(:NEW.config_value));
@@ -160,7 +160,7 @@ BEGIN
       sosl_log.minimal_error_log( l_self_caller
                                 , l_self_log_category
                                 , '-20011 The given config_value "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" could not be converted successfully to a number.'
-                                , 'Wrong type of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                , 'Wrong type of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                                 )
       ;
       RAISE_APPLICATION_ERROR(-20011, 'The given config_value "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" could not be converted successfully to a number.');
@@ -196,7 +196,7 @@ BEGIN
     sosl_log.minimal_error_log( 'sosl_config_del_trg'
                               , 'SOSL_CONFIG'
                               , '-20015 The given system config_name "' || :OLD.config_name || '" cannot be deleted.'
-                              , 'Forbidden delete of config name for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                              , 'Forbidden delete of config name for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                               )
     ;
     RAISE_APPLICATION_ERROR(-20013, 'The given system config_name "' || :OLD.config_name || '" cannot be deleted.');

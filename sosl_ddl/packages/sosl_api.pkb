@@ -3,93 +3,120 @@
 CREATE OR REPLACE PACKAGE BODY sosl_api
 AS
   -- for description see header file
-  FUNCTION get_payload(p_run_id IN NUMBER)
-    RETURN SOSL_PAYLOAD
-  IS
-    l_sosl_payload  SOSL_PAYLOAD;
-  BEGIN
-    l_sosl_payload := sosl_sys.get_payload(p_run_id);
-    RETURN l_sosl_payload;
-  EXCEPTION
-    WHEN OTHERS THEN
-      -- log the error instead of RAISE
-      sosl_log.exception_log('sosl_api.get_payload', 'SOSL_API', SQLERRM);
-      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
-      RETURN NULL;
-  END get_payload;
-
   FUNCTION get_config(p_config_name IN VARCHAR2)
     RETURN VARCHAR2
   IS
+    l_return        VARCHAR2(4000);
+    l_user          VARCHAR2(128);
+    l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+    l_caller        sosl_server_log.caller%TYPE       := 'sosl_api.get_config';
   BEGIN
-    RETURN NULL;
+    l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+    l_return := sosl_server.get_config(p_config_name);
+    IF NOT sosl_util.has_role(l_user, 'SOSL_REVIEWER')
+    THEN
+      IF p_config_name = 'SOSL_PATH_CFG'
+      THEN
+        sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' requested SOSL_PATH_CFG without sufficient role rights.');
+        l_return := '*** at least SOSL_REVIEWER role needed to see this value';
+      END IF;
+    END IF;
+    IF l_return = '-1'
+    THEN
+      l_return := 'ERROR executing SOSL_SERVER.GET_CONFIG see SOSL_SERVER_LOG for details';
+    END IF;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN 'ERROR executing SOSL_API.GET_CONFIG see SOSL_SERVER_LOG for details';
   END get_config;
 
-  FUNCTION base_path(p_run_id IN NUMBER)
+  FUNCTION set_runmode(p_runmode IN VARCHAR2 DEFAULT 'RUN')
     RETURN VARCHAR2
   IS
+    l_return        VARCHAR2(4000);
+    l_result        NUMBER;
+    l_user          VARCHAR2(128);
+    l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+    l_caller        sosl_server_log.caller%TYPE       := 'sosl_api.set_runmode';
   BEGIN
-    RETURN NULL;
-  END base_path;
-
-  FUNCTION cfg_path(p_run_id IN NUMBER)
-    RETURN VARCHAR2
-  IS
-  BEGIN
-    RETURN NULL;
-  END cfg_path;
-
-  FUNCTION tmp_path(p_run_id IN NUMBER)
-    RETURN VARCHAR2
-  IS
-  BEGIN
-    RETURN NULL;
-  END tmp_path;
-
-  FUNCTION log_path(p_run_id IN NUMBER)
-    RETURN VARCHAR2
-  IS
-  BEGIN
-    RETURN NULL;
-  END log_path;
-
-  FUNCTION dummy_mail( p_sender      IN VARCHAR2
-                     , p_recipients  IN VARCHAR2
-                     , p_subject     IN VARCHAR2
-                     , p_message     IN VARCHAR2
-                     )
-    RETURN BOOLEAN
-  IS
-    l_result  NUMBER;
-    l_return  BOOLEAN;
-  BEGIN
-    l_result  := sosl_util.dummy_mail(p_sender, p_recipients, p_subject, p_message);
-    l_return  := (l_result = 0);
+    l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+    IF sosl_util.has_role(l_user, 'SOSL_EXECUTOR')
+    THEN
+      l_result := sosl_server.set_runmode(p_runmode);
+      IF l_result = -1
+      THEN
+        l_return := 'ERROR executing SOSL_SERVER.SET_RUNMODE with ' || p_runmode || ' see SOSL_SERVER_LOG for details';
+      ELSE
+        l_return := 'SUCCESS set runmode to ' || p_runmode;
+      END IF;
+    ELSE
+      sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to set runmode to ' || p_runmode || ' without sufficient role rights.');
+      l_return := 'ERROR insufficient privileges. Needs at least role SOSL_EXECUTOR.';
+    END IF;
     RETURN l_return;
   EXCEPTION
     WHEN OTHERS THEN
       -- log the error instead of RAISE
-      sosl_log.exception_log('sosl_api.dummy_mail', 'SOSL_API', SQLERRM);
+      sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
       -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
-      RETURN FALSE;
-  END dummy_mail;
+      RETURN 'ERROR executing SOSL_API.SET_RUNMODE see SOSL_SERVER_LOG for details';
+  END set_runmode;
 
-  FUNCTION has_run_id(p_run_id IN NUMBER)
-    RETURN BOOLEAN
+  FUNCTION set_timeframe( p_from IN VARCHAR2 DEFAULT '07:55'
+                        , p_to   IN VARCHAR2 DEFAULT '18:00'
+                        )
+    RETURN VARCHAR2
   IS
-    l_return BOOLEAN;
+    l_return        VARCHAR2(4000);
+    l_user          VARCHAR2(128);
+    l_from_result   NUMBER;
+    l_to_result     NUMBER;
+    l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+    l_caller        sosl_server_log.caller%TYPE       := 'sosl_api.set_timeframe';
   BEGIN
-    l_return := sosl_sys.has_run_id(p_run_id);
+    l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+    IF sosl_util.has_role(l_user, 'SOSL_EXECUTOR')
+    THEN
+      l_from_result := sosl_server.set_config('SOSL_START_JOBS', p_from);
+      l_to_result   := sosl_server.set_config('SOSL_STOP_JOBS', p_to);
+      IF    l_from_result = -1
+         OR l_to_result   = -1
+      THEN
+        -- logging should be done by called function
+        l_return := 'ERROR executing sosl_server.set_config';
+        IF l_from_result = -1
+        THEN
+          l_return := l_return || ' SOSL_START_JOBS: ' || p_from;
+        END IF;
+        IF l_to_result = -1
+        THEN
+          l_return := l_return || ' SOSL_STOP_JOBS ' || p_to;
+        END IF;
+        l_return := l_return || ' see SOSL_SERVER_LOG for details';
+      ELSE
+        IF p_from = '-1' OR p_to = '-1'
+        THEN
+          l_return := 'SUCCESS disabled server timeframe with -1';
+        ELSE
+          l_return := 'SUCCESS set server timeframe to ' || p_from || ' - ' || p_to;
+        END IF;
+      END IF;
+    ELSE
+      sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to set server timeframe to ' || p_from || ' - ' || p_to || ' without sufficient role rights.');
+      l_return := 'ERROR insufficient privileges. Needs at least role SOSL_EXECUTOR.';
+    END IF;
     RETURN l_return;
   EXCEPTION
     WHEN OTHERS THEN
       -- log the error instead of RAISE
-      sosl_log.exception_log('sosl_api.has_run_id', 'SOSL_API', SQLERRM);
+      sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
       -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
-      RETURN FALSE;
-  END has_run_id;
+      RETURN 'ERROR executing SOSL_API.SET_TIMEFRAME see SOSL_SERVER_LOG for details';
+  END set_timeframe;
 
 END;
 /
--- grants
-GRANT EXECUTE ON sosl_api TO sosl_executor;

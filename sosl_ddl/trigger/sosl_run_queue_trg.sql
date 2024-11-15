@@ -15,7 +15,7 @@ BEGIN
   THEN
     :NEW.run_state      := sosl_constants.RUN_STATE_WAITING;
     :NEW.waiting        := SYSTIMESTAMP;
-    :NEW.waiting_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+    :NEW.waiting_by     := SYS_CONTEXT('USERENV', 'SESSION_USER');
     :NEW.waiting_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
     :NEW.finished       := NULL;
     :NEW.finished_by    := NULL;
@@ -28,12 +28,12 @@ BEGIN
     :NEW.waiting_by     := NULL;
     :NEW.waiting_by_os  := NULL;
     :NEW.finished       := SYSTIMESTAMP;
-    :NEW.finished_by    := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+    :NEW.finished_by    := SYS_CONTEXT('USERENV', 'SESSION_USER');
     :NEW.finished_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
   END IF;
   -- set basic timestamps
   :NEW.created        := SYSTIMESTAMP;
-  :NEW.created_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+  :NEW.created_by     := SYS_CONTEXT('USERENV', 'SESSION_USER');
   :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
   -- overwrite any other injected dates and user on insert
   :NEW.enqueued       := NULL;
@@ -115,28 +115,28 @@ BEGIN
     CASE :NEW.run_state
       WHEN sosl_constants.RUN_STATE_WAITING THEN
         :NEW.waiting        := SYSTIMESTAMP;
-        :NEW.waiting_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+        :NEW.waiting_by     := SYS_CONTEXT('USERENV', 'SESSION_USER');
         :NEW.waiting_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
       WHEN sosl_constants.RUN_STATE_ENQUEUED THEN
         :NEW.enqueued       := SYSTIMESTAMP;
-        :NEW.enqueued_by    := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+        :NEW.enqueued_by    := SYS_CONTEXT('USERENV', 'SESSION_USER');
         :NEW.enqueued_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
       WHEN sosl_constants.RUN_STATE_STARTED THEN
         :NEW.started        := SYSTIMESTAMP;
-        :NEW.started_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+        :NEW.started_by     := SYS_CONTEXT('USERENV', 'SESSION_USER');
         :NEW.started_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
       WHEN sosl_constants.RUN_STATE_RUNNING THEN
         :NEW.running_since  := SYSTIMESTAMP;
-        :NEW.running_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+        :NEW.running_by     := SYS_CONTEXT('USERENV', 'SESSION_USER');
         :NEW.running_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
       WHEN sosl_constants.RUN_STATE_FINISHED THEN
         :NEW.finished       := SYSTIMESTAMP;
-        :NEW.finished_by    := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+        :NEW.finished_by    := SYS_CONTEXT('USERENV', 'SESSION_USER');
         :NEW.finished_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
       ELSE
         -- any other state is an error state
         :NEW.finished       := SYSTIMESTAMP;
-        :NEW.finished_by    := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+        :NEW.finished_by    := SYS_CONTEXT('USERENV', 'SESSION_USER');
         :NEW.finished_by_os := SYS_CONTEXT('USERENV', 'OS_USER');
         :NEW.run_state      := sosl_constants.RUN_STATE_ERROR;
     END CASE;
