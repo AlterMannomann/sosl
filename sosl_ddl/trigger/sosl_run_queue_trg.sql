@@ -48,7 +48,7 @@ BEGIN
   -- log the insert
   sosl_log.minimal_info_log( l_self_caller
                            , l_self_log_category
-                           , 'A new script with run id ' || :NEW.run_id || ' has been added to the run queue created by OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                           , 'A new script with run id ' || :NEW.run_id || ' is prepared to be added to the run queue created by OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                            )
   ;
 EXCEPTION
@@ -161,7 +161,7 @@ BEGIN
   -- log the update
   sosl_log.minimal_info_log( l_self_caller
                            , l_self_log_category
-                           , 'Updated run id ' || :OLD.run_id || ' by OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                           , 'Prepared the update for run id ' || :OLD.run_id || ' by OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                            )
   ;
 EXCEPTION

@@ -13,14 +13,13 @@ SET ERRORLOGGING ON IDENTIFIER &IDENT
 -- ==============UNINSTALL start==============
 SPOOL logs/sosl_cleanup.log
 -- view objects
-@@../sosl_ddl/views/drop/sosl_server_log_v.sql
+@@../sosl_ddl/views/drop/drop_sosl_server_log_v.sql
 @@../sosl_ddl/views/drop/drop_sosl_run_stats_total_v.sql
 @@../sosl_ddl/views/drop/drop_sosl_run_stats_by_executor_v.sql
 @@../sosl_ddl/views/drop/drop_sosl_run_queue_v.sql
 @@../sosl_ddl/views/drop/drop_sosl_executors_v.sql
 @@../sosl_ddl/views/drop/drop_sosl_config_v.sql
--- packages and functions
-@@../sosl_ddl/functions/drop/drop_has_scripts.sql
+-- packages
 @@../sosl_ddl/packages/drop/drop_sosl_if_pkb.sql
 @@../sosl_ddl/packages/drop/drop_sosl_if_pks.sql
 @@../sosl_ddl/packages/drop/drop_sosl_api_pkb.sql

@@ -118,5 +118,178 @@ AS
       RETURN 'ERROR executing SOSL_API.SET_TIMEFRAME see SOSL_SERVER_LOG for details';
   END set_timeframe;
 
+  FUNCTION create_executor( p_executor_name         IN VARCHAR2
+                          , p_function_owner        IN VARCHAR2
+                          , p_fn_has_scripts        IN VARCHAR2
+                          , p_fn_get_next_script    IN VARCHAR2
+                          , p_fn_set_script_status  IN VARCHAR2
+                          , p_cfg_file              IN VARCHAR2
+                          , p_use_mail              IN NUMBER     DEFAULT 0
+                          , p_fn_send_db_mail       IN VARCHAR2   DEFAULT NULL
+                          , p_executor_description  IN VARCHAR2   DEFAULT NULL
+                          )
+    RETURN NUMBER
+  IS
+    l_return        NUMBER;
+    l_user          VARCHAR2(128);
+    l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+    l_caller        sosl_server_log.caller%TYPE       := 'sosl_api.create_executor';
+  BEGIN
+    l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+    IF sosl_util.has_role(l_user, 'SOSL_EXECUTOR')
+    THEN
+      l_return := sosl_util.create_executor( p_executor_name
+                                           , l_user
+                                           , p_function_owner
+                                           , p_fn_has_scripts
+                                           , p_fn_get_next_script
+                                           , p_fn_set_script_status
+                                           , p_cfg_file
+                                           , p_use_mail
+                                           , p_fn_send_db_mail
+                                           , p_executor_description
+                                           )
+      ;
+    ELSE
+      sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to create an executor named ' || p_executor_name || ' using function owner ' || p_function_owner || ' without sufficient role rights.');
+      l_return := -1;
+    END IF;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN -1;
+  END create_executor;
+
+  FUNCTION activate_executor(p_executor_id IN NUMBER)
+    RETURN VARCHAR2
+  IS
+    l_return        VARCHAR2(4000);
+    l_user          VARCHAR2(128);
+    l_result        NUMBER;
+    l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+    l_caller        sosl_server_log.caller%TYPE       := 'sosl_api.activate_executor';
+  BEGIN
+    l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+    IF sosl_util.has_role(l_user, 'SOSL_EXECUTOR')
+    THEN
+      l_result := sosl_util.active_state_executor(p_executor_id, sosl_constants.NUM_YES);
+      IF l_result = -1
+      THEN
+        l_return := 'ERROR activating executor with id ' || p_executor_id || ' see SOSL_SERVER_LOG for details';
+      ELSE
+        l_return := 'SUCCESS Activated executor with id ' || p_executor_id;
+      END IF;
+    ELSE
+      sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to activate executor with id ' || p_executor_id || ' without sufficient role rights.');
+      l_return := 'ERROR insufficient privileges. Needs at least role SOSL_EXECUTOR.';
+    END IF;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN 'ERROR executing SOSL_API.ACTIVATE_EXECUTOR see SOSL_SERVER_LOG for details';
+  END activate_executor;
+
+  FUNCTION deactivate_executor(p_executor_id IN NUMBER)
+    RETURN VARCHAR2
+  IS
+    l_return        VARCHAR2(4000);
+    l_user          VARCHAR2(128);
+    l_result        NUMBER;
+    l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+    l_caller        sosl_server_log.caller%TYPE       := 'sosl_api.deactivate_executor';
+  BEGIN
+    l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+    IF sosl_util.has_role(l_user, 'SOSL_EXECUTOR')
+    THEN
+      l_result := sosl_util.active_state_executor(p_executor_id, sosl_constants.NUM_NO);
+      IF l_result = -1
+      THEN
+        l_return := 'ERROR deactivating executor with id ' || p_executor_id || ' see SOSL_SERVER_LOG for details';
+      ELSE
+        l_return := 'SUCCESS Deactivated executor with id ' || p_executor_id;
+      END IF;
+    ELSE
+      sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to deactivate executor with id ' || p_executor_id || ' without sufficient role rights.');
+      l_return := 'ERROR insufficient privileges. Needs at least role SOSL_EXECUTOR.';
+    END IF;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN 'ERROR executing SOSL_API.DEACTIVATE_EXECUTOR see SOSL_SERVER_LOG for details';
+  END deactivate_executor;
+
+  FUNCTION set_executor_reviewed(p_executor_id IN NUMBER)
+    RETURN VARCHAR2
+  IS
+    l_return        VARCHAR2(4000);
+    l_user          VARCHAR2(128);
+    l_result        NUMBER;
+    l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+    l_caller        sosl_server_log.caller%TYPE       := 'sosl_api.set_executor_reviewed';
+  BEGIN
+    l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+    IF sosl_util.has_role(l_user, 'SOSL_REVIEWER')
+    THEN
+      l_result := sosl_util.review_state_executor(p_executor_id, sosl_constants.NUM_YES);
+      IF l_result = -1
+      THEN
+        l_return := 'ERROR set executor with id ' || p_executor_id || ' to reviewed see SOSL_SERVER_LOG for details';
+      ELSE
+        l_return := 'SUCCESS Set executor with id ' || p_executor_id || ' to reviewed';
+      END IF;
+    ELSE
+      sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to set executor with id ' || p_executor_id || ' to reviewed without sufficient role rights.');
+      l_return := 'ERROR insufficient privileges. Needs at least role SOSL_REVIEWER.';
+    END IF;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN 'ERROR executing SOSL_API.SET_EXECUTOR_REVIEWED see SOSL_SERVER_LOG for details';
+  END set_executor_reviewed;
+
+  FUNCTION revoke_executor_reviewed(p_executor_id IN NUMBER)
+    RETURN VARCHAR2
+  IS
+    l_return        VARCHAR2(4000);
+    l_user          VARCHAR2(128);
+    l_result        NUMBER;
+    l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+    l_caller        sosl_server_log.caller%TYPE       := 'sosl_api.revoke_executor_reviewed';
+  BEGIN
+    l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+    IF sosl_util.has_role(l_user, 'SOSL_REVIEWER')
+    THEN
+      l_result := sosl_util.review_state_executor(p_executor_id, sosl_constants.NUM_NO);
+      IF l_result = -1
+      THEN
+        l_return := 'ERROR set executor with id ' || p_executor_id || ' to not reviewed see SOSL_SERVER_LOG for details';
+      ELSE
+        l_return := 'SUCCESS Set executor with id ' || p_executor_id || ' to not reviewed';
+      END IF;
+    ELSE
+      sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to set executor with id ' || p_executor_id || ' to not reviewed without sufficient role rights.');
+      l_return := 'ERROR insufficient privileges. Needs at least role SOSL_REVIEWER.';
+    END IF;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN 'ERROR executing SOSL_API.REVOKE_EXECUTOR_REVIEWED see SOSL_SERVER_LOG for details';
+  END revoke_executor_reviewed;
+
 END;
 /

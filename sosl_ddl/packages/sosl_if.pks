@@ -23,16 +23,18 @@ AS
   ;
 
   /** Function SOSL_IF.GET_NEXT_SCRIPT
-  * Returns the next script id to execute. To be defined in SOSL_EXECUTOR_DEFINITION.
+  * Returns the details of the next script to execute. SOSL_PAYLOAD contains the EXECUTOR_ID from SOSL_EXECUTOR_DEFINITION,
+  * the EXT_SCRIPT_ID as used in SOSL_IF_SCRIPT.SCRIPT_ID and the SCRIPT_FILE as defined in SOSL_IF_SCRIPT.SCRIPT_NAME.
+  * To be defined in SOSL_EXECUTOR_DEFINITION.
   *
-  * @return The id of the next script to execute.
+  * @return The details of the next script to execute as SOSL_PAYLOAD object or NULL on errors.
   */
   FUNCTION get_next_script
     RETURN &SOSL_SCHEMA..SOSL_PAYLOAD
   ;
 
   /** Function SOSL_IF.SET_SCRIPT_STATUS
-  * Sets the status of a script. To be defined in SOSL_EXECUTOR_DEFINITION.
+  * Sets the status of a script in SOSL_IF_SCRIPT. Collects needed data based on RUN_ID. To be defined in SOSL_EXECUTOR_DEFINITION.
   *
   * @param p_run_id The valid run id of the script that should change run state.
   * @param p_status A valid status as defined in SOSL_CONSTANTS for run states.
@@ -46,10 +48,11 @@ AS
   ;
 
   /* FUNCTION SOSL_IF.SEND_MAIL
-  * This interface function is mainly used for testing. In the default setting, it will only send the mail message to
-  * SOSL_SERVER_LOG. To be defined in SOSL_EXECUTOR_DEFINITION. Will be called on every status change, if mail is activated.
+  * This interface function is mainly used for testing. It will only send the mail message to SOSL_SERVER_LOG. Will be called on every
+  * status change, if mail is activated. Collects needed data based on RUN_ID.
+  * To be defined in SOSL_EXECUTOR_DEFINITION if USE_MAIL is activated.
   *
-  * @param p_run_id The valid run id of the script that should change run state.
+  * @param p_run_id The valid run id of the script that should send a mail on changing run state.
   * @param p_status A valid status as defined in SOSL_CONSTANTS for run states.
   *
   * @return Return 0 if successful executed otherwise -1.

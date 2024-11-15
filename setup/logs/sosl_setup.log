@@ -2838,8 +2838,84 @@ SQL> CREATE OR REPLACE PACKAGE sosl_util
 301  	 RETURN NUMBER
 302    ;
 303  
-304  END;
-305  /
+304    /** Function SOSL_UTIL.CREATE_EXECUTOR
+305    * Creates a new executor definition if it did not exist already. Runs as autonomous transaction.
+306    * The given interface functions must conform to the following declarations, must exist and be granted to SOSL_EXECUTOR role:
+307    *
+308    * fn_has_scripts: FUNCTION your_has_script RETURN NUMBER;
+309    * @return A positive integer including 0 for amount of scripts waiting or -1 on errors.
+310    * @task: Return the amount of waiting scripts.
+311    *
+312    * fn_get_next_script: FUNCTION your_get_next_script RETURN SOSL.SOSL_PAYLOAD;
+313    * @return A valid and filled SOSL_PAYLOAD object containing EXECUTOR_ID, EXT_SCRIPT_ID and SCRIPT_FILE or NULL on errors.
+314    * @task: Return the details of the next waiting script.
+315    *
+316    * fn_set_script_status: FUNCTION your_set_script_status(p_run_id IN NUMBER, p_status IN NUMBER) RETURN NUMBER;
+317    * @return Execution indicator: 0 on success or -1 on errors.
+318    * @task: Set the internal status of your scripts queued for execution.
+319    *
+320    * fn_send_db_mail: FUNCTION your_send_mail(p_run_id IN NUMBER, p_status IN NUMBER) RETURN NUMBER;
+321    * @return Execution indicator: 0 on success or -1 on errors.
+322    * @task: Prepare and send a mail based on script status.
+323    *
+324    * For examples see package SOSL_IF.
+325    *
+326    * @param p_executor_name The unique executor definition name.
+327    * @param p_function_owner The existing and for SOSL visible database user that owns the interface functions.
+328    * @param p_fn_has_scripts The fully qualified interface function for has_scripts. Must exist and be granted to SOSL_EXECUTOR.
+329    * @param p_fn_get_next_script The fully qualified interface function for get_next_script. Must exist and be granted to SOSL_EXECUTOR.
+330    * @param p_fn_set_script_status The fully qualified interface function for set_script_status. Must exist and be granted to SOSL_EXECUTOR.
+331    * @param p_cfg_file The filename including relative or absolute path that contains the login for the executor.
+332    * @param p_use_mail Defines if mail should be used (1) or not (0). Default is no mail usage.
+333    * @param p_fn_send_db_mail The fully qualified interface function for send mail. If mail should be used the parameter is mandatory, must exist and be granted to SOSL_EXECUTOR.
+334    * @param p_executor_description An optional description for the new executor.
+335    *
+336    * @return The new executor id or -1 on errors.
+337    */
+338    FUNCTION create_executor( p_executor_name	 IN VARCHAR2
+339  			       , p_db_user		 IN VARCHAR2
+340  			       , p_function_owner	 IN VARCHAR2
+341  			       , p_fn_has_scripts	 IN VARCHAR2
+342  			       , p_fn_get_next_script	 IN VARCHAR2
+343  			       , p_fn_set_script_status  IN VARCHAR2
+344  			       , p_cfg_file		 IN VARCHAR2
+345  			       , p_use_mail		 IN NUMBER     DEFAULT 0
+346  			       , p_fn_send_db_mail	 IN VARCHAR2   DEFAULT NULL
+347  			       , p_executor_description  IN VARCHAR2   DEFAULT NULL
+348  			       )
+349  	 RETURN NUMBER
+350    ;
+351  
+352    /** Function SOSL_UTIL.ACTIVE_STATE_EXECUTOR
+353    * Sets the EXECUTOR_ACTIVE flag. Runs as autonomous transaction.
+354    *
+355    * @param p_executor_id The id of the executor that should be changed.
+356    * @param p_active_state The desired active state of the executor. Either 0 - not activated (default) or 1 - activated.
+357    *
+358    * @return Execution indicator: 0 if successful otherwise -1.
+359    */
+360    FUNCTION active_state_executor( p_executor_id   IN NUMBER
+361  				     , p_active_state  IN NUMBER DEFAULT 0
+362  				     )
+363  	 RETURN NUMBER
+364    ;
+365  
+366    /** Function SOSL_UTIL.REVIEW_STATE_EXECUTOR
+367    * Sets the EXECUTOR_REVIEWED flag. Runs as autonomous transaction.
+368    *
+369    * @param p_executor_id The id of the executor that should be changed.
+370    * @param p_review_state The reviewed state of the executor. Either 0 - review not ok (default) or 1 - reviewed and accepted.
+371    *
+372    * @return Execution indicator: 0 if successful otherwise -1.
+373    */
+374    FUNCTION review_state_executor( p_executor_id   IN NUMBER
+375  				     , p_review_state  IN NUMBER DEFAULT 0
+376  				     )
+377  	 RETURN NUMBER
+378    ;
+379  
+380  END;
+381  /
 
 Package created.
 
@@ -3256,12 +3332,12 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_util
 408    BEGIN
 409  	 l_message := sosl_util.format_mail(p_sender, p_recipients, p_subject, p_message);
 410  	 sosl_log.minimal_info_log(l_self_caller, l_self_log_category, 'Fake mail with subject "' || p_subject || '" created in full_message. Check the results.', l_message);
-411  	 RETURN sosl_constants.NUM_SUCCESS;
+411  	 RETURN 0;
 412    EXCEPTION
 413  	 WHEN OTHERS THEN
 414  	   -- log the error instead of RAISE
 415  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-416  	   RETURN sosl_constants.NUM_ERROR;
+416  	   RETURN -1;
 417    END dummy_mail;
 418  
 419    FUNCTION txt_boolean( p_bool   IN BOOLEAN
@@ -3388,8 +3464,111 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_util
 540  	   RETURN -1;
 541    END get_valid_run_state;
 542  
-543  END;
-544  /
+543    FUNCTION create_executor( p_executor_name	 IN VARCHAR2
+544  			       , p_db_user		 IN VARCHAR2
+545  			       , p_function_owner	 IN VARCHAR2
+546  			       , p_fn_has_scripts	 IN VARCHAR2
+547  			       , p_fn_get_next_script	 IN VARCHAR2
+548  			       , p_fn_set_script_status  IN VARCHAR2
+549  			       , p_cfg_file		 IN VARCHAR2
+550  			       , p_use_mail		 IN NUMBER     DEFAULT 0
+551  			       , p_fn_send_db_mail	 IN VARCHAR2   DEFAULT NULL
+552  			       , p_executor_description  IN VARCHAR2   DEFAULT NULL
+553  			       )
+554  	 RETURN NUMBER
+555    IS
+556  	 PRAGMA AUTONOMOUS_TRANSACTION;
+557  	 l_return	     NUMBER;
+558  	 l_self_log_category sosl_server_log.log_category%TYPE	 := 'SOSL_UTIL';
+559  	 l_self_caller	     sosl_server_log.caller%TYPE	 := 'sosl_util.create_executor';
+560    BEGIN
+561  	 l_return := -1;
+562  	 -- leave error checking to trigger
+563  	 INSERT INTO sosl_executor_definition
+564  	   ( executor_name
+565  	   , db_user
+566  	   , function_owner
+567  	   , fn_has_scripts
+568  	   , fn_get_next_script
+569  	   , fn_set_script_status
+570  	   , cfg_file
+571  	   , use_mail
+572  	   , fn_send_db_mail
+573  	   , executor_description
+574  	   )
+575  	   VALUES ( p_executor_name
+576  		  , p_db_user
+577  		  , p_function_owner
+578  		  , p_fn_has_scripts
+579  		  , p_fn_get_next_script
+580  		  , p_fn_set_script_status
+581  		  , p_cfg_file
+582  		  , p_use_mail
+583  		  , p_fn_send_db_mail
+584  		  , p_executor_description
+585  		  )
+586  	   RETURNING executor_id INTO l_return
+587  	 ;
+588  	 COMMIT;
+589  	 sosl_log.minimal_info_log(l_self_caller, l_self_log_category, 'Created new executor: ' || p_executor_name || ' with ID: ' || l_return);
+590  	 RETURN l_return;
+591    EXCEPTION
+592  	 WHEN OTHERS THEN
+593  	   -- log the error instead of RAISE
+594  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+595  	   RETURN -1;
+596    END create_executor;
+597  
+598    FUNCTION active_state_executor( p_executor_id   IN NUMBER
+599  				     , p_active_state  IN NUMBER DEFAULT 0
+600  				     )
+601  	 RETURN NUMBER
+602    IS
+603  	 PRAGMA AUTONOMOUS_TRANSACTION;
+604  	 l_self_log_category sosl_server_log.log_category%TYPE	 := 'SOSL_UTIL';
+605  	 l_self_caller	     sosl_server_log.caller%TYPE	 := 'sosl_util.active_state_executor';
+606    BEGIN
+607  	 -- leave error checking to trigger
+608  	 UPDATE sosl_executor_definition
+609  	    SET executor_active = p_active_state
+610  	  WHERE executor_id = p_executor_id
+611  	 ;
+612  	 COMMIT;
+613  	 sosl_log.minimal_info_log(l_self_caller, l_self_log_category, 'Active state changed for executor id: ' || p_executor_id || ' to: ' || p_active_state);
+614  	 RETURN 0;
+615    EXCEPTION
+616  	 WHEN OTHERS THEN
+617  	   -- log the error instead of RAISE
+618  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+619  	   RETURN -1;
+620    END active_state_executor;
+621  
+622    FUNCTION review_state_executor( p_executor_id   IN NUMBER
+623  				     , p_review_state  IN NUMBER DEFAULT 0
+624  				     )
+625  	 RETURN NUMBER
+626    IS
+627  	 PRAGMA AUTONOMOUS_TRANSACTION;
+628  	 l_self_log_category sosl_server_log.log_category%TYPE	 := 'SOSL_UTIL';
+629  	 l_self_caller	     sosl_server_log.caller%TYPE	 := 'sosl_util.review_state_executor';
+630    BEGIN
+631  	 -- leave error checking to trigger
+632  	 UPDATE sosl_executor_definition
+633  	    SET executor_reviewed = p_review_state
+634  	  WHERE executor_id = p_executor_id
+635  	 ;
+636  	 COMMIT;
+637  	 sosl_log.minimal_info_log(l_self_caller, l_self_log_category, 'Review state changed for executor id: ' || p_executor_id || ' to: ' || p_review_state);
+638  	 RETURN 0;
+639    EXCEPTION
+640  	 WHEN OTHERS THEN
+641  	   -- log the error instead of RAISE
+642  	   sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+643  	   RETURN -1;
+644    END review_state_executor;
+645  
+646  END;
+647  /
 
 Package body created.
 
@@ -5680,77 +5859,176 @@ SQL> CREATE OR REPLACE PACKAGE sosl_api
   5    * Some functions are limited to roles, higher than SOSL_USER. Config login information are not visible to SOSL_USER
   6    * role. Mainly used to manage executors and retrieve basic information.
   7    * This package is made for users to interactively manage executors and get or set parameter. The return value is
-  8    * therefore always a string that can be interpreted by a human being, not by programs. The functions can be used
-  9    * with select statements as well as in PLSQL blocks or code. Inserts and updates will run as autonomous transactions.
- 10    */
- 11  
- 12    /** Function SOSL_API.GET_CONFIG
- 13    * Gets an existing configuration value for a given and existing case sensitive configuration name.
- 14    * In case of errors details can be found in SOSL_SERVER_LOG_V. See SOSL_CONFIG_V for available configuration
- 15    * values.
- 16    *
- 17    * @return The configured value as VARCHAR2 or an error text message.
- 18    */
- 19    FUNCTION get_config(p_config_name IN VARCHAR2)
- 20  	 RETURN VARCHAR2
- 21    ;
- 22  
- 23    /** Function SOSL_API.SET_RUNMODE
- 24    * REQUIRES role SOSL_EXECUTOR or higher.
- 25    * Sets the runmode for the SOSL server. Allowed values are RUN (default if no parameter given), PAUSE or STOP.
- 26    * Depending on the current wait time and defined timeframe at server start, the server will read this state the
- 27    * next time it is connecting to the database. If the server is inactive, the runmode will be used on server start.
- 28    * In case of errors details can be found in SOSL_SERVER_LOG_V.
- 29    *
- 30    * This will not stop the server immediately as it depends on the server reading the entry. If in wait mode, depending
- 31    * on the wait time, the server will stop after waiting. If the server is running outside of the given time frame that
- 32    * was set on server start, the server will stop after entering the time frame known to the server at server start.
- 33    * If you want to stop the server immediately you may do this on the local server.
- 34    *
- 35    * You may stop the server by database, but YOU CAN'T START THE SERVER BY DATABASE. This has to be done locally on
- 36    * the SOSL server machine.
- 37    *
- 38    * @param p_runmode The desired run mode. Possible values are RUN, STOP, PAUSE. Default is RUN.
- 39    *
- 40    * @return A success or error text message.
- 41    */
- 42    FUNCTION set_runmode(p_runmode IN VARCHAR2 DEFAULT 'RUN')
- 43  	 RETURN VARCHAR2
- 44    ;
- 45  
- 46    /** Function SOSL_API.SET_TIMEFRAME
- 47    * REQUIRES role SOSL_EXECUTOR or higher.
- 48    * Set the timeframe where the server is allowed to connect to the database. If the server detects that it is
- 49    * running out of the given timeframe it will not connect to the database and using the wait time defined for
- 50    * SOSL_PAUSE_WAIT. Take care on setting this times that pause wait time is not too long and leads to overlaps
- 51    * with the timeframe set. The larger SOSL_PAUSE_WAIT is, the bigger can be an overlap where the server is still
- 52    * waiting, even if the timeframe for running has already started.
- 53    *
- 54    * If the pause wait time is one hour, than it is recommended that timeframe set is also fitting with the pause
- 55    * wait time, e.g. 08:00 - 18:00, 07:30 - 19:30. To avoid overlaps you should set the from time to a value a few
- 56    * minutes below the hourly waits, e.g. desired server at 08:00 is up, set 07:55 - 18:00, to ensure that the server
- 57    * is up and running at 08:00.
- 58    *
- 59    * The server can handle daybreaks, so you might also set the timeframe to 21:55 - 06:00.
- 60    *
- 61    * If from or to is set to '-1', the timeframe will be disabled and ignored.
- 62    *
- 63    * ATTENTION! The time is related to the local server time of the SOSL server, not to the time of the database
- 64    * server in case they differ.
- 65    *
- 66    * @param p_from The start time for the SOSL server in 24h format with leading zeros and : as delimiter or string '-1'.
- 67    * @param p_to The end time for the SOSL server in 24h format with leading zeros and : as delimiter or string '-1'.
- 68    *
- 69    * @return A success or error text message.
- 70    */
- 71    FUNCTION set_timeframe( p_from IN VARCHAR2 DEFAULT '07:55'
- 72  			     , p_to   IN VARCHAR2 DEFAULT '18:00'
- 73  			     )
- 74  	 RETURN VARCHAR2
- 75    ;
- 76  
- 77  END;
- 78  /
+  8    * therefore usually a string that can be interpreted by a human being, not by programs or a number for IDs. The functions
+  9    * can be used with select statements as well as in PLSQL blocks or code. Inserts and updates will run as autonomous
+ 10    * transactions.
+ 11    */
+ 12  
+ 13    /** Function SOSL_API.GET_CONFIG
+ 14    * Gets an existing configuration value for a given and existing case sensitive configuration name.
+ 15    * In case of errors details can be found in SOSL_SERVER_LOG_V. See SOSL_CONFIG_V for available configuration
+ 16    * values.
+ 17    *
+ 18    * @return The configured value as VARCHAR2 or an error text message.
+ 19    */
+ 20    FUNCTION get_config(p_config_name IN VARCHAR2)
+ 21  	 RETURN VARCHAR2
+ 22    ;
+ 23  
+ 24    /** Function SOSL_API.SET_RUNMODE
+ 25    * REQUIRES role SOSL_EXECUTOR or higher.
+ 26    * Sets the runmode for the SOSL server. Allowed values are RUN (default if no parameter given), PAUSE or STOP.
+ 27    * Depending on the current wait time and defined timeframe at server start, the server will read this state the
+ 28    * next time it is connecting to the database. If the server is inactive, the runmode will be used on server start.
+ 29    * In case of errors details can be found in SOSL_SERVER_LOG_V.
+ 30    *
+ 31    * This will not stop the server immediately as it depends on the server reading the entry. If in wait mode, depending
+ 32    * on the wait time, the server will stop after waiting. If the server is running outside of the given time frame that
+ 33    * was set on server start, the server will stop after entering the time frame known to the server at server start.
+ 34    * If you want to stop the server immediately you may do this on the local server.
+ 35    *
+ 36    * You may stop the server by database, but YOU CAN'T START THE SERVER BY DATABASE. This has to be done locally on
+ 37    * the SOSL server machine.
+ 38    *
+ 39    * @param p_runmode The desired run mode. Possible values are RUN, STOP, PAUSE. Default is RUN.
+ 40    *
+ 41    * @return A success or error text message.
+ 42    */
+ 43    FUNCTION set_runmode(p_runmode IN VARCHAR2 DEFAULT 'RUN')
+ 44  	 RETURN VARCHAR2
+ 45    ;
+ 46  
+ 47    /** Function SOSL_API.SET_TIMEFRAME
+ 48    * REQUIRES role SOSL_EXECUTOR or higher.
+ 49    * Set the timeframe where the server is allowed to connect to the database. If the server detects that it is
+ 50    * running out of the given timeframe it will not connect to the database and using the wait time defined for
+ 51    * SOSL_PAUSE_WAIT. Take care on setting this times that pause wait time is not too long and leads to overlaps
+ 52    * with the timeframe set. The larger SOSL_PAUSE_WAIT is, the bigger can be an overlap where the server is still
+ 53    * waiting, even if the timeframe for running has already started.
+ 54    *
+ 55    * If the pause wait time is one hour, than it is recommended that timeframe set is also fitting with the pause
+ 56    * wait time, e.g. 08:00 - 18:00, 07:30 - 19:30. To avoid overlaps you should set the from time to a value a few
+ 57    * minutes below the hourly waits, e.g. desired server at 08:00 is up, set 07:55 - 18:00, to ensure that the server
+ 58    * is up and running at 08:00.
+ 59    *
+ 60    * The server can handle daybreaks, so you might also set the timeframe to 21:55 - 06:00.
+ 61    *
+ 62    * If from or to is set to '-1', the timeframe will be disabled and ignored.
+ 63    *
+ 64    * ATTENTION! The time is related to the local server time of the SOSL server, not to the time of the database
+ 65    * server in case they differ.
+ 66    *
+ 67    * @param p_from The start time for the SOSL server in 24h format with leading zeros and : as delimiter or string '-1'.
+ 68    * @param p_to The end time for the SOSL server in 24h format with leading zeros and : as delimiter or string '-1'.
+ 69    *
+ 70    * @return A success or error text message.
+ 71    */
+ 72    FUNCTION set_timeframe( p_from IN VARCHAR2 DEFAULT '07:55'
+ 73  			     , p_to   IN VARCHAR2 DEFAULT '18:00'
+ 74  			     )
+ 75  	 RETURN VARCHAR2
+ 76    ;
+ 77  
+ 78    /** Function SOSL_API.CREATE_EXECUTOR
+ 79    * REQUIRES role SOSL_EXECUTOR or higher.
+ 80    * Creates a new executor definition if it did not exist already. DB_USER is set automatically using the SESSION_USER from
+ 81    * SYS_CONTEXT. The executor is neither activated nor marked as reviewed. To use the executor you must activate it and the
+ 82    * reviewed state must have been set.
+ 83    * The given interface functions must conform to the following declarations, must exist and be granted to SOSL_EXECUTOR role:
+ 84    *
+ 85    * fn_has_scripts: FUNCTION your_has_script RETURN NUMBER;
+ 86    * @return A positive integer including 0 for amount of scripts waiting or -1 on errors.
+ 87    * @task: Return the amount of waiting scripts.
+ 88    *
+ 89    * fn_get_next_script: FUNCTION your_get_next_script RETURN SOSL.SOSL_PAYLOAD;
+ 90    * @return A valid and filled SOSL_PAYLOAD object containing EXECUTOR_ID, EXT_SCRIPT_ID and SCRIPT_FILE or NULL on errors.
+ 91    * @task: Return the details of the next waiting script.
+ 92    *
+ 93    * fn_set_script_status: FUNCTION your_set_script_status(p_run_id IN NUMBER, p_status IN NUMBER) RETURN NUMBER;
+ 94    * @return Execution indicator: 0 on success or -1 on errors.
+ 95    * @task: Set the internal status of your scripts queued for execution.
+ 96    *
+ 97    * fn_send_db_mail: FUNCTION your_send_mail(p_run_id IN NUMBER, p_status IN NUMBER) RETURN NUMBER;
+ 98    * @return Execution indicator: 0 on success or -1 on errors.
+ 99    * @task: Prepare and send a mail based on script status.
+100    *
+101    * For examples see package SOSL_IF.
+102    *
+103    * @param p_executor_name The unique executor definition name.
+104    * @param p_function_owner The existing and for SOSL visible database user that owns the interface functions.
+105    * @param p_fn_has_scripts The fully qualified interface function for has_scripts. Must exist and be granted to SOSL_EXECUTOR.
+106    * @param p_fn_get_next_script The fully qualified interface function for get_next_script. Must exist and be granted to SOSL_EXECUTOR.
+107    * @param p_fn_set_script_status The fully qualified interface function for set_script_status. Must exist and be granted to SOSL_EXECUTOR.
+108    * @param p_cfg_file The filename including relative or absolute path that contains the login for the executor.
+109    * @param p_use_mail Defines if mail should be used (1) or not (0). Default is no mail usage.
+110    * @param p_fn_send_db_mail The fully qualified interface function for send mail. If mail should be used the parameter is mandatory, must exist and be granted to SOSL_EXECUTOR.
+111    * @param p_executor_description An optional description for the new executor.
+112    *
+113    * @return The new executor id for the created executor or -1 on errors. Check SOSL_SERVER_LOG for details on errors.
+114    */
+115    FUNCTION create_executor( p_executor_name	 IN VARCHAR2
+116  			       , p_function_owner	 IN VARCHAR2
+117  			       , p_fn_has_scripts	 IN VARCHAR2
+118  			       , p_fn_get_next_script	 IN VARCHAR2
+119  			       , p_fn_set_script_status  IN VARCHAR2
+120  			       , p_cfg_file		 IN VARCHAR2
+121  			       , p_use_mail		 IN NUMBER     DEFAULT 0
+122  			       , p_fn_send_db_mail	 IN VARCHAR2   DEFAULT NULL
+123  			       , p_executor_description  IN VARCHAR2   DEFAULT NULL
+124  			       )
+125  	 RETURN NUMBER
+126    ;
+127  
+128    /** Function SOSL_API.ACTIVATE_EXECUTOR
+129    * REQUIRES role SOSL_EXECUTOR or higher.
+130    * Sets the executor, identified by the given id, to active.
+131    *
+132    * @param p_executor_id The executor id to activate.
+133    *
+134    * @return A success or error text message.
+135    */
+136    FUNCTION activate_executor(p_executor_id IN NUMBER)
+137  	 RETURN VARCHAR2
+138    ;
+139  
+140    /** Function SOSL_API.DEACTIVATE_EXECUTOR
+141    * REQUIRES role SOSL_EXECUTOR or higher.
+142    * Sets the executor, identified by the given id, to deactivated.
+143    *
+144    * @param p_executor_id The executor id to activate.
+145    *
+146    * @return A success or error text message.
+147    */
+148    FUNCTION deactivate_executor(p_executor_id IN NUMBER)
+149  	 RETURN VARCHAR2
+150    ;
+151  
+152    /** Function SOSL_API.SET_EXECUTOR_REVIEWED
+153    * REQUIRES role SOSL_REVIEWER or higher.
+154    * Sets the executor, identified by the given id, to reviewed.
+155    *
+156    * @param p_executor_id The executor id to set to reviewed.
+157    *
+158    * @return A success or error text message.
+159    */
+160    FUNCTION set_executor_reviewed(p_executor_id IN NUMBER)
+161  	 RETURN VARCHAR2
+162    ;
+163  
+164    /** Function SOSL_API.REVOKE_EXECUTOR_REVIEWED
+165    * REQUIRES role SOSL_REVIEWER or higher.
+166    * Sets the executor, identified by the given id, to not reviewed.
+167    *
+168    * @param p_executor_id The executor id to set to not reviewed.
+169    *
+170    * @return A success or error text message.
+171    */
+172    FUNCTION revoke_executor_reviewed(p_executor_id IN NUMBER)
+173  	 RETURN VARCHAR2
+174    ;
+175  
+176  END;
+177  /
 
 Package created.
 
@@ -5879,8 +6157,181 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
 116  	   RETURN 'ERROR executing SOSL_API.SET_TIMEFRAME see SOSL_SERVER_LOG for details';
 117    END set_timeframe;
 118  
-119  END;
-120  /
+119    FUNCTION create_executor( p_executor_name	 IN VARCHAR2
+120  			       , p_function_owner	 IN VARCHAR2
+121  			       , p_fn_has_scripts	 IN VARCHAR2
+122  			       , p_fn_get_next_script	 IN VARCHAR2
+123  			       , p_fn_set_script_status  IN VARCHAR2
+124  			       , p_cfg_file		 IN VARCHAR2
+125  			       , p_use_mail		 IN NUMBER     DEFAULT 0
+126  			       , p_fn_send_db_mail	 IN VARCHAR2   DEFAULT NULL
+127  			       , p_executor_description  IN VARCHAR2   DEFAULT NULL
+128  			       )
+129  	 RETURN NUMBER
+130    IS
+131  	 l_return	 NUMBER;
+132  	 l_user 	 VARCHAR2(128);
+133  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+134  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.create_executor';
+135    BEGIN
+136  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+137  	 IF sosl_util.has_role(l_user, 'SOSL_EXECUTOR')
+138  	 THEN
+139  	   l_return := sosl_util.create_executor( p_executor_name
+140  						, l_user
+141  						, p_function_owner
+142  						, p_fn_has_scripts
+143  						, p_fn_get_next_script
+144  						, p_fn_set_script_status
+145  						, p_cfg_file
+146  						, p_use_mail
+147  						, p_fn_send_db_mail
+148  						, p_executor_description
+149  						)
+150  	   ;
+151  	 ELSE
+152  	   sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to create an executor named ' || p_executor_name || ' using function owner ' || p_function_owner || ' without sufficient role rights.');
+153  	   l_return := -1;
+154  	 END IF;
+155  	 RETURN l_return;
+156    EXCEPTION
+157  	 WHEN OTHERS THEN
+158  	   -- log the error instead of RAISE
+159  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+160  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+161  	   RETURN -1;
+162    END create_executor;
+163  
+164    FUNCTION activate_executor(p_executor_id IN NUMBER)
+165  	 RETURN VARCHAR2
+166    IS
+167  	 l_return	 VARCHAR2(4000);
+168  	 l_user 	 VARCHAR2(128);
+169  	 l_result	 NUMBER;
+170  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+171  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.activate_executor';
+172    BEGIN
+173  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+174  	 IF sosl_util.has_role(l_user, 'SOSL_EXECUTOR')
+175  	 THEN
+176  	   l_result := sosl_util.active_state_executor(p_executor_id, sosl_constants.NUM_YES);
+177  	   IF l_result = -1
+178  	   THEN
+179  	     l_return := 'ERROR activating executor with id ' || p_executor_id || ' see SOSL_SERVER_LOG for details';
+180  	   ELSE
+181  	     l_return := 'SUCCESS Activated executor with id ' || p_executor_id;
+182  	   END IF;
+183  	 ELSE
+184  	   sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to activate executor with id ' || p_executor_id || ' without sufficient role rights.');
+185  	   l_return := 'ERROR insufficient privileges. Needs at least role SOSL_EXECUTOR.';
+186  	 END IF;
+187  	 RETURN l_return;
+188    EXCEPTION
+189  	 WHEN OTHERS THEN
+190  	   -- log the error instead of RAISE
+191  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+192  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+193  	   RETURN 'ERROR executing SOSL_API.ACTIVATE_EXECUTOR see SOSL_SERVER_LOG for details';
+194    END activate_executor;
+195  
+196    FUNCTION deactivate_executor(p_executor_id IN NUMBER)
+197  	 RETURN VARCHAR2
+198    IS
+199  	 l_return	 VARCHAR2(4000);
+200  	 l_user 	 VARCHAR2(128);
+201  	 l_result	 NUMBER;
+202  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+203  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.deactivate_executor';
+204    BEGIN
+205  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+206  	 IF sosl_util.has_role(l_user, 'SOSL_EXECUTOR')
+207  	 THEN
+208  	   l_result := sosl_util.active_state_executor(p_executor_id, sosl_constants.NUM_NO);
+209  	   IF l_result = -1
+210  	   THEN
+211  	     l_return := 'ERROR deactivating executor with id ' || p_executor_id || ' see SOSL_SERVER_LOG for details';
+212  	   ELSE
+213  	     l_return := 'SUCCESS Deactivated executor with id ' || p_executor_id;
+214  	   END IF;
+215  	 ELSE
+216  	   sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to deactivate executor with id ' || p_executor_id || ' without sufficient role rights.');
+217  	   l_return := 'ERROR insufficient privileges. Needs at least role SOSL_EXECUTOR.';
+218  	 END IF;
+219  	 RETURN l_return;
+220    EXCEPTION
+221  	 WHEN OTHERS THEN
+222  	   -- log the error instead of RAISE
+223  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+224  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+225  	   RETURN 'ERROR executing SOSL_API.DEACTIVATE_EXECUTOR see SOSL_SERVER_LOG for details';
+226    END deactivate_executor;
+227  
+228    FUNCTION set_executor_reviewed(p_executor_id IN NUMBER)
+229  	 RETURN VARCHAR2
+230    IS
+231  	 l_return	 VARCHAR2(4000);
+232  	 l_user 	 VARCHAR2(128);
+233  	 l_result	 NUMBER;
+234  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+235  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.set_executor_reviewed';
+236    BEGIN
+237  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+238  	 IF sosl_util.has_role(l_user, 'SOSL_REVIEWER')
+239  	 THEN
+240  	   l_result := sosl_util.review_state_executor(p_executor_id, sosl_constants.NUM_YES);
+241  	   IF l_result = -1
+242  	   THEN
+243  	     l_return := 'ERROR set executor with id ' || p_executor_id || ' to reviewed see SOSL_SERVER_LOG for details';
+244  	   ELSE
+245  	     l_return := 'SUCCESS Set executor with id ' || p_executor_id || ' to reviewed';
+246  	   END IF;
+247  	 ELSE
+248  	   sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to set executor with id ' || p_executor_id || ' to reviewed without sufficient role rights.');
+249  	   l_return := 'ERROR insufficient privileges. Needs at least role SOSL_REVIEWER.';
+250  	 END IF;
+251  	 RETURN l_return;
+252    EXCEPTION
+253  	 WHEN OTHERS THEN
+254  	   -- log the error instead of RAISE
+255  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+256  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+257  	   RETURN 'ERROR executing SOSL_API.SET_EXECUTOR_REVIEWED see SOSL_SERVER_LOG for details';
+258    END set_executor_reviewed;
+259  
+260    FUNCTION revoke_executor_reviewed(p_executor_id IN NUMBER)
+261  	 RETURN VARCHAR2
+262    IS
+263  	 l_return	 VARCHAR2(4000);
+264  	 l_user 	 VARCHAR2(128);
+265  	 l_result	 NUMBER;
+266  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+267  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.revoke_executor_reviewed';
+268    BEGIN
+269  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+270  	 IF sosl_util.has_role(l_user, 'SOSL_REVIEWER')
+271  	 THEN
+272  	   l_result := sosl_util.review_state_executor(p_executor_id, sosl_constants.NUM_NO);
+273  	   IF l_result = -1
+274  	   THEN
+275  	     l_return := 'ERROR set executor with id ' || p_executor_id || ' to not reviewed see SOSL_SERVER_LOG for details';
+276  	   ELSE
+277  	     l_return := 'SUCCESS Set executor with id ' || p_executor_id || ' to not reviewed';
+278  	   END IF;
+279  	 ELSE
+280  	   sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to set executor with id ' || p_executor_id || ' to not reviewed without sufficient role rights.');
+281  	   l_return := 'ERROR insufficient privileges. Needs at least role SOSL_REVIEWER.';
+282  	 END IF;
+283  	 RETURN l_return;
+284    EXCEPTION
+285  	 WHEN OTHERS THEN
+286  	   -- log the error instead of RAISE
+287  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+288  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+289  	   RETURN 'ERROR executing SOSL_API.REVOKE_EXECUTOR_REVIEWED see SOSL_SERVER_LOG for details';
+290    END revoke_executor_reviewed;
+291  
+292  END;
+293  /
 
 Package body created.
 
@@ -6277,7 +6728,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_definition_ins_trg
  89    -- log the insert
  90    sosl_log.minimal_info_log( l_self_caller
  91  				, l_self_log_category
- 92  				, 'A new executor named ' || :NEW.executor_name || ' has been defined for DB user: ' || :NEW.db_user || ' with function owner: ' || :NEW.function_owner || '.'
+ 92  				, 'A new executor named ' || :NEW.executor_name || ' for DB user: ' || :NEW.db_user || ' with function owner: ' || :NEW.function_owner || ' is about to be created.'
  93  				)
  94    ;
  95  EXCEPTION
@@ -6414,7 +6865,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_executor_definition_upd_trg
 118    -- log the update
 119    sosl_log.minimal_info_log( l_self_caller
 120  				, l_self_log_category
-121  				, 'The configuration for executor ID: ' || :OLD.executor_id || ' named ' || :OLD.executor_name || ' has been updated.'
+121  				, 'The configuration for executor ID: ' || :OLD.executor_id || ' named ' || :OLD.executor_name || ' is ready to be updated.'
 122  				)
 123    ;
 124  EXCEPTION
@@ -6482,7 +6933,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_run_queue_ins_trg
  44    -- log the insert
  45    sosl_log.minimal_info_log( l_self_caller
  46  				, l_self_log_category
- 47  				, 'A new script with run id ' || :NEW.run_id || ' has been added to the run queue created by OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+ 47  				, 'A new script with run id ' || :NEW.run_id || ' is prepared to be added to the run queue created by OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
  48  				)
  49    ;
  50  EXCEPTION
@@ -6598,7 +7049,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_run_queue_upd_trg
 101    -- log the update
 102    sosl_log.minimal_info_log( l_self_caller
 103  				, l_self_log_category
-104  				, 'Updated run id ' || :OLD.run_id || ' by OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+104  				, 'Prepared the update for run id ' || :OLD.run_id || ' by OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
 105  				)
 106    ;
 107  EXCEPTION
@@ -6832,47 +7283,50 @@ SQL> CREATE OR REPLACE PACKAGE sosl_if
  15    ;
  16  
  17    /** Function SOSL_IF.GET_NEXT_SCRIPT
- 18    * Returns the next script id to execute. To be defined in SOSL_EXECUTOR_DEFINITION.
- 19    *
- 20    * @return The id of the next script to execute.
- 21    */
- 22    FUNCTION get_next_script
- 23  	 RETURN &SOSL_SCHEMA..SOSL_PAYLOAD
- 24    ;
- 25  
- 26    /** Function SOSL_IF.SET_SCRIPT_STATUS
- 27    * Sets the status of a script. To be defined in SOSL_EXECUTOR_DEFINITION.
- 28    *
- 29    * @param p_run_id The valid run id of the script that should change run state.
- 30    * @param p_status A valid status as defined in SOSL_CONSTANTS for run states.
- 31    *
- 32    * @return Return 0 if successful executed otherwise -1.
- 33    */
- 34    FUNCTION set_script_status( p_run_id IN NUMBER
- 35  				 , p_status IN NUMBER
- 36  				 )
- 37  	 RETURN NUMBER
- 38    ;
- 39  
- 40    /* FUNCTION SOSL_IF.SEND_MAIL
- 41    * This interface function is mainly used for testing. In the default setting, it will only send the mail message to
- 42    * SOSL_SERVER_LOG. To be defined in SOSL_EXECUTOR_DEFINITION. Will be called on every status change, if mail is activated.
- 43    *
- 44    * @param p_run_id The valid run id of the script that should change run state.
- 45    * @param p_status A valid status as defined in SOSL_CONSTANTS for run states.
+ 18    * Returns the details of the next script to execute. SOSL_PAYLOAD contains the EXECUTOR_ID from SOSL_EXECUTOR_DEFINITION,
+ 19    * the EXT_SCRIPT_ID as used in SOSL_IF_SCRIPT.SCRIPT_ID and the SCRIPT_FILE as defined in SOSL_IF_SCRIPT.SCRIPT_NAME.
+ 20    * To be defined in SOSL_EXECUTOR_DEFINITION.
+ 21    *
+ 22    * @return The details of the next script to execute as SOSL_PAYLOAD object or NULL on errors.
+ 23    */
+ 24    FUNCTION get_next_script
+ 25  	 RETURN &SOSL_SCHEMA..SOSL_PAYLOAD
+ 26    ;
+ 27  
+ 28    /** Function SOSL_IF.SET_SCRIPT_STATUS
+ 29    * Sets the status of a script in SOSL_IF_SCRIPT. Collects needed data based on RUN_ID. To be defined in SOSL_EXECUTOR_DEFINITION.
+ 30    *
+ 31    * @param p_run_id The valid run id of the script that should change run state.
+ 32    * @param p_status A valid status as defined in SOSL_CONSTANTS for run states.
+ 33    *
+ 34    * @return Return 0 if successful executed otherwise -1.
+ 35    */
+ 36    FUNCTION set_script_status( p_run_id IN NUMBER
+ 37  				 , p_status IN NUMBER
+ 38  				 )
+ 39  	 RETURN NUMBER
+ 40    ;
+ 41  
+ 42    /* FUNCTION SOSL_IF.SEND_MAIL
+ 43    * This interface function is mainly used for testing. It will only send the mail message to SOSL_SERVER_LOG. Will be called on every
+ 44    * status change, if mail is activated. Collects needed data based on RUN_ID.
+ 45    * To be defined in SOSL_EXECUTOR_DEFINITION if USE_MAIL is activated.
  46    *
- 47    * @return Return 0 if successful executed otherwise -1.
- 48    */
- 49    FUNCTION send_mail( p_run_id IN NUMBER
- 50  			 , p_status IN NUMBER
- 51  			 )
- 52  	 RETURN NUMBER
- 53    ;
- 54  
- 55  END;
- 56  /
-old  23:     RETURN &SOSL_SCHEMA..SOSL_PAYLOAD
-new  23:     RETURN SOSL.SOSL_PAYLOAD
+ 47    * @param p_run_id The valid run id of the script that should send a mail on changing run state.
+ 48    * @param p_status A valid status as defined in SOSL_CONSTANTS for run states.
+ 49    *
+ 50    * @return Return 0 if successful executed otherwise -1.
+ 51    */
+ 52    FUNCTION send_mail( p_run_id IN NUMBER
+ 53  			 , p_status IN NUMBER
+ 54  			 )
+ 55  	 RETURN NUMBER
+ 56    ;
+ 57  
+ 58  END;
+ 59  /
+old  25:     RETURN &SOSL_SCHEMA..SOSL_PAYLOAD
+new  25:     RETURN SOSL.SOSL_PAYLOAD
 
 Package created.
 

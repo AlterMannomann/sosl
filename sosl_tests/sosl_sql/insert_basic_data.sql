@@ -2,29 +2,22 @@
 -- Not allowed to be used as AI training material without explicite permission.
 
 -- default executor
-INSERT INTO sosl_executor_definition
-  ( executor_name
-  , db_user
-  , function_owner
-  , fn_has_scripts
-  , fn_get_next_script
-  , fn_set_script_status
-  , cfg_file
-  , use_mail
-  , executor_description
-  )
-  VALUES ( 'SOSL'
-         , 'sosl'
-         , 'sosl'
-         , 'sosl_if.has_scripts'
-         , 'sosl_if.get_next_script'
-         , 'sosl_if.set_script_status'
-         , '..\sosl_templates\sosl_login.cfg'
-         , 0
-         , 'Internal SOSL executor for testing and demonstration purposes. Only a simple set of ordered scripts supported.'
-         )
+SELECT sosl_api.create_executor( 'SOSL'
+                                 , 'sosl'
+                                 , 'sosl_if.has_scripts'
+                                 , 'sosl_if.get_next_script'
+                                 , 'sosl_if.set_script_status'
+                                 , '..\sosl_templates\sosl_login.cfg'
+                                 , 1
+                                 , 'sosl_if.send_mail'
+                                 , 'Internal SOSL executor for testing and demonstration purposes. Only a simple set of ordered scripts supported.'
+                                 ) AS new_executor_id
+  FROM dual
 ;
-COMMIT;
+
+SELECT sosl_api.activate_executor(1) FROM dual;
+SELECT sosl_api.set_executor_reviewed(1) FROM dual;
+
 INSERT INTO sosl_if_script
   ( script_name
   , script_active
@@ -35,18 +28,5 @@ INSERT INTO sosl_if_script
        , executor_id
     FROM sosl_executor_definition
    WHERE executor_name = 'SOSL'
-;
-COMMIT;
-
-UPDATE sosl_executor_definition
-   SET fn_send_db_mail = 'sosl_if.send_mail'
- WHERE executor_name = 'SOSL'
-;
-COMMIT;
-UPDATE sosl_executor_definition
-   SET executor_active = 1
-     , executor_reviewed = 1
-     , use_mail = 1
- WHERE executor_name = 'SOSL'
 ;
 COMMIT;

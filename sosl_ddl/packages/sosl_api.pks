@@ -8,8 +8,9 @@ AS
   * Some functions are limited to roles, higher than SOSL_USER. Config login information are not visible to SOSL_USER
   * role. Mainly used to manage executors and retrieve basic information.
   * This package is made for users to interactively manage executors and get or set parameter. The return value is
-  * therefore always a string that can be interpreted by a human being, not by programs. The functions can be used
-  * with select statements as well as in PLSQL blocks or code. Inserts and updates will run as autonomous transactions.
+  * therefore usually a string that can be interpreted by a human being, not by programs or a number for IDs. The functions
+  * can be used with select statements as well as in PLSQL blocks or code. Inserts and updates will run as autonomous
+  * transactions.
   */
 
   /** Function SOSL_API.GET_CONFIG
@@ -79,7 +80,28 @@ AS
 
   /** Function SOSL_API.CREATE_EXECUTOR
   * REQUIRES role SOSL_EXECUTOR or higher.
-  * Creates a new executor definition if it did not exist already.
+  * Creates a new executor definition if it did not exist already. DB_USER is set automatically using the SESSION_USER from
+  * SYS_CONTEXT. The executor is neither activated nor marked as reviewed. To use the executor you must activate it and the
+  * reviewed state must have been set.
+  * The given interface functions must conform to the following declarations, must exist and be granted to SOSL_EXECUTOR role:
+  *
+  * fn_has_scripts: FUNCTION your_has_script RETURN NUMBER;
+  * @return A positive integer including 0 for amount of scripts waiting or -1 on errors.
+  * @task: Return the amount of waiting scripts.
+  *
+  * fn_get_next_script: FUNCTION your_get_next_script RETURN SOSL.SOSL_PAYLOAD;
+  * @return A valid and filled SOSL_PAYLOAD object containing EXECUTOR_ID, EXT_SCRIPT_ID and SCRIPT_FILE or NULL on errors.
+  * @task: Return the details of the next waiting script.
+  *
+  * fn_set_script_status: FUNCTION your_set_script_status(p_run_id IN NUMBER, p_status IN NUMBER) RETURN NUMBER;
+  * @return Execution indicator: 0 on success or -1 on errors.
+  * @task: Set the internal status of your scripts queued for execution.
+  *
+  * fn_send_db_mail: FUNCTION your_send_mail(p_run_id IN NUMBER, p_status IN NUMBER) RETURN NUMBER;
+  * @return Execution indicator: 0 on success or -1 on errors.
+  * @task: Prepare and send a mail based on script status.
+  *
+  * For examples see package SOSL_IF.
   *
   * @param p_executor_name The unique executor definition name.
   * @param p_function_owner The existing and for SOSL visible database user that owns the interface functions.
@@ -89,9 +111,9 @@ AS
   * @param p_cfg_file The filename including relative or absolute path that contains the login for the executor.
   * @param p_use_mail Defines if mail should be used (1) or not (0). Default is no mail usage.
   * @param p_fn_send_db_mail The fully qualified interface function for send mail. If mail should be used the parameter is mandatory, must exist and be granted to SOSL_EXECUTOR.
-  * @param p_executor_description
+  * @param p_executor_description An optional description for the new executor.
   *
-  * @return A success or error text message.
+  * @return The new executor id for the created executor or -1 on errors. Check SOSL_SERVER_LOG for details on errors.
   */
   FUNCTION create_executor( p_executor_name         IN VARCHAR2
                           , p_function_owner        IN VARCHAR2
@@ -103,6 +125,54 @@ AS
                           , p_fn_send_db_mail       IN VARCHAR2   DEFAULT NULL
                           , p_executor_description  IN VARCHAR2   DEFAULT NULL
                           )
+    RETURN NUMBER
+  ;
+
+  /** Function SOSL_API.ACTIVATE_EXECUTOR
+  * REQUIRES role SOSL_EXECUTOR or higher.
+  * Sets the executor, identified by the given id, to active.
+  *
+  * @param p_executor_id The executor id to activate.
+  *
+  * @return A success or error text message.
+  */
+  FUNCTION activate_executor(p_executor_id IN NUMBER)
+    RETURN VARCHAR2
+  ;
+
+  /** Function SOSL_API.DEACTIVATE_EXECUTOR
+  * REQUIRES role SOSL_EXECUTOR or higher.
+  * Sets the executor, identified by the given id, to deactivated.
+  *
+  * @param p_executor_id The executor id to activate.
+  *
+  * @return A success or error text message.
+  */
+  FUNCTION deactivate_executor(p_executor_id IN NUMBER)
+    RETURN VARCHAR2
+  ;
+
+  /** Function SOSL_API.SET_EXECUTOR_REVIEWED
+  * REQUIRES role SOSL_REVIEWER or higher.
+  * Sets the executor, identified by the given id, to reviewed.
+  *
+  * @param p_executor_id The executor id to set to reviewed.
+  *
+  * @return A success or error text message.
+  */
+  FUNCTION set_executor_reviewed(p_executor_id IN NUMBER)
+    RETURN VARCHAR2
+  ;
+
+  /** Function SOSL_API.REVOKE_EXECUTOR_REVIEWED
+  * REQUIRES role SOSL_REVIEWER or higher.
+  * Sets the executor, identified by the given id, to not reviewed.
+  *
+  * @param p_executor_id The executor id to set to not reviewed.
+  *
+  * @return A success or error text message.
+  */
+  FUNCTION revoke_executor_reviewed(p_executor_id IN NUMBER)
     RETURN VARCHAR2
   ;
 

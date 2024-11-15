@@ -93,7 +93,7 @@ BEGIN
   -- log the insert
   sosl_log.minimal_info_log( l_self_caller
                            , l_self_log_category
-                           , 'A new executor named ' || :NEW.executor_name || ' has been defined for DB user: ' || :NEW.db_user || ' with function owner: ' || :NEW.function_owner || '.'
+                           , 'A new executor named ' || :NEW.executor_name || ' for DB user: ' || :NEW.db_user || ' with function owner: ' || :NEW.function_owner || ' is about to be created.'
                            )
   ;
 EXCEPTION
@@ -227,7 +227,7 @@ BEGIN
   -- log the update
   sosl_log.minimal_info_log( l_self_caller
                            , l_self_log_category
-                           , 'The configuration for executor ID: ' || :OLD.executor_id || ' named ' || :OLD.executor_name || ' has been updated.'
+                           , 'The configuration for executor ID: ' || :OLD.executor_id || ' named ' || :OLD.executor_name || ' is ready to be updated.'
                            )
   ;
 EXCEPTION

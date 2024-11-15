@@ -410,12 +410,12 @@ AS
   BEGIN
     l_message := sosl_util.format_mail(p_sender, p_recipients, p_subject, p_message);
     sosl_log.minimal_info_log(l_self_caller, l_self_log_category, 'Fake mail with subject "' || p_subject || '" created in full_message. Check the results.', l_message);
-    RETURN sosl_constants.NUM_SUCCESS;
+    RETURN 0;
   EXCEPTION
     WHEN OTHERS THEN
       -- log the error instead of RAISE
       sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
-      RETURN sosl_constants.NUM_ERROR;
+      RETURN -1;
   END dummy_mail;
 
   FUNCTION txt_boolean( p_bool   IN BOOLEAN
@@ -541,6 +541,109 @@ AS
       sosl_log.exception_log('sosl_util.get_valid_run_state', 'SOSL_UTIL', SQLERRM);
       RETURN -1;
   END get_valid_run_state;
+
+  FUNCTION create_executor( p_executor_name         IN VARCHAR2
+                          , p_db_user               IN VARCHAR2
+                          , p_function_owner        IN VARCHAR2
+                          , p_fn_has_scripts        IN VARCHAR2
+                          , p_fn_get_next_script    IN VARCHAR2
+                          , p_fn_set_script_status  IN VARCHAR2
+                          , p_cfg_file              IN VARCHAR2
+                          , p_use_mail              IN NUMBER     DEFAULT 0
+                          , p_fn_send_db_mail       IN VARCHAR2   DEFAULT NULL
+                          , p_executor_description  IN VARCHAR2   DEFAULT NULL
+                          )
+    RETURN NUMBER
+  IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+    l_return            NUMBER;
+    l_self_log_category sosl_server_log.log_category%TYPE   := 'SOSL_UTIL';
+    l_self_caller       sosl_server_log.caller%TYPE         := 'sosl_util.create_executor';
+  BEGIN
+    l_return := -1;
+    -- leave error checking to trigger
+    INSERT INTO sosl_executor_definition
+      ( executor_name
+      , db_user
+      , function_owner
+      , fn_has_scripts
+      , fn_get_next_script
+      , fn_set_script_status
+      , cfg_file
+      , use_mail
+      , fn_send_db_mail
+      , executor_description
+      )
+      VALUES ( p_executor_name
+             , p_db_user
+             , p_function_owner
+             , p_fn_has_scripts
+             , p_fn_get_next_script
+             , p_fn_set_script_status
+             , p_cfg_file
+             , p_use_mail
+             , p_fn_send_db_mail
+             , p_executor_description
+             )
+      RETURNING executor_id INTO l_return
+    ;
+    COMMIT;
+    sosl_log.minimal_info_log(l_self_caller, l_self_log_category, 'Created new executor: ' || p_executor_name || ' with ID: ' || l_return);
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+      RETURN -1;
+  END create_executor;
+
+  FUNCTION active_state_executor( p_executor_id   IN NUMBER
+                                , p_active_state  IN NUMBER DEFAULT 0
+                                )
+    RETURN NUMBER
+  IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+    l_self_log_category sosl_server_log.log_category%TYPE   := 'SOSL_UTIL';
+    l_self_caller       sosl_server_log.caller%TYPE         := 'sosl_util.active_state_executor';
+  BEGIN
+    -- leave error checking to trigger
+    UPDATE sosl_executor_definition
+       SET executor_active = p_active_state
+     WHERE executor_id = p_executor_id
+    ;
+    COMMIT;
+    sosl_log.minimal_info_log(l_self_caller, l_self_log_category, 'Active state changed for executor id: ' || p_executor_id || ' to: ' || p_active_state);
+    RETURN 0;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+      RETURN -1;
+  END active_state_executor;
+
+  FUNCTION review_state_executor( p_executor_id   IN NUMBER
+                                , p_review_state  IN NUMBER DEFAULT 0
+                                )
+    RETURN NUMBER
+  IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+    l_self_log_category sosl_server_log.log_category%TYPE   := 'SOSL_UTIL';
+    l_self_caller       sosl_server_log.caller%TYPE         := 'sosl_util.review_state_executor';
+  BEGIN
+    -- leave error checking to trigger
+    UPDATE sosl_executor_definition
+       SET executor_reviewed = p_review_state
+     WHERE executor_id = p_executor_id
+    ;
+    COMMIT;
+    sosl_log.minimal_info_log(l_self_caller, l_self_log_category, 'Review state changed for executor id: ' || p_executor_id || ' to: ' || p_review_state);
+    RETURN 0;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+      RETURN -1;
+  END review_state_executor;
 
 END;
 /
