@@ -8,7 +8,7 @@ CREATE OR REPLACE TRIGGER sosl_if_script_ins_trg
 BEGIN
   :NEW.created        := SYSDATE;
   :NEW.updated        := NULL;
-  :NEW.created_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+  :NEW.created_by     := SYS_CONTEXT('USERENV', 'SESSION_USER');
   :NEW.created_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
   :NEW.updated_by     := NULL;
   :NEW.updated_by_os  := NULL;
@@ -23,7 +23,7 @@ BEGIN
   :NEW.created_by     := :OLD.created_by;
   :NEW.created_by_os  := :OLD.created_by_os;
   :NEW.updated        := SYSDATE;
-  :NEW.updated_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+  :NEW.updated_by     := SYS_CONTEXT('USERENV', 'SESSION_USER');
   :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
 END;
 /

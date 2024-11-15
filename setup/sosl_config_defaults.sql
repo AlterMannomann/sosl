@@ -25,7 +25,7 @@ INSERT INTO sosl_config
 INSERT INTO sosl_config
   (config_name, config_value, config_type, config_description)
   VALUES
-  ('SOSL_PAUSE_WAIT', '3600', 'NUMBER', 'Determines the sleep time in seconds the sosl server has between calls if run mode is set to wait.')
+  ('SOSL_PAUSE_WAIT', '3600', 'NUMBER', 'Determines the sleep time in seconds the sosl server has between calls if run mode is set to wait. This wait time is also used, if the server detects that it is running out of the given timeframe.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_description)

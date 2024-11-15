@@ -24,6 +24,7 @@ SPOOL OFF
 SPOOL &5 APPEND
 SELECT CASE
          WHEN '&CONF_VAL' = '-1'
+          AND '&3' NOT IN ('SOSL_START_JOBS', 'SOSL_STOP_JOBS') -- -1 is valid for disabling the timeframe
          THEN '&2. ' ||
               sosl_server.error_log( p_srv_caller => '../sosl_sql/server/sosl_set_config.sql'
                                    , p_srv_message => 'Error parameter &3. with value: &CONF_VAL.'

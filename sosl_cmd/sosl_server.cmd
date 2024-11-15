@@ -74,7 +74,7 @@ SET SOSL_START_JOBS=08:00
 REM Defines the end hour:minutes for the SOSL server in 24h format, ignored if SOSL_START_JOBS is -1.
 REM After this hour, the SOSL server will not make any connections to the database until SOSL_START_JOBS
 REM hour is reached. Local log will be written with alive pings.
-SET SOSL_STOP_JOBS=18:30
+SET SOSL_STOP_JOBS=18:00
 REM The SOSL schema to use for prefixing SOSL packages and functions.
 SET SOSL_SCHEMA=SOSL
 REM *****************************************************************************************************
@@ -173,13 +173,13 @@ IF NOT %SOSL_EXITCODE%==0 (
 ) ELSE (
   IF EXIST %SOSL_PATH_TMP%%SOSL_GUID%.tmp DEL %SOSL_PATH_TMP%%SOSL_GUID%.tmp
 )
+
+:SHORT_LOOP
 REM Get local settings
 CALL sosl_read_local.cmd
 REM Check runmode and adjust wait time based on run mode
 IF %SOSL_RUNMODE%==STOP GOTO :SOSL_EXIT
 REM Check defined run hours, if not successful will return to this point
-
-:SHORT_LOOP
 CALL sosl_run_hours.cmd
 IF %CUR_RUNTIME_OK%==-1 (
   SET CUR_WAIT_TIME=%SOSL_PAUSE_WAIT%

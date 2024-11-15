@@ -13,7 +13,7 @@ AS
        , fn_send_db_mail
        , script_schema
        , CASE
-           WHEN sosl_util.has_role(SYS_CONTEXT('USERENV', 'CURRENT_USER'), 'SOSL_REVIEWER')
+           WHEN sosl_util.has_role(SYS_CONTEXT('USERENV', 'SESSION_USER'), 'SOSL_REVIEWER')
            THEN cfg_file
            ELSE '***'
          END AS cfg_file

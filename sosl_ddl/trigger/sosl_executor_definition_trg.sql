@@ -10,10 +10,10 @@ DECLARE
   l_self_caller       sosl_server_log.caller%TYPE         := 'sosl_executor_definition_ins_trg';
 BEGIN
   :NEW.created            := SYSDATE;
-  :NEW.created_by         := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+  :NEW.created_by         := SYS_CONTEXT('USERENV', 'SESSION_USER');
   :NEW.created_by_os      := SYS_CONTEXT('USERENV', 'OS_USER');
   :NEW.updated            := SYSDATE;
-  :NEW.updated_by         := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+  :NEW.updated_by         := SYS_CONTEXT('USERENV', 'SESSION_USER');
   :NEW.updated_by_os      := SYS_CONTEXT('USERENV', 'OS_USER');
   :NEW.executor_active    := 0;
   :NEW.executor_reviewed  := 0;
@@ -30,7 +30,7 @@ BEGIN
     sosl_log.minimal_error_log( l_self_caller
                               , l_self_log_category
                               , '-20020 The given database user "' || NVL(:NEW.db_user, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
-                              , 'Wrong database user for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                              , 'Wrong database user for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                               )
     ;
     RAISE_APPLICATION_ERROR(-20020, 'The given database user "' || NVL(:NEW.db_user, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
@@ -40,7 +40,7 @@ BEGIN
     sosl_log.minimal_error_log( l_self_caller
                               , l_self_log_category
                               , '-20021 The given function owner database user "' || NVL(:NEW.function_owner, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
-                              , 'Wrong function owner for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                              , 'Wrong function owner for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                               )
     ;
     RAISE_APPLICATION_ERROR(-20021, 'The given function owner database user "' || NVL(:NEW.function_owner, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
@@ -51,7 +51,7 @@ BEGIN
     sosl_log.minimal_error_log( l_self_caller
                               , l_self_log_category
                               , '-20022 The given function "' || NVL(:NEW.fn_has_scripts, sosl_constants.GEN_NULL_TEXT) || '" for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
-                              , 'Wrong function has_scripts for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                              , 'Wrong function has_scripts for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                               )
     ;
     RAISE_APPLICATION_ERROR(-20022, 'The given function "' || NVL(:NEW.fn_has_scripts, sosl_constants.GEN_NULL_TEXT) || '" for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
@@ -61,7 +61,7 @@ BEGIN
     sosl_log.minimal_error_log( l_self_caller
                               , l_self_log_category
                               , '-20023 The given function "' || NVL(:NEW.fn_get_next_script, sosl_constants.GEN_NULL_TEXT) || '" for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
-                              , 'Wrong function get_next_script for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                              , 'Wrong function get_next_script for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                               )
     ;
     RAISE_APPLICATION_ERROR(-20023, 'The given function "' || NVL(:NEW.fn_get_next_script, sosl_constants.GEN_NULL_TEXT) || '" for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
@@ -71,7 +71,7 @@ BEGIN
     sosl_log.minimal_error_log( l_self_caller
                               , l_self_log_category
                               , '-20024 The given function "' || NVL(:NEW.fn_set_script_status, sosl_constants.GEN_NULL_TEXT) || '" for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
-                              , 'Wrong function set_script_status for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                              , 'Wrong function set_script_status for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                               )
     ;
     RAISE_APPLICATION_ERROR(-20024, 'The given function "' || NVL(:NEW.fn_set_script_status, sosl_constants.GEN_NULL_TEXT) || '" for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
@@ -84,7 +84,7 @@ BEGIN
       sosl_log.minimal_error_log( l_self_caller
                                 , l_self_log_category
                                 , '-20025 The given function "' || NVL(:NEW.fn_send_db_mail, sosl_constants.GEN_NULL_TEXT) || '" for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
-                                , 'Wrong function send_db_mail for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                , 'Wrong function send_db_mail for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                                 )
       ;
       RAISE_APPLICATION_ERROR(-20025, 'The given function "' || NVL(:NEW.fn_send_db_mail, sosl_constants.GEN_NULL_TEXT) || '" for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
@@ -93,7 +93,7 @@ BEGIN
   -- log the insert
   sosl_log.minimal_info_log( l_self_caller
                            , l_self_log_category
-                           , 'A new executor named ' || :NEW.executor_name || ' has been defined for DB user: ' || :NEW.db_user || ' with function owner: ' || :NEW.function_owner || '.'
+                           , 'A new executor named ' || :NEW.executor_name || ' for DB user: ' || :NEW.db_user || ' with function owner: ' || :NEW.function_owner || ' is about to be created.'
                            )
   ;
 EXCEPTION
@@ -115,7 +115,7 @@ DECLARE
   l_self_caller       sosl_server_log.caller%TYPE         := 'sosl_executor_definition_upd_trg';
 BEGIN
   :NEW.updated        := SYSDATE;
-  :NEW.updated_by     := SYS_CONTEXT('USERENV', 'CURRENT_USER');
+  :NEW.updated_by     := SYS_CONTEXT('USERENV', 'SESSION_USER');
   :NEW.updated_by_os  := SYS_CONTEXT('USERENV', 'OS_USER');
   -- no overwrite for this values, log changes
   sosl_log.log_column_change(:OLD.created, :NEW.created, 'SOSL_EXECUTOR_DEFINITION.CREATED', l_self_caller);
@@ -147,7 +147,7 @@ BEGIN
     sosl_log.minimal_error_log( l_self_caller
                               , l_self_log_category
                               , '-20020 The given database user "' || NVL(:NEW.db_user, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
-                              , 'Wrong database user for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                              , 'Wrong database user for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                               )
     ;
     RAISE_APPLICATION_ERROR(-20020, 'The given database user "' || NVL(:NEW.db_user, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
@@ -157,7 +157,7 @@ BEGIN
     sosl_log.minimal_error_log( l_self_caller
                               , l_self_log_category
                               , '-20021 The given function owner database user "' || NVL(:NEW.function_owner, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.'
-                              , 'Wrong function owner for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                              , 'Wrong function owner for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                               )
     ;
     RAISE_APPLICATION_ERROR(-20021, 'The given function owner database user "' || NVL(:NEW.function_owner, sosl_constants.GEN_NULL_TEXT) || '" is not visible for SOSL in ALL_USERS. Either the user does not exist or SOSL has no right to see this user.');
@@ -168,7 +168,7 @@ BEGIN
     sosl_log.minimal_error_log( l_self_caller
                               , l_self_log_category
                               , '-20022 The given function "' || NVL(:NEW.fn_has_scripts, sosl_constants.GEN_NULL_TEXT) || '" for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
-                              , 'Wrong function has_scripts for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                              , 'Wrong function has_scripts for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                               )
     ;
     RAISE_APPLICATION_ERROR(-20022, 'The given function "' || NVL(:NEW.fn_has_scripts, sosl_constants.GEN_NULL_TEXT) || '" for has_scripts is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
@@ -178,7 +178,7 @@ BEGIN
     sosl_log.minimal_error_log( l_self_caller
                               , l_self_log_category
                               , '-20023 The given function "' || NVL(:NEW.fn_get_next_script, sosl_constants.GEN_NULL_TEXT) || '" for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
-                              , 'Wrong function get_next_script for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                              , 'Wrong function get_next_script for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                               )
     ;
     RAISE_APPLICATION_ERROR(-20023, 'The given function "' || NVL(:NEW.fn_get_next_script, sosl_constants.GEN_NULL_TEXT) || '" for get_next_script is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype OBJECT or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
@@ -188,7 +188,7 @@ BEGIN
     sosl_log.minimal_error_log( l_self_caller
                               , l_self_log_category
                               , '-20024 The given function "' || NVL(:NEW.fn_set_script_status, sosl_constants.GEN_NULL_TEXT) || '" for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
-                              , 'Wrong function set_script_status for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                              , 'Wrong function set_script_status for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                               )
     ;
     RAISE_APPLICATION_ERROR(-20024, 'The given function "' || NVL(:NEW.fn_set_script_status, sosl_constants.GEN_NULL_TEXT) || '" for set_script_status is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
@@ -201,7 +201,7 @@ BEGIN
       sosl_log.minimal_error_log( l_self_caller
                                 , l_self_log_category
                                 , '-20025 The given function "' || NVL(:NEW.fn_send_db_mail, sosl_constants.GEN_NULL_TEXT) || '" for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.'
-                                , 'Wrong function send_db_mail for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                , 'Wrong function send_db_mail for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                                 )
       ;
       RAISE_APPLICATION_ERROR(-20025, 'The given function "' || NVL(:NEW.fn_send_db_mail, sosl_constants.GEN_NULL_TEXT) || '" for send_db_mail is not visible for SOSL in ALL_ARGUMENTS. Either the function does not exist, function owner is wrong, has not return datatype NUMBER or is not granted with EXECUTE rights to role SOSL_EXECUTOR.');
@@ -218,7 +218,7 @@ BEGIN
       sosl_log.minimal_error_log( l_self_caller
                                 , l_self_log_category
                                 , '-20026 Error granting necessary roles to db user (SOSL_USER) or function owner (SOSL_EXECUTOR). Check setup and roles. Probably grant the roles manually before trying update again.'
-                                , 'Failed granting necessary roles for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                , 'Failed granting necessary roles for SOSL_EXECUTOR_DEFINITION table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                                 )
       ;
       RAISE_APPLICATION_ERROR(-20026, 'Error granting necessary roles to db user (SOSL_USER) or function owner (SOSL_EXECUTOR). Check setup and roles. Probably grant the roles manually before trying update again.');
@@ -227,7 +227,7 @@ BEGIN
   -- log the update
   sosl_log.minimal_info_log( l_self_caller
                            , l_self_log_category
-                           , 'The configuration for executor ID: ' || :OLD.executor_id || ' named ' || :OLD.executor_name || ' has been updated.'
+                           , 'The configuration for executor ID: ' || :OLD.executor_id || ' named ' || :OLD.executor_name || ' is ready to be updated.'
                            )
   ;
 EXCEPTION

@@ -17,7 +17,7 @@ SELECT '&2. ' ||
                            , p_srv_message => 'Simple Oracle Script Loader server started' ||
                                               ' db name: ' || TRIM(SYS_CONTEXT('USERENV', 'DB_NAME')) ||
                                               ' OS user: ' || TRIM(SYS_CONTEXT('USERENV', 'OS_USER')) ||
-                                              ' DB user: ' || TRIM(SYS_CONTEXT('USERENV', 'CURRENT_USER')) ||
+                                              ' DB user: ' || TRIM(SYS_CONTEXT('USERENV', 'SESSION_USER')) ||
                                               ' schema: ' || TRIM(SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA'))
                            , p_identifier => '&1'
                            , p_local_log => '&3'

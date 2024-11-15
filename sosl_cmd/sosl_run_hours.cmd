@@ -29,6 +29,6 @@ IF %CUR_TIME% LSS %SOSL_START_JOBS% SET CUR_RUNTIME_OK=-1
 IF %CUR_TIME% GTR %SOSL_STOP_JOBS% SET CUR_RUNTIME_OK=-1
 GOTO :TIMEFRAME_EXIT
 :INVALID_SETTINGS
-REM Error situation, set runtime not ok always
-SET CUR_RUNTIME_OK=-1
+REM Error situation, ignore timeframe set runtime ok always
+SET CUR_RUNTIME_OK=0
 :TIMEFRAME_EXIT

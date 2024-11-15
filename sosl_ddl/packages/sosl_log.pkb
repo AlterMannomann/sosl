@@ -794,14 +794,14 @@ AS
         sosl_log.minimal_warning_log( l_caller
                                     , l_log_category
                                     , 'FORBIDDEN change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' tried to: ' || NVL(p_new_value, sosl_constants.GEN_NULL_TEXT)
-                                    , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                    , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                                     )
         ;
       ELSE
         sosl_log.minimal_info_log( l_caller
                                  , l_log_category
                                  , 'Change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' from: ' || NVL(p_old_value, sosl_constants.GEN_NULL_TEXT) || ' to: ' || NVL(p_new_value, sosl_constants.GEN_NULL_TEXT)
-                                 , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                 , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                                  )
         ;
       END IF;
@@ -844,14 +844,14 @@ AS
         sosl_log.minimal_warning_log( l_caller
                                     , l_log_category
                                     , 'FORBIDDEN change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' tried to: ' || NVL(TO_CHAR(p_new_value), sosl_constants.GEN_NULL_TEXT)
-                                    , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                    , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                                     )
         ;
       ELSE
         sosl_log.minimal_info_log( l_caller
                                  , l_log_category
                                  , 'Change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' from: ' || NVL(TO_CHAR(p_old_value), sosl_constants.GEN_NULL_TEXT) || ' to: ' || NVL(TO_CHAR(p_new_value), sosl_constants.GEN_NULL_TEXT)
-                                 , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                 , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                                  )
         ;
       END IF;
@@ -893,14 +893,14 @@ AS
         sosl_log.minimal_warning_log( l_caller
                                     , l_log_category
                                     , 'FORBIDDEN change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' tried to: ' || NVL(TO_CHAR(p_new_value, sosl_constants.GEN_DATE_FORMAT), sosl_constants.GEN_NULL_TEXT)
-                                    , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                    , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                                     )
         ;
       ELSE
         sosl_log.minimal_info_log( l_caller
                                  , l_log_category
                                  , 'Change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' from: ' || NVL(TO_CHAR(p_old_value, sosl_constants.GEN_DATE_FORMAT), sosl_constants.GEN_NULL_TEXT) || ' to: ' || NVL(TO_CHAR(p_new_value, sosl_constants.GEN_DATE_FORMAT), sosl_constants.GEN_NULL_TEXT)
-                                 , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                 , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                                  )
         ;
       END IF;
@@ -942,14 +942,14 @@ AS
         sosl_log.minimal_warning_log( l_caller
                                     , l_log_category
                                     , 'FORBIDDEN change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' tried to: ' || NVL(TO_CHAR(p_new_value, sosl_constants.GEN_TIMESTAMP_FORMAT), sosl_constants.GEN_NULL_TEXT)
-                                    , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                    , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                                     )
         ;
       ELSE
         sosl_log.minimal_info_log( l_caller
                                  , l_log_category
                                  , 'Change of column ' || NVL(p_column_name, sosl_constants.GEN_NA_TYPE) || ' from: ' || NVL(TO_CHAR(p_old_value, sosl_constants.GEN_TIMESTAMP_FORMAT), sosl_constants.GEN_NULL_TEXT) || ' to: ' || NVL(TO_CHAR(p_new_value, sosl_constants.GEN_TIMESTAMP_FORMAT), sosl_constants.GEN_NULL_TEXT)
-                                 , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'CURRENT_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                 , 'Change issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                                  )
         ;
       END IF;

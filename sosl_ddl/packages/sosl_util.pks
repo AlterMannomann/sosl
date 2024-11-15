@@ -304,5 +304,81 @@ AS
     RETURN NUMBER
   ;
 
+  /** Function SOSL_UTIL.CREATE_EXECUTOR
+  * Creates a new executor definition if it did not exist already. Runs as autonomous transaction.
+  * The given interface functions must conform to the following declarations, must exist and be granted to SOSL_EXECUTOR role:
+  *
+  * fn_has_scripts: FUNCTION your_has_script RETURN NUMBER;
+  * @return A positive integer including 0 for amount of scripts waiting or -1 on errors.
+  * @task: Return the amount of waiting scripts.
+  *
+  * fn_get_next_script: FUNCTION your_get_next_script RETURN SOSL.SOSL_PAYLOAD;
+  * @return A valid and filled SOSL_PAYLOAD object containing EXECUTOR_ID, EXT_SCRIPT_ID and SCRIPT_FILE or NULL on errors.
+  * @task: Return the details of the next waiting script.
+  *
+  * fn_set_script_status: FUNCTION your_set_script_status(p_run_id IN NUMBER, p_status IN NUMBER) RETURN NUMBER;
+  * @return Execution indicator: 0 on success or -1 on errors.
+  * @task: Set the internal status of your scripts queued for execution.
+  *
+  * fn_send_db_mail: FUNCTION your_send_mail(p_run_id IN NUMBER, p_status IN NUMBER) RETURN NUMBER;
+  * @return Execution indicator: 0 on success or -1 on errors.
+  * @task: Prepare and send a mail based on script status.
+  *
+  * For examples see package SOSL_IF.
+  *
+  * @param p_executor_name The unique executor definition name.
+  * @param p_function_owner The existing and for SOSL visible database user that owns the interface functions.
+  * @param p_fn_has_scripts The fully qualified interface function for has_scripts. Must exist and be granted to SOSL_EXECUTOR.
+  * @param p_fn_get_next_script The fully qualified interface function for get_next_script. Must exist and be granted to SOSL_EXECUTOR.
+  * @param p_fn_set_script_status The fully qualified interface function for set_script_status. Must exist and be granted to SOSL_EXECUTOR.
+  * @param p_cfg_file The filename including relative or absolute path that contains the login for the executor.
+  * @param p_use_mail Defines if mail should be used (1) or not (0). Default is no mail usage.
+  * @param p_fn_send_db_mail The fully qualified interface function for send mail. If mail should be used the parameter is mandatory, must exist and be granted to SOSL_EXECUTOR.
+  * @param p_executor_description An optional description for the new executor.
+  *
+  * @return The new executor id or -1 on errors.
+  */
+  FUNCTION create_executor( p_executor_name         IN VARCHAR2
+                          , p_db_user               IN VARCHAR2
+                          , p_function_owner        IN VARCHAR2
+                          , p_fn_has_scripts        IN VARCHAR2
+                          , p_fn_get_next_script    IN VARCHAR2
+                          , p_fn_set_script_status  IN VARCHAR2
+                          , p_cfg_file              IN VARCHAR2
+                          , p_use_mail              IN NUMBER     DEFAULT 0
+                          , p_fn_send_db_mail       IN VARCHAR2   DEFAULT NULL
+                          , p_executor_description  IN VARCHAR2   DEFAULT NULL
+                          )
+    RETURN NUMBER
+  ;
+
+  /** Function SOSL_UTIL.ACTIVE_STATE_EXECUTOR
+  * Sets the EXECUTOR_ACTIVE flag. Runs as autonomous transaction.
+  *
+  * @param p_executor_id The id of the executor that should be changed.
+  * @param p_active_state The desired active state of the executor. Either 0 - not activated (default) or 1 - activated.
+  *
+  * @return Execution indicator: 0 if successful otherwise -1.
+  */
+  FUNCTION active_state_executor( p_executor_id   IN NUMBER
+                                , p_active_state  IN NUMBER DEFAULT 0
+                                )
+    RETURN NUMBER
+  ;
+
+  /** Function SOSL_UTIL.REVIEW_STATE_EXECUTOR
+  * Sets the EXECUTOR_REVIEWED flag. Runs as autonomous transaction.
+  *
+  * @param p_executor_id The id of the executor that should be changed.
+  * @param p_review_state The reviewed state of the executor. Either 0 - review not ok (default) or 1 - reviewed and accepted.
+  *
+  * @return Execution indicator: 0 if successful otherwise -1.
+  */
+  FUNCTION review_state_executor( p_executor_id   IN NUMBER
+                                , p_review_state  IN NUMBER DEFAULT 0
+                                )
+    RETURN NUMBER
+  ;
+
 END;
 /
