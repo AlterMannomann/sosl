@@ -62,6 +62,10 @@ SELECT srv_schema.sosl_schema
               AND srv_state.status_text   = 'INACTIVE'
               AND sosl_util.db_in_time
          THEN sosl_constants.red
+         WHEN      sosl_server.has_scripts > 0
+              AND srv_state.status_text   = 'INACTIVE'
+              AND NOT sosl_util.db_in_time
+         THEN sosl_constants.yellow     
          ELSE sosl_constants.green
        END AS wait_ok  
      , sosl_server.has_scripts AS waiting_scripts
