@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<displays>
+<folder>
+	<name><![CDATA[SOSL]]></name>
+	<tooltip><![CDATA[SOSL reports]]></tooltip>
+	<description><![CDATA[Contains reports for SOSL]]></description>
+		<folder>
+		<name><![CDATA[SOSL_EXECUTOR]]></name>
+		<tooltip><![CDATA[Reports requiring the SOSL_EXECUTOR role]]></tooltip>
+		<description><![CDATA[Reports requiring the SOSL_EXECUTOR role.]]></description>
+			<display id="37e44dbc-0193-1000-8007-c0a801800923" type="" style="Table" enable="true">
+			<name><![CDATA[SOSL Server]]></name>
+			<description><![CDATA[SOSL server state report]]></description>
+			<tooltip><![CDATA[SOSL server state]]></tooltip>
+			<drillclass><![CDATA[]]></drillclass>
+			<CustomValues>
+				<TYPE><![CDATA[horizontal]]></TYPE>
+			</CustomValues>
+			<query>
+				<sql><![CDATA[WITH srv_state AS
+       (SELECT CASE 
+                 WHEN config_value = 'INACTIVE'
+                 THEN sosl_constants.red
+                 ELSE sosl_constants.green
+               END AS status
+             , config_value AS status_text  
+          FROM sosl_config_v
+         WHERE config_name = 'SOSL_SERVER_STATE'
+       )
+     , srv_def AS 
+       (SELECT CASE 
+                 WHEN config_value = 'RUN'
+                 THEN sosl_constants.green
+                 ELSE sosl_constants.red
+               END AS modus
+             , config_value AS server_mode
+          FROM sosl_config_v 
+         WHERE config_name = 'SOSL_RUNMODE' 
+       )
+     , srv_time_from AS 
+       (SELECT config_value AS time_from
+          FROM sosl_config_v 
+         WHERE config_name = 'SOSL_START_JOBS' 
+       )
+     , srv_time_to AS 
+       (SELECT config_value AS time_until
+          FROM sosl_config_v 
+         WHERE config_name = 'SOSL_STOP_JOBS' 
+       )
+     , srv_schema AS 
+       (SELECT config_value AS sosl_schema
+          FROM sosl_config_v 
+         WHERE config_name = 'SOSL_SCHEMA' 
+       )     
+SELECT srv_schema.sosl_schema
+     , srv_state.status
+     , srv_state.status_text
+     , srv_def.modus
+     , srv_def.server_mode
+     , CASE 
+         WHEN     sosl_server.has_scripts > 0
+              AND srv_state.status_text   = 'INACTIVE'
+              AND sosl_util.db_in_time
+         THEN sosl_constants.red
+         ELSE sosl_constants.green
+       END AS wait_ok  
+     , sosl_server.has_scripts AS waiting_scripts
+     , CASE WHEN sosl_util.db_in_time THEN sosl_constants.green ELSE sosl_constants.red END AS time_ok
+     , srv_time_from.time_from
+     , srv_time_to.time_until
+     , TO_CHAR(SYSDATE, 'HH24:MM') AS db_time
+     , 'The database time may differ from the server time. Check and adjust server time if run time mismatch discovered.' AS hint
+  FROM srv_state
+ CROSS JOIN srv_def 
+ CROSS JOIN srv_time_from
+ CROSS JOIN srv_time_to
+ CROSS JOIN srv_schema]]></sql>
+			</query>
+			<display id="null" type="" style="Table" enable="true">
+				<name><![CDATA[Server configuration]]></name>
+				<description><![CDATA[Current configuration of the SOSL server]]></description>
+				<tooltip><![CDATA[SOSL config]]></tooltip>
+				<drillclass><![CDATA[]]></drillclass>
+				<CustomValues>
+					<TYPE><![CDATA[horizontal]]></TYPE>
+				</CustomValues>
+				<query>
+					<sql><![CDATA[WITH wait_short AS
+       (SELECT config_value AS wait_seconds_having_jobs  
+          FROM sosl_config_v
+         WHERE config_name = 'SOSL_DEFAULT_WAIT'
+       )
+     , wait_normal AS 
+       (SELECT config_value AS wait_seconds_no_jobs  
+          FROM sosl_config_v
+         WHERE config_name = 'SOSL_NOJOB_WAIT'
+       )
+     , wait_pause AS 
+       (SELECT config_value AS wait_seconds_server_paused  
+          FROM sosl_config_v
+         WHERE config_name = 'SOSL_PAUSE_WAIT'
+       )
+     , max_parall AS
+       (SELECT config_value AS max_parallel_scripts  
+          FROM sosl_config_v
+         WHERE config_name = 'SOSL_MAX_PARALLEL'
+       )
+     
+SELECT wait_short.wait_seconds_having_jobs
+     , wait_normal.wait_seconds_no_jobs
+     , wait_pause.wait_seconds_server_paused
+     , max_parall.max_parallel_scripts
+  FROM wait_short
+ CROSS JOIN wait_normal
+ CROSS JOIN wait_pause
+ CROSS JOIN max_parall]]></sql>
+				</query>
+			</display>
+			<display id="null" type="" style="Table" enable="true">
+				<name><![CDATA[Server paths]]></name>
+				<description><![CDATA[The current local paths the SOSL server is using.]]></description>
+				<tooltip><![CDATA[SOSL paths]]></tooltip>
+				<drillclass><![CDATA[]]></drillclass>
+				<CustomValues>
+					<TYPE><![CDATA[horizontal]]></TYPE>
+				</CustomValues>
+				<query>
+					<sql><![CDATA[SELECT config_name AS path_definition
+     , config_value AS local_path
+     , config_description AS hint
+  FROM sosl_config_v
+ WHERE config_name IN ('SOSL_PATH_CFG', 'SOSL_PATH_TMP', 'SOSL_PATH_LOG')
+ ORDER BY config_name]]></sql>
+				</query>
+			</display>
+			<display id="null" type="" style="Table" enable="true">
+				<name><![CDATA[Server defaults]]></name>
+				<description><![CDATA[]]></description>
+				<tooltip><![CDATA[]]></tooltip>
+				<drillclass><![CDATA[]]></drillclass>
+				<CustomValues>
+					<TYPE><![CDATA[horizontal]]></TYPE>
+				</CustomValues>
+				<query>
+					<sql><![CDATA[SELECT config_name
+     , config_value
+     , config_description
+  FROM sosl_config_v
+ WHERE config_name IN ( 'SOSL_START_LOG'
+                      , 'SOSL_BASE_LOG'
+                      , 'SOSL_EXT_LOG'
+                      , 'SOSL_EXT_TMP'
+                      , 'SOSL_EXT_LOCK'
+                      , 'SOSL_EXT_ERROR'
+                      )
+ ORDER BY config_name]]></sql>
+				</query>
+			</display>
+		</display>
+	</folder>
+</folder>
+</displays>

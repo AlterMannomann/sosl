@@ -59,12 +59,15 @@ END;
 CREATE OR REPLACE TRIGGER sosl_server_log_del_trg
   BEFORE DELETE ON sosl_server_log
 BEGIN
-  sosl_log.minimal_error_log( 'sosl_server_log_del_trg'
-                            , 'SOSL_TRIGGER'
-                            , '-20001 Delete records from a log table is not allowed. This is an admin job which needs sufficient rights and usage of the SOSL API.'
-                            , 'Forbidden DELETE on log table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
-                            )
-  ;
-  RAISE_APPLICATION_ERROR(-20001, 'Delete records from a log table is not allowed. This is an admin job which needs sufficient rights and usage of the SOSL API.');
+  IF NOT sosl_util.has_role(SYS_CONTEXT('USERENV', 'SESSION_USER'), 'SOSL_ADMIN')
+  THEN
+    sosl_log.minimal_error_log( 'sosl_server_log_del_trg'
+                              , 'SOSL_TRIGGER'
+                              , '-20001 Delete records from a log table is not allowed. This is an admin job which needs sufficient rights and usage of the SOSL API.'
+                              , 'Forbidden DELETE on log table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                              )
+    ;
+    RAISE_APPLICATION_ERROR(-20001, 'Delete records from a log table is not allowed. This is an admin job which needs sufficient rights and usage of the SOSL API.');
+  END IF;
 END;
 /

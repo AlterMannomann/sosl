@@ -63,5 +63,79 @@ AS
     RETURN NUMBER
   ;
 
+  /* FUNCTION SOSL_IF.ADD_SCRIPT
+  * Adds a new script to SOSL_IF_SCRIPT.
+  *
+  * @param p_script_name The script filename including relative or full path. Must exist on the server SOSL is running.
+  * @param p_executor_id The executor id associated with the script. NULL allowed. Scripts without executor are never executed by SOSL.
+  * @param p_run_order The order in which the script should be executed. Equal order numbers mean random execution of ths script.
+  * @param p_script_active Sets the script to active (1) or inactive (0). Only active scripts are executed.
+  *
+  * @return Return the new script id or -1 on errors.
+  */
+  FUNCTION add_script( p_script_name    IN VARCHAR2
+                     , p_executor_id    IN NUMBER
+                     , p_run_order      IN NUMBER   DEFAULT 1
+                     , p_script_active  IN NUMBER   DEFAULT 0
+                     )
+    RETURN NUMBER
+  ;
+
+  /* FUNCTION SOSL_IF.SET_RUN_STATE
+  * Sets the run state of a script. Scripts with a run state other than 0 are not
+  * considered by SOSL for execution or a probably executed currently by SOSL.
+  *
+  * @param p_script_id The id of the script to change the run state.
+  * @param p_run_state A valid status as defined in SOSL_CONSTANTS for run states.
+  *
+  * @return Return 0 if successful executed otherwise -1.
+  */
+  FUNCTION set_run_state( p_script_id IN NUMBER
+                        , p_run_state IN NUMBER DEFAULT 0
+                        )
+    RETURN NUMBER
+  ;
+
+  /* FUNCTION SOSL_IF.SET_ACTIVE_STATE
+  * Sets the usage state of a script. Inactive scripts are not executed by SOSL.
+  *
+  * @param p_script_id The id of the script to change the script state.
+  * @param p_script_active The usage state of the script. Either active (1) or inactive (0).
+  *
+  * @return Return 0 if successful executed otherwise -1.
+  */
+  FUNCTION set_active_state( p_script_id      IN NUMBER
+                           , p_script_active  IN NUMBER DEFAULT 0
+                           )
+    RETURN NUMBER
+  ;
+
+  /* FUNCTION SOSL_IF.RESET_SCRIPTS
+  * Resets all scripts to run_state 0, so they can be executed again.
+  *
+  * @return Return 0 if successful executed otherwise -1.
+  */
+  FUNCTION reset_scripts
+    RETURN NUMBER
+  ;
+
+  /* FUNCTION SOSL_IF.ACTIVATE_SCRIPTS
+  * Activate all scripts, so they can be executed depending on the state.
+  *
+  * @return Return 0 if successful executed otherwise -1.
+  */
+  FUNCTION activate_scripts
+    RETURN NUMBER
+  ;
+
+  /* FUNCTION SOSL_IF.DEACTIVATE_SCRIPTS
+  * Dectivate all scripts, so they cannot be executed.
+  *
+  * @return Return 0 if successful executed otherwise -1.
+  */
+  FUNCTION deactivate_scripts
+    RETURN NUMBER
+  ;
+
 END;
 /

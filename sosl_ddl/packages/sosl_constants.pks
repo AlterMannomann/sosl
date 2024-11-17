@@ -42,6 +42,12 @@ AS
   LF                    CONSTANT CHAR(1)  := CHR(10);
   CR                    CONSTANT CHAR(1)  := CHR(13);
   CRLF                  CONSTANT CHAR(2)  := CHR(13) || CHR(10);
+  -- SQL Developer gauge formatting - only works with SQL Developer
+  -- syntax: SQLDEV:GAUGE:min:max:min_treshold:max_treshold:value
+  PURE_GRAY             CONSTANT CHAR(23) := 'SQLDEV:GAUGE:0:0:0:0:-1';
+  PURE_RED              CONSTANT CHAR(23) := 'SQLDEV:GAUGE:0:0:1:0:-1';
+  PURE_YELLOW           CONSTANT CHAR(23) := 'SQLDEV:GAUGE:0:1:0:1:-1';
+  PURE_GREEN            CONSTANT CHAR(23) := 'SQLDEV:GAUGE:0:1:1:0:-1';
   /*====================================== end package constants used by SOSL ======================================*/
 
   /* FUNCTION SOSL_CONSTANTS.run_state_text
@@ -174,6 +180,30 @@ AS
     PARALLEL_ENABLE
   ;
   FUNCTION get_crlf
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  ;
+
+  FUNCTION gray
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  ;
+
+  FUNCTION red
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  ;
+
+  FUNCTION yellow
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  ;
+
+  FUNCTION green
     RETURN VARCHAR2
     DETERMINISTIC
     PARALLEL_ENABLE

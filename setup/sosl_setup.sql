@@ -43,8 +43,6 @@ CREATE SYNONYM sosl_sessions FOR sys.sosl_sessions;
 @@../sosl_ddl/packages/sosl_sys.pkb
 @@../sosl_ddl/packages/sosl_server.pks
 @@../sosl_ddl/packages/sosl_server.pkb
-@@../sosl_ddl/packages/sosl_api.pks
-@@../sosl_ddl/packages/sosl_api.pkb
 -- table trigger using packages and tables defined
 @@../sosl_ddl/trigger/sosl_server_log_trg.sql
 @@../sosl_ddl/trigger/sosl_config_trg.sql
@@ -56,6 +54,9 @@ CREATE SYNONYM sosl_sessions FOR sys.sosl_sessions;
 -- internal interface definition for simple script execution
 @@../sosl_ddl/packages/sosl_if.pks
 @@../sosl_ddl/packages/sosl_if.pkb
+-- api package
+@@../sosl_ddl/packages/sosl_api.pks
+@@../sosl_ddl/packages/sosl_api.pkb
 -- views
 @@../sosl_ddl/views/sosl_config_v.sql
 @@../sosl_ddl/views/sosl_executors_v.sql

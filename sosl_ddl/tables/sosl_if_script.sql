@@ -6,7 +6,6 @@ CREATE TABLE sosl_if_script
   ( script_id           NUMBER(38, 0)  GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
   , script_name         VARCHAR2(2000)                                           NOT NULL
   , run_state           NUMBER(1, 0)   DEFAULT 0                                 NOT NULL
-  , run_group           VARCHAR2(30)   DEFAULT 'DEFAULT'                         NOT NULL
   , run_order           NUMBER(38, 0)  DEFAULT 1                                 NOT NULL
   , script_active       NUMBER(1, 0)   DEFAULT 0                                 NOT NULL
   , created             DATE           DEFAULT SYSDATE                           NOT NULL
@@ -26,7 +25,6 @@ COMMENT ON COLUMN sosl_if_script.executor_id IS 'The optional related executor i
 COMMENT ON COLUMN sosl_if_script.script_name IS 'The name of the script file including full or relative path. Use relative path (relative to batch_base_path or repository location) to ensure running scripts from different machines.';
 COMMENT ON COLUMN sosl_if_script.run_order IS 'The order in which the script file should be executed. Same number means in parallel. Higher order numbers wait for scripts with lower order numbers to complete. Must be greater than 0.';
 COMMENT ON COLUMN sosl_if_script.run_state IS 'Holds the run state: 0 Waiting, 1 Enqueued, 2 Started, 3 Running, 4 Finished, -1 Error. To rerun a job, set run_state to 1. Will not be accepted if executor is not active and reviewed. Script dependencies are not checked. Can only be 0 or -1 on insert, managed by trigger';
-COMMENT ON COLUMN sosl_if_script.run_group IS 'A minimalistic group ID provided as is. Mixed case delivers mixed results. Up to installer to manage specific groups. Allows grouping of scripts.';
 COMMENT ON COLUMN sosl_if_script.script_active IS 'Defines active state of script. Only active scripts are handled. 0 is inactive, 1 is active.';
 COMMENT ON COLUMN sosl_if_script.script_description IS 'Optional description of the script file.';
 COMMENT ON COLUMN sosl_if_script.created IS 'Date created, managed by default and trigger.';
