@@ -291,5 +291,26 @@ AS
       RETURN 'ERROR executing SOSL_API.REVOKE_EXECUTOR_REVIEWED see SOSL_SERVER_LOG for details';
   END revoke_executor_reviewed;
 
+  FUNCTION add_script( p_script_name    IN VARCHAR2
+                     , p_executor_id    IN NUMBER
+                     , p_run_order      IN NUMBER   DEFAULT 1
+                     , p_script_active  IN NUMBER   DEFAULT 0
+                     )
+    RETURN NUMBER
+  IS
+    l_return        NUMBER;
+    l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+    l_caller        sosl_server_log.caller%TYPE       := 'sosl_api.add_script';
+  BEGIN
+    l_return := sosl_if.add_script(p_script_name, p_executor_id, p_run_order, p_script_active);
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN -1;
+  END add_script;
+
 END;
 /

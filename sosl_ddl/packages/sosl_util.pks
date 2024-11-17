@@ -380,5 +380,9 @@ AS
     RETURN NUMBER
   ;
 
+  FUNCTION db_in_time
+    RETURN BOOLEAN
+  ;
+
 END;
 /

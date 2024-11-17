@@ -176,6 +176,24 @@ AS
     RETURN VARCHAR2
   ;
 
+  /* FUNCTION SOSL_API.ADD_SCRIPT
+  * Adds a new script to SOSL_IF_SCRIPT. Wrapper for SOSL_IF.ADD_SCRIPT.
+  *
+  * @param p_script_name The script filename including relative or full path. Must exist on the server SOSL is running.
+  * @param p_executor_id The executor id associated with the script. NULL allowed. Scripts without executor are never executed by SOSL.
+  * @param p_run_order The order in which the script should be executed. Equal order numbers mean random execution of ths script.
+  * @param p_script_active Sets the script to active (1) or inactive (0). Only active scripts are executed.
+  *
+  * @return Return the new script id or -1 on errors.
+  */
+  FUNCTION add_script( p_script_name    IN VARCHAR2
+                     , p_executor_id    IN NUMBER
+                     , p_run_order      IN NUMBER   DEFAULT 1
+                     , p_script_active  IN NUMBER   DEFAULT 0
+                     )
+    RETURN NUMBER
+  ;
+
 END;
 /
 GRANT EXECUTE ON sosl_api TO sosl_user;

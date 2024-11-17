@@ -60,8 +60,7 @@ AS
              -- we need an assigned executor for the payload
          AND executor_id   IS NOT NULL
              -- adjust the order in which scripts get delivered
-       ORDER BY run_group
-              , run_order
+       ORDER BY run_order
     ;
   BEGIN
     l_payload := NULL;
@@ -226,6 +225,175 @@ AS
       &SOSL_SCHEMA..sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
       RETURN -1;
   END send_mail;
+
+  FUNCTION add_script( p_script_name    IN VARCHAR2
+                     , p_executor_id    IN NUMBER
+                     , p_run_order      IN NUMBER   DEFAULT 1
+                     , p_script_active  IN NUMBER   DEFAULT 0
+                     )
+    RETURN NUMBER
+  IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+    l_return        NUMBER;
+    -- adjust the variables to your function
+    l_log_category  VARCHAR2(256) := 'SOSL_IF';
+    l_caller        VARCHAR2(256) := 'sosl_if.add_script';
+  BEGIN
+    -- no checks just insert
+    INSERT INTO sosl_if_script
+      ( script_name
+      , executor_id
+      , run_order
+      , script_active
+      )
+      VALUES ( p_script_name
+             , p_executor_id
+             , p_run_order
+             , p_script_active
+             )
+      RETURNING script_id INTO l_return
+    ;
+    COMMIT;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      &SOSL_SCHEMA..sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+      RETURN -1;
+  END add_script;
+
+  FUNCTION set_run_state( p_script_id IN NUMBER
+                        , p_run_state IN NUMBER DEFAULT 0
+                        )
+    RETURN NUMBER
+  IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+    -- adjust the variables to your function
+    l_log_category  VARCHAR2(256) := 'SOSL_IF';
+    l_caller        VARCHAR2(256) := 'sosl_if.set_run_state';
+  BEGIN
+    UPDATE sosl_if_script
+       SET run_state = p_run_state
+     WHERE script_id = p_script_id
+    ;
+    COMMIT;
+    RETURN 0;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      &SOSL_SCHEMA..sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+      RETURN -1;
+  END set_run_state;
+
+  FUNCTION set_active_state( p_script_id      IN NUMBER
+                           , p_script_active  IN NUMBER DEFAULT 0
+                           )
+    RETURN NUMBER
+  IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+    -- adjust the variables to your function
+    l_log_category  VARCHAR2(256) := 'SOSL_IF';
+    l_caller        VARCHAR2(256) := 'sosl_if.set_active_state';
+  BEGIN
+    UPDATE sosl_if_script
+       SET script_active = p_script_active
+     WHERE script_id = p_script_id
+    ;
+    COMMIT;
+    RETURN 0;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      &SOSL_SCHEMA..sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+      RETURN -1;
+  END set_active_state;
+
+  FUNCTION reset_scripts
+    RETURN NUMBER
+  IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+    l_result        NUMBER;
+    -- adjust the variables to your function
+    l_log_category  VARCHAR2(256) := 'SOSL_IF';
+    l_caller        VARCHAR2(256) := 'sosl_if.reset_scripts';
+    CURSOR cur_scripts
+    IS
+      SELECT script_id
+        FROM sosl_if_script
+       WHERE run_state != &SOSL_SCHEMA..sosl_constants.RUN_STATE_WAITING
+    ;
+  BEGIN
+    &SOSL_SCHEMA..sosl_log.minimal_info_log(l_caller, l_log_category, 'Reset all scripts in SOSL_IF_SCRIPT to run_state WAITING');
+    FOR rec IN cur_scripts
+    LOOP
+      -- errors should be already logged
+      l_result := sosl_if.set_run_state(rec.script_id, &SOSL_SCHEMA..sosl_constants.RUN_STATE_WAITING);
+    END LOOP;
+    RETURN 0;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      &SOSL_SCHEMA..sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+      RETURN -1;
+  END reset_scripts;
+
+  FUNCTION activate_scripts
+    RETURN NUMBER
+  IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+    l_result        NUMBER;
+    -- adjust the variables to your function
+    l_log_category  VARCHAR2(256) := 'SOSL_IF';
+    l_caller        VARCHAR2(256) := 'sosl_if.activate_scripts';
+    CURSOR cur_scripts
+    IS
+      SELECT script_id
+        FROM sosl_if_script
+       WHERE script_active != &SOSL_SCHEMA..sosl_constants.NUM_YES
+    ;
+  BEGIN
+    &SOSL_SCHEMA..sosl_log.minimal_info_log(l_caller, l_log_category, 'Activate all scripts in SOSL_IF_SCRIPT to enable them for execution');
+    FOR rec IN cur_scripts
+    LOOP
+      -- errors should be already logged
+      l_result := sosl_if.set_active_state(rec.script_id, &SOSL_SCHEMA..sosl_constants.NUM_YES);
+    END LOOP;
+    RETURN 0;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      &SOSL_SCHEMA..sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+      RETURN -1;
+  END activate_scripts;
+
+  FUNCTION deactivate_scripts
+    RETURN NUMBER
+  IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+    l_result        NUMBER;
+    -- adjust the variables to your function
+    l_log_category  VARCHAR2(256) := 'SOSL_IF';
+    l_caller        VARCHAR2(256) := 'sosl_if.deactivate_scripts';
+    CURSOR cur_scripts
+    IS
+      SELECT script_id
+        FROM sosl_if_script
+       WHERE script_active != &SOSL_SCHEMA..sosl_constants.NUM_NO
+    ;
+  BEGIN
+    &SOSL_SCHEMA..sosl_log.minimal_info_log(l_caller, l_log_category, 'Deactivate all scripts in SOSL_IF_SCRIPT to disable them for execution');
+    FOR rec IN cur_scripts
+    LOOP
+      -- errors should be already logged
+      l_result := sosl_if.set_active_state(rec.script_id, &SOSL_SCHEMA..sosl_constants.NUM_NO);
+    END LOOP;
+    RETURN 0;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      &SOSL_SCHEMA..sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+      RETURN -1;
+  END deactivate_scripts;
 
 END;
 /

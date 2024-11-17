@@ -2,6 +2,8 @@
 -- Not allowed to be used as AI training material without explicite permission.
 
 -- default executor
+CLEAR COLUMNS
+COLUMN NEW_EXECUTOR_ID NEW_VAL NEW_EXECUTOR_ID
 SELECT sosl_api.create_executor( 'SOSL'
                                  , 'sosl'
                                  , 'sosl_if.has_scripts'
@@ -11,22 +13,10 @@ SELECT sosl_api.create_executor( 'SOSL'
                                  , 1
                                  , 'sosl_if.send_mail'
                                  , 'Internal SOSL executor for testing and demonstration purposes. Only a simple set of ordered scripts supported.'
-                                 ) AS new_executor_id
+                                 ) AS NEW_EXECUTOR_ID
   FROM dual
 ;
 
 SELECT sosl_api.activate_executor(1) FROM dual;
 SELECT sosl_api.set_executor_reviewed(1) FROM dual;
-
-INSERT INTO sosl_if_script
-  ( script_name
-  , script_active
-  , executor_id
-  )
-  SELECT '..\sosl_tests\sosl_sql\sosl_hello_world.sql' AS script_name
-       , 1 AS script_active
-       , executor_id
-    FROM sosl_executor_definition
-   WHERE executor_name = 'SOSL'
-;
-COMMIT;
+SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_hello_world.sql', &NEW_EXECUTOR_ID, 1, 1) FROM dual;

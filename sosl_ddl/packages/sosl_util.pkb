@@ -645,5 +645,49 @@ AS
       RETURN -1;
   END review_state_executor;
 
+  FUNCTION db_in_time
+    RETURN BOOLEAN
+  IS
+    l_return            BOOLEAN;
+    l_time_from_cfg     VARCHAR2(4000);
+    l_time_to_cfg       VARCHAR2(4000);
+    l_time_from         DATE;
+    l_time_to           DATE;
+    l_time_current      DATE;
+    l_self_log_category sosl_server_log.log_category%TYPE   := 'SOSL_UTIL';
+    l_self_caller       sosl_server_log.caller%TYPE         := 'sosl_util.db_in_time';
+  BEGIN
+    l_return := FALSE;
+    -- get configured times
+    SELECT config_value INTO l_time_from_cfg FROM sosl_config WHERE config_name = 'SOSL_START_JOBS';
+    SELECT config_value INTO l_time_to_cfg FROM sosl_config WHERE config_name = 'SOSL_STOP_JOBS';
+    l_time_from     := TO_DATE(l_time_from_cfg, 'HH24:MI');
+    l_time_to       := TO_DATE(l_time_to_cfg, 'HH24:MI');
+    l_time_current  := TO_DATE(TO_CHAR(SYSDATE, 'HH24:MI'), 'HH24:MI');
+    IF l_time_from > l_time_to
+    THEN
+      -- add a day if daybreak
+      l_time_to := l_time_to + 1;
+      -- check current, if lower than from add a day
+      IF l_time_current < l_time_from
+      THEN
+        l_time_current := l_time_current +1;
+      END IF;
+    END IF;
+    IF     l_time_current >= l_time_from
+       AND l_time_current <= l_time_to
+    THEN
+      l_return := TRUE;
+    ELSE
+      l_return := FALSE;
+    END IF;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+      RETURN FALSE;
+  END db_in_time;
+
 END;
 /

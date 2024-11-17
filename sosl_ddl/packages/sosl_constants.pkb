@@ -248,5 +248,41 @@ AS
     RETURN sosl_constants.CRLF;
   END get_crlf;
 
+  FUNCTION gray
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  IS
+  BEGIN
+    RETURN sosl_constants.PURE_GRAY;
+  END gray;
+
+  FUNCTION red
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  IS
+  BEGIN
+    RETURN sosl_constants.PURE_RED;
+  END red;
+
+  FUNCTION yellow
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  IS
+  BEGIN
+    RETURN sosl_constants.PURE_YELLOW;
+  END yellow;
+
+  FUNCTION green
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  IS
+  BEGIN
+    RETURN sosl_constants.PURE_GREEN;
+  END green;
+
 END;
 /
