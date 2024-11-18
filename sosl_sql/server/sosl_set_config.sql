@@ -21,12 +21,12 @@ SPOOL &5 APPEND
 SELECT CASE
          WHEN &SET_SUCCESS = 0
          THEN '&2. ' ||
-              sosl_server.info_log( p_srv_caller => '../sosl_sql/server/sosl_set_config.sql'
-                                  , p_srv_message => 'Set parameter &3. to value: &4.'
-                                  , p_identifier => '&1'
-                                  , p_local_log => '&5'
-                                  , p_srv_guid => '&6'
-                                  )
+              sosl_server.success_log( p_srv_caller => '../sosl_sql/server/sosl_set_config.sql'
+                                     , p_srv_message => 'Set parameter &3. to value: &4.'
+                                     , p_identifier => '&1'
+                                     , p_local_log => '&5'
+                                     , p_srv_guid => '&6'
+                                     )
          ELSE '&2. ' ||
               sosl_server.error_log( p_srv_caller => '../sosl_sql/server/sosl_set_config.sql'
                                    , p_srv_message => 'Error Set parameter &3. to value: &4.'

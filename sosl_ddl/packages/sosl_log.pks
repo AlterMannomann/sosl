@@ -183,6 +183,31 @@ AS
                          )
   ;
 
+  /* PROCEDURE SOSL_LOG.MINIMAL_LOG
+  * Prepared and standardize logging for any log type with reduced parameters. Will do a simple NVL check on parameters, nothing more
+  * before formatting and submitting the log entry. Will log own exceptions but not raise those exceptions.
+  *
+  * @param p_caller The full name of function, procedure or package that should be logged. Case sensitive.
+  * @param p_category The log category for the function, procedure or package. Case sensitive.
+  * @param p_log_type The log type for the logging as defined in SOSL_CONSTANTS.LOG_... constants.
+  * @param p_short_msg The short success message, preferably smaller than 4000 chars. Will be formatted using p_caller.
+  * @param p_full_msg The complete success message, with details. Will not be formatted but may contain parts of p_short_msg, if message is longer than 4000 chars.
+  */
+  PROCEDURE minimal_log( p_caller     IN VARCHAR2
+                       , p_category   IN VARCHAR2
+                       , p_log_type   IN VARCHAR2
+                       , p_short_msg  IN VARCHAR2
+                       , p_full_msg   IN CLOB     DEFAULT NULL
+                       )
+  ;
+  PROCEDURE minimal_log( p_caller     IN VARCHAR2
+                       , p_category   IN VARCHAR2
+                       , p_log_type   IN VARCHAR2
+                       , p_short_msg  IN VARCHAR2
+                       , p_full_msg   IN VARCHAR2
+                       )
+  ;
+
   /* PROCEDURE SOSL_LOG.MINIMAL_ERROR_LOG
   * Prepared and standardize logging for errors with reduced parameters. Will do a simple NVL check on parameters, nothing more
   * before formatting and submitting the log entry. Will log own exceptions but not raise those exceptions.
@@ -246,6 +271,29 @@ AS
                                )
   ;
   PROCEDURE minimal_warning_log( p_caller     IN VARCHAR2
+                               , p_category   IN VARCHAR2
+                               , p_short_msg  IN VARCHAR2
+                               , p_full_msg   IN VARCHAR2
+                               )
+  ;
+
+  /* PROCEDURE SOSL_LOG.MINIMAL_SUCCESS_LOG
+  * Prepared and standardize logging for success with reduced parameters. Will do a simple NVL check on parameters, nothing more
+  * before formatting and submitting the log entry. Will log own exceptions but not raise those exceptions.
+  * Will set log type to SOSL_CONSTANTS.LOG_SUCCESS_TYPE.
+  *
+  * @param p_caller The full name of function, procedure or package that should be logged. Case sensitive.
+  * @param p_category The log category for the function, procedure or package. Case sensitive.
+  * @param p_short_msg The short success message, preferably smaller than 4000 chars. Will be formatted using p_caller.
+  * @param p_full_msg The complete success message, with details. Will not be formatted but may contain parts of p_short_msg, if message is longer than 4000 chars.
+  */
+  PROCEDURE minimal_success_log( p_caller     IN VARCHAR2
+                               , p_category   IN VARCHAR2
+                               , p_short_msg  IN VARCHAR2
+                               , p_full_msg   IN CLOB     DEFAULT NULL
+                               )
+  ;
+  PROCEDURE minimal_success_log( p_caller     IN VARCHAR2
                                , p_category   IN VARCHAR2
                                , p_short_msg  IN VARCHAR2
                                , p_full_msg   IN VARCHAR2

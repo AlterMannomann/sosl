@@ -204,6 +204,31 @@ AS
     RETURN NUMBER
   ;
 
+  /* FUNCTION SOSL_SERVER.MAIN_LOG
+  * Provides a possibility to output content for a local log as well as logging it to SOSL_SERVER_LOG. Can be
+  * be called within every SELECT statement. On success log category will always be SOSL_SERVER.
+  *
+  * @param p_srv_caller The script calling this function.
+  * @param p_srv_message The message to use for the local log as well as to the SOSL_SERVER_LOG.
+  * @param p_log_type The log type to use for the logging.
+  * @param p_identifier In almost all cases scripts called from the server have an identifier, that they use for SOSLERRORLOG. NULL by default.
+  * @param p_local_log In almost all cases scripts called from the server have a log file, that they use. NULL by default.
+  * @param p_srv_run_id Scripts issued by executors will have a run id which is retrieved from the SOSL server. If a run id is given, the log is also enhanced with executor details for this script. NULL by default.
+  * @param p_srv_guid For cases scripts called from the server have also the GUID, that they use. NULL by default.
+  *
+  * @return Will return p_message or error information.
+  */
+  FUNCTION main_log( p_srv_caller   IN VARCHAR2
+                   , p_srv_message  IN VARCHAR2
+                   , p_log_type     IN VARCHAR2
+                   , p_identifier   IN VARCHAR2 DEFAULT NULL
+                   , p_local_log    IN VARCHAR2 DEFAULT NULL
+                   , p_srv_run_id   IN NUMBER   DEFAULT NULL
+                   , p_srv_guid     IN VARCHAR2 DEFAULT NULL
+                   )
+    RETURN VARCHAR2
+  ;
+
   /* FUNCTION SOSL_SERVER.INFO_LOG
   * Provides a possibility to output content for a local log as well as logging it to SOSL_SERVER_LOG. Can be
   * be called within every SELECT statement. On success log category will always be SOSL_SERVER, log type INFO.
@@ -224,6 +249,29 @@ AS
                    , p_srv_run_id   IN NUMBER   DEFAULT NULL
                    , p_srv_guid     IN VARCHAR2 DEFAULT NULL
                    )
+    RETURN VARCHAR2
+  ;
+
+  /* FUNCTION SOSL_SERVER.SUCCESS_LOG
+  * Provides a possibility to output content for a local log as well as logging it to SOSL_SERVER_LOG. Can be
+  * be called within every SELECT statement. On success log category will always be SOSL_SERVER, log type SUCCESS.
+  *
+  * @param p_srv_caller The script calling this function.
+  * @param p_srv_message The message to use for the local log as well as to the SOSL_SERVER_LOG.
+  * @param p_identifier In almost all cases scripts called from the server have an identifier, that they use for SOSLERRORLOG. NULL by default.
+  * @param p_local_log In almost all cases scripts called from the server have a log file, that they use. NULL by default.
+  * @param p_srv_run_id Scripts issued by executors will have a run id which is retrieved from the SOSL server. If a run id is given, the log is also enhanced with executor details for this script. NULL by default.
+  * @param p_srv_guid For cases scripts called from the server have also the GUID, that they use. NULL by default.
+  *
+  * @return Will return p_message or error information.
+  */
+  FUNCTION success_log( p_srv_caller   IN VARCHAR2
+                      , p_srv_message  IN VARCHAR2
+                      , p_identifier   IN VARCHAR2 DEFAULT NULL
+                      , p_local_log    IN VARCHAR2 DEFAULT NULL
+                      , p_srv_run_id   IN NUMBER   DEFAULT NULL
+                      , p_srv_guid     IN VARCHAR2 DEFAULT NULL
+                      )
     RETURN VARCHAR2
   ;
 

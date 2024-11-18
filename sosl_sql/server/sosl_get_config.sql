@@ -33,12 +33,12 @@ SELECT CASE
                                    , p_srv_guid => '&6'
                                    )
          ELSE '&2. ' ||
-              sosl_server.info_log( p_srv_caller => '../sosl_sql/server/sosl_get_config.sql'
-                                  , p_srv_message => 'Get parameter &3. with value: &CONF_VAL.'
-                                  , p_identifier => '&1'
-                                  , p_local_log => '&5'
-                                  , p_srv_guid => '&6'
-                                  )
+              sosl_server.success_log( p_srv_caller => '../sosl_sql/server/sosl_get_config.sql'
+                                     , p_srv_message => 'Get parameter &3. with value: &CONF_VAL.'
+                                     , p_identifier => '&1'
+                                     , p_local_log => '&5'
+                                     , p_srv_guid => '&6'
+                                     )
          END AS info
   FROM dual;
 SPOOL OFF

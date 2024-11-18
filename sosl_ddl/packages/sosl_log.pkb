@@ -528,25 +528,102 @@ AS
     l_category  := NVL(p_category, sosl_constants.GEN_NA_TYPE);
     l_caller    := NVL(p_caller, sosl_constants.GEN_NA_TYPE);
     l_message   := NVL(p_sqlerrmsg, 'Called sosl_log.exception_log without message.');
-    log_event( p_message => l_caller || ': Unhandled EXCEPTION = ' || TRIM(SUBSTR(l_message, 1, 500)) || CASE WHEN LENGTH(l_message) > 500 THEN ' ... see full_message for complete details.' END
-             , p_log_type => sosl_constants.LOG_FATAL_TYPE
-             , p_log_category => l_category
-             , p_guid => NULL
-             , p_sosl_identifier => NULL
-             , p_executor_id => NULL
-             , p_ext_script_id => NULL
-             , p_script_file => NULL
-             , p_caller => l_caller
-             , p_run_id => NULL
-               -- full details and original message
-             , p_full_message => l_message
-             )
+    full_log( p_message => l_caller || ': Unhandled EXCEPTION = ' || TRIM(SUBSTR(l_message, 1, 500)) || CASE WHEN LENGTH(l_message) > 500 THEN ' ... see full_message for complete details.' END
+            , p_log_type => sosl_constants.LOG_FATAL_TYPE
+            , p_log_category => l_category
+            , p_guid => NULL
+            , p_sosl_identifier => NULL
+            , p_executor_id => NULL
+            , p_ext_script_id => NULL
+            , p_script_file => NULL
+            , p_caller => l_caller
+            , p_run_id => NULL
+              -- full details and original message
+            , p_full_message => l_message
+            )
     ;
   EXCEPTION
     WHEN OTHERS THEN
       -- no extra trouble if already in exception state
       NULL;
   END exception_log;
+
+  PROCEDURE minimal_log( p_caller     IN VARCHAR2
+                       , p_category   IN VARCHAR2
+                       , p_log_type   IN VARCHAR2
+                       , p_short_msg  IN VARCHAR2
+                       , p_full_msg   IN CLOB     DEFAULT NULL
+                       )
+  IS
+    l_self_log_category sosl_server_log.log_category%TYPE     := 'SOSL_LOG';
+    l_self_caller       sosl_server_log.caller%TYPE           := 'sosl_log.minimal_log CLOB';
+    l_category          sosl_server_log.log_category%TYPE;
+    l_caller            sosl_server_log.caller%TYPE;
+    l_log_type          sosl_server_log.log_type%TYPE;
+    l_short_msg         VARCHAR2(32767);
+    l_full_msg          CLOB;
+  BEGIN
+    l_category  := NVL(p_category, sosl_constants.GEN_NA_TYPE);
+    l_caller    := NVL(p_caller, sosl_constants.GEN_NA_TYPE);
+    l_log_type  := get_valid_log_type(p_log_type);
+    IF p_short_msg IS NULL AND p_full_msg IS NULL
+    THEN
+      l_log_type  := sosl_constants.LOG_ERROR_TYPE;
+      l_short_msg := 'Called sosl_log.minimal_log without any message. Intended log type ' || p_log_type;
+      l_full_msg  := 'Called sosl_log.minimal_log without any message. Intended log type ' || p_log_type;
+    ELSIF p_short_msg IS NULL AND p_full_msg IS NOT NULL
+    THEN
+      -- split long message
+      l_short_msg := SUBSTR(p_full_msg, 1, 500) || CASE WHEN LENGTH(p_full_msg) > 500 THEN ' ... see full_message for complete details.' END;
+      l_full_msg  := p_full_msg;
+    ELSIF LENGTH(p_short_msg) > 3600
+    THEN
+      -- a very long short message, handle the overflow and distribute it to full message, we do not check for 4000 length to have some formatting space
+      l_short_msg := SUBSTR(p_short_msg, 1, 500) || ' ... see full_message for complete details.';
+      l_full_msg  := '... ' || SUBSTR(p_short_msg, 501) || ' - ' || p_full_msg;
+    ELSE
+      -- if long message is NULL we do not care, maybe NULL or given, handled as given.
+      l_short_msg := p_short_msg;
+      l_full_msg  := p_full_msg;
+    END IF;
+    full_log( p_message => l_short_msg
+            , p_log_type => l_log_type
+            , p_log_category => l_category
+            , p_guid => NULL
+            , p_sosl_identifier => NULL
+            , p_executor_id => NULL
+            , p_ext_script_id => NULL
+            , p_script_file => NULL
+            , p_caller => l_caller
+            , p_run_id => NULL
+              -- full details and original message
+            , p_full_message => l_full_msg
+            )
+    ;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log exception as we should not be already in exception state, only application error
+      -- do not raise again
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+  END minimal_log;
+
+  PROCEDURE minimal_log( p_caller     IN VARCHAR2
+                       , p_category   IN VARCHAR2
+                       , p_log_type   IN VARCHAR2
+                       , p_short_msg  IN VARCHAR2
+                       , p_full_msg   IN VARCHAR2
+                       )
+  IS
+    l_self_log_category sosl_server_log.log_category%TYPE     := 'SOSL_LOG';
+    l_self_caller       sosl_server_log.caller%TYPE           := 'sosl_log.minimal_log VARCHAR2';
+  BEGIN
+    sosl_log.minimal_log(p_caller, p_category, p_log_type, p_short_msg, TO_CLOB(p_full_msg));
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log exception as we should not be already in exception state, only application error
+      -- do not raise again
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+  END minimal_log;
 
   PROCEDURE minimal_error_log( p_caller     IN VARCHAR2
                              , p_category   IN VARCHAR2
@@ -556,46 +633,8 @@ AS
   IS
     l_self_log_category sosl_server_log.log_category%TYPE     := 'SOSL_LOG';
     l_self_caller       sosl_server_log.caller%TYPE           := 'sosl_log.minimal_error_log CLOB';
-    l_category          sosl_server_log.log_category%TYPE;
-    l_caller            sosl_server_log.caller%TYPE;
-    l_short_msg         VARCHAR2(32767);
-    l_full_msg          CLOB;
   BEGIN
-    l_category  := NVL(p_category, sosl_constants.GEN_NA_TYPE);
-    l_caller    := NVL(p_caller, sosl_constants.GEN_NA_TYPE);
-    IF p_short_msg IS NULL AND p_full_msg IS NULL
-    THEN
-      l_short_msg := l_caller || ': ERROR = Called sosl_log.minimal_error_log without any message.';
-      l_full_msg  := l_caller || ': ERROR = Called sosl_log.minimal_error_log without any message.';
-    ELSIF p_short_msg IS NULL AND p_full_msg IS NOT NULL
-    THEN
-      -- split long message
-      l_short_msg := l_caller || ': ERROR = ' || SUBSTR(p_full_msg, 1, 500) || CASE WHEN LENGTH(p_full_msg) > 500 THEN ' ... see full_message for complete details.' END;
-      l_full_msg  := p_full_msg;
-    ELSIF LENGTH(p_short_msg) > 3600
-    THEN
-      -- a very long short message, handle the overflow and distribute it to full message, we do not check for 4000 length to have some formatting space
-      l_short_msg := l_caller || ': ERROR = ' || SUBSTR(p_short_msg, 1, 500) || ' ... see full_message for complete details.';
-      l_full_msg  := '... ' || SUBSTR(p_short_msg, 501) || ' - ' || p_full_msg;
-    ELSE
-      -- if long message is NULL we do not care, maybe NULL or given, handled as given.
-      l_short_msg := l_caller || ': ERROR = ' || p_short_msg;
-      l_full_msg  := p_full_msg;
-    END IF;
-    log_event( p_message => l_short_msg
-             , p_log_type => sosl_constants.LOG_ERROR_TYPE
-             , p_log_category => l_category
-             , p_guid => NULL
-             , p_sosl_identifier => NULL
-             , p_executor_id => NULL
-             , p_ext_script_id => NULL
-             , p_script_file => NULL
-             , p_caller => l_caller
-             , p_run_id => NULL
-               -- full details and original message
-             , p_full_message => l_full_msg
-             )
-    ;
+    minimal_log(p_caller, p_category, sosl_constants.LOG_ERROR_TYPE, p_short_msg, p_full_msg);
   EXCEPTION
     WHEN OTHERS THEN
       -- log exception as we should not be already in exception state, only application error
@@ -628,46 +667,8 @@ AS
   IS
     l_self_log_category sosl_server_log.log_category%TYPE     := 'SOSL_LOG';
     l_self_caller       sosl_server_log.caller%TYPE           := 'sosl_log.minimal_info_log CLOB';
-    l_category          sosl_server_log.log_category%TYPE;
-    l_caller            sosl_server_log.caller%TYPE;
-    l_short_msg         VARCHAR2(32767);
-    l_full_msg          CLOB;
   BEGIN
-    l_category  := NVL(p_category, sosl_constants.GEN_NA_TYPE);
-    l_caller    := NVL(p_caller, sosl_constants.GEN_NA_TYPE);
-    IF p_short_msg IS NULL AND p_full_msg IS NULL
-    THEN
-      l_short_msg := l_caller || ': ERROR = Called sosl_log.minimal_info_log without any message.';
-      l_full_msg  := l_caller || ': ERROR = Called sosl_log.minimal_info_log without any message.';
-    ELSIF p_short_msg IS NULL AND p_full_msg IS NOT NULL
-    THEN
-      -- split long message
-      l_short_msg := SUBSTR(p_full_msg, 1, 500) || CASE WHEN LENGTH(p_full_msg) > 500 THEN ' ... see full_message for complete details.' END;
-      l_full_msg  := p_full_msg;
-    ELSIF LENGTH(p_short_msg) > 3600
-    THEN
-      -- a very long short message, handle the overflow and distribute it to full message, we do not check for 4000 length to have some formatting space
-      l_short_msg := SUBSTR(p_short_msg, 1, 500) || ' ... see full_message for complete details.';
-      l_full_msg  := '... ' || SUBSTR(p_short_msg, 501) || ' - ' || p_full_msg;
-    ELSE
-      -- if long message is NULL we do not care, maybe NULL or given, handled as given.
-      l_short_msg := p_short_msg;
-      l_full_msg  := p_full_msg;
-    END IF;
-    log_event( p_message => l_short_msg
-             , p_log_type => sosl_constants.LOG_INFO_TYPE
-             , p_log_category => l_category
-             , p_guid => NULL
-             , p_sosl_identifier => NULL
-             , p_executor_id => NULL
-             , p_ext_script_id => NULL
-             , p_script_file => NULL
-             , p_caller => l_caller
-             , p_run_id => NULL
-               -- full details and original message
-             , p_full_message => l_full_msg
-             )
-    ;
+    minimal_log(p_caller, p_category, sosl_constants.LOG_INFO_TYPE, p_short_msg, p_full_msg);
   EXCEPTION
     WHEN OTHERS THEN
       -- log exception as we should not be already in exception state, only application error
@@ -700,46 +701,8 @@ AS
   IS
     l_self_log_category sosl_server_log.log_category%TYPE     := 'SOSL_LOG';
     l_self_caller       sosl_server_log.caller%TYPE           := 'sosl_log.minimal_warning_log CLOB';
-    l_category          sosl_server_log.log_category%TYPE;
-    l_caller            sosl_server_log.caller%TYPE;
-    l_short_msg         VARCHAR2(32767);
-    l_full_msg          CLOB;
   BEGIN
-    l_category  := NVL(p_category, sosl_constants.GEN_NA_TYPE);
-    l_caller    := NVL(p_caller, sosl_constants.GEN_NA_TYPE);
-    IF p_short_msg IS NULL AND p_full_msg IS NULL
-    THEN
-      l_short_msg := l_caller || ': ERROR = Called sosl_log.minimal_warning_log without any message.';
-      l_full_msg  := l_caller || ': ERROR = Called sosl_log.minimal_warning_log without any message.';
-    ELSIF p_short_msg IS NULL AND p_full_msg IS NOT NULL
-    THEN
-      -- split long message
-      l_short_msg := SUBSTR(p_full_msg, 1, 500) || CASE WHEN LENGTH(p_full_msg) > 500 THEN ' ... see full_message for complete details.' END;
-      l_full_msg  := p_full_msg;
-    ELSIF LENGTH(p_short_msg) > 3600
-    THEN
-      -- a very long short message, handle the overflow and distribute it to full message, we do not check for 4000 length to have some formatting space
-      l_short_msg := SUBSTR(p_short_msg, 1, 500) || ' ... see full_message for complete details.';
-      l_full_msg  := '... ' || SUBSTR(p_short_msg, 501) || ' - ' || p_full_msg;
-    ELSE
-      -- if long message is NULL we do not care, maybe NULL or given, handled as given.
-      l_short_msg := p_short_msg;
-      l_full_msg  := p_full_msg;
-    END IF;
-    log_event( p_message => l_short_msg
-             , p_log_type => sosl_constants.LOG_WARNING_TYPE
-             , p_log_category => l_category
-             , p_guid => NULL
-             , p_sosl_identifier => NULL
-             , p_executor_id => NULL
-             , p_ext_script_id => NULL
-             , p_script_file => NULL
-             , p_caller => l_caller
-             , p_run_id => NULL
-               -- full details and original message
-             , p_full_message => l_full_msg
-             )
-    ;
+    minimal_log(p_caller, p_category, sosl_constants.LOG_WARNING_TYPE, p_short_msg, p_full_msg);
   EXCEPTION
     WHEN OTHERS THEN
       -- log exception as we should not be already in exception state, only application error
@@ -763,6 +726,40 @@ AS
       -- do not raise again
       sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
   END minimal_warning_log;
+
+  PROCEDURE minimal_success_log( p_caller     IN VARCHAR2
+                               , p_category   IN VARCHAR2
+                               , p_short_msg  IN VARCHAR2
+                               , p_full_msg   IN CLOB     DEFAULT NULL
+                               )
+  IS
+    l_self_log_category sosl_server_log.log_category%TYPE     := 'SOSL_LOG';
+    l_self_caller       sosl_server_log.caller%TYPE           := 'sosl_log.minimal_success_log CLOB';
+  BEGIN
+    minimal_log(p_caller, p_category, sosl_constants.LOG_SUCCESS_TYPE, p_short_msg, p_full_msg);
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log exception as we should not be already in exception state, only application error
+      -- do not raise again
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+  END minimal_success_log;
+
+  PROCEDURE minimal_success_log( p_caller     IN VARCHAR2
+                               , p_category   IN VARCHAR2
+                               , p_short_msg  IN VARCHAR2
+                               , p_full_msg   IN VARCHAR2
+                               )
+  IS
+    l_self_log_category sosl_server_log.log_category%TYPE     := 'SOSL_LOG';
+    l_self_caller       sosl_server_log.caller%TYPE           := 'sosl_log.minimal_success_log VARCHAR2';
+  BEGIN
+    sosl_log.minimal_warning_log(p_caller, p_category, p_short_msg, TO_CLOB(p_full_msg));
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log exception as we should not be already in exception state, only application error
+      -- do not raise again
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+  END minimal_success_log;
 
   PROCEDURE log_column_change( p_old_value     IN VARCHAR2
                              , p_new_value     IN VARCHAR2

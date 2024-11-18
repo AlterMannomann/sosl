@@ -22,12 +22,12 @@ SPOOL OFF
 -- write log file
 SPOOL &5 APPEND
 SELECT '&2. ' ||
-       sosl_server.info_log( p_srv_caller => '../sosl_sql/server/sosl_get_schema.sql'
-                           , p_srv_message => 'Fetched sosl_server.get_script_schema: &SCRIPT_SCHEMA. with run id &3.'
-                           , p_identifier => '&1'
-                           , p_local_log => '&5'
-                           , p_srv_guid => '&6'
-                           )  AS info
+       sosl_server.success_log( p_srv_caller => '../sosl_sql/server/sosl_get_schema.sql'
+                              , p_srv_message => 'Fetched sosl_server.get_script_schema: &SCRIPT_SCHEMA. with run id &3.'
+                              , p_identifier => '&1'
+                              , p_local_log => '&5'
+                              , p_srv_guid => '&6'
+                              )  AS info
   FROM dual;
 SPOOL OFF
 COLUMN EXITCODE NEW_VAL EXITCODE

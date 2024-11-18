@@ -37,7 +37,8 @@ AS
   /* FUNCTION SOSL_SYS.DEACTIVATE_BY_FN_HAS_SCRIPTS
   * Deactivates all executors using the given function owner and function for has_scripts.
   * Runs as an autonomous transaction. Used to deactivate executors having functions configured
-  * that throw exceptions or errors on calling them. Errors will be logged.
+  * that throw exceptions or errors on calling them. Errors will be logged. SOSL schema and role
+  * admins are ignored.
   *
   * @param p_function_owner The owner of the has_scripts function definition.
   * @param p_fn_has_scripts The defined script call for has_scripts.
@@ -55,7 +56,8 @@ AS
   /* FUNCTION SOSL_SYS.DEACTIVATE_BY_FN_GET_NEXT_SCRIPT
   * Deactivates all executors using the given function owner and function for get_next_script.
   * Runs as an autonomous transaction. Used to deactivate executors having functions configured
-  * that throw exceptions or errors on calling them. Errors will be logged.
+  * that throw exceptions or errors on calling them. Errors will be logged. SOSL schema and role
+  * admins are ignored.
   *
   * @param p_function_owner The owner of the get_next_script function definition.
   * @param p_fn_get_next_script The defined script call for get_next_script.
@@ -73,7 +75,8 @@ AS
   /* FUNCTION SOSL_SYS.DEACTIVATE_BY_FN_SET_SCRIPT_STATUS
   * Deactivates all executors using the given function owner and function for set_script_status.
   * Runs as an autonomous transaction. Used to deactivate executors having functions configured
-  * that throw exceptions or errors on calling them. Errors will be logged.
+  * that throw exceptions or errors on calling them. Errors will be logged. SOSL schema and role
+  * admins are ignored.
   *
   * @param p_function_owner The owner of the set_script_status function definition.
   * @param p_fn_set_script_status The defined script call for set_script_status.
@@ -91,7 +94,8 @@ AS
   /* FUNCTION SOSL_SYS.DEACTIVATE_BY_FN_SEND_DB_MAIL
   * Deactivates all executors using the given function owner and function for send_db_mail.
   * Runs as an autonomous transaction. Used to deactivate executors having functions configured
-  * that throw exceptions or errors on calling them. Errors will be logged.
+  * that throw exceptions or errors on calling them. Errors will be logged. SOSL schema and role
+  * admins are ignored.
   *
   * @param p_function_owner The owner of the send_db_mail function definition.
   * @param p_fn_send_db_mail The defined script call for send_db_mail.
@@ -159,16 +163,36 @@ AS
   ;
 
   /* FUNCTION SOSL_SYS.GET_HAS_SCRIPT_CNT
+  * Determines the count result of the defined has_script functions for the given function
+  * owner and function name.
+  * Failures on specific executors are only considered, if none of the defined functions
+  * could be executed without errors. Defined scripts will be executed dynamically. Make
+  * sure that has_scripts executes fast, especially if more than one executor is active.
+  *
+  * ATTENTION Will deactivate all executors with scripts throwing execptions!
+  *
+  * @param p_function_name The function to execute for getting the payload. Package functions allowed.
+  * @param p_function_owner The function owner of the function to execute.
+  *
+  * @return The count result of the has_scripts function or -1 on severe errors.
+  */
+  FUNCTION get_has_script_cnt( p_function_name  IN VARCHAR2
+                             , p_function_owner IN VARCHAR2
+                             )
+    RETURN NUMBER
+  ;
+
+  /* FUNCTION SOSL_SYS.GET_HAS_SCRIPT_CNT
   * Determines the count result of all defined has_script functions of valid executors.
   * Failures on specific executors are only considered, if none of the defined functions
   * could be executed without errors. Defined scripts will be executed dynamically. Make
-  * sure that has_scripts execute fast, especially if more than one executor is active.
+  * sure that has_scripts executes fast, especially if more than one executor is active.
   *
   * Will only execute unique functions. If different executors share the same function owner
   * and function definition, then the function is only executed once and not per executor.
   * Call syntax is functionOwner.functionName where functionName can also be a package call.
   *
-  * ATTENTION Will all executors with scripts throwing execptions!
+  * ATTENTION Will deactivate all executors with scripts throwing execptions!
   *
   * @return The total count of all defined has_scripts function or -1 on severe errors.
   */

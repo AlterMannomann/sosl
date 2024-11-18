@@ -30,12 +30,12 @@ SELECT CASE
                                    , p_srv_guid => '&5'
                                    )
          ELSE '&2. ' ||
-              sosl_server.info_log( p_srv_caller => '../sosl_sql/server/sosl_has_scripts.sql'
-                                  , p_srv_message => 'Fetched sosl_server.has_scripts: &SCRIPT_COUNT.'
-                                  , p_identifier => '&1'
-                                  , p_local_log => '&4'
-                                  , p_srv_guid => '&5'
-                                  )
+              sosl_server.success_log( p_srv_caller => '../sosl_sql/server/sosl_has_scripts.sql'
+                                     , p_srv_message => 'Fetched sosl_server.has_scripts: &SCRIPT_COUNT.'
+                                     , p_identifier => '&1'
+                                     , p_local_log => '&4'
+                                     , p_srv_guid => '&5'
+                                     )
        END AS info
   FROM dual;
 SPOOL OFF

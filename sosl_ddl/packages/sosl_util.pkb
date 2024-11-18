@@ -307,14 +307,27 @@ AS
   IS
     PRAGMA AUTONOMOUS_TRANSACTION;
     l_return            BOOLEAN;
+    l_has_admin         NUMBER;
+    l_schema            VARCHAR2(128);
     l_statement         VARCHAR2(1024);
     l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_UTIL';
     l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_util.revoke_role';
   BEGIN
     l_return := FALSE;
+    SELECT config_value INTO l_schema FROM sosl_config WHERE config_name = 'SOSL_SCHEMA';
+    SELECT COUNT(*) INTO l_has_admin FROM user_role_privs WHERE granted_role = p_role AND admin_option = 'YES';
     IF NOT has_role(p_db_user, p_role)
+        OR p_db_user   = l_schema
+        OR l_has_admin = 1
     THEN
-      -- role not given or revoked
+      -- SOSL user, role admin or role not given
+      IF   p_db_user   = l_schema
+        OR l_has_admin = 1
+      THEN
+        sosl_log.minimal_warning_log(l_self_caller, l_self_log_category, 'Roles will never be revoked from role admins and SOSL schema - user '|| p_db_user || ' role ' || p_role);
+      ELSE
+        sosl_log.minimal_info_log(l_self_caller, l_self_log_category, 'Role cannot be revoked, user '|| p_db_user || ' has no role ' || p_role);
+      END IF;
       l_return := TRUE;
     ELSE
       -- give grant
