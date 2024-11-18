@@ -3,8 +3,6 @@
 -- just write a hello world log entry
 SELECT 'SOSL: Hello World' AS info FROM dual;
 BEGIN
-  sosl_log.minimal_info_log('sosl_hello_world', 'SOSL TEST', 'Hello World');
-  -- add a little bit of wait time to keep the script running not that fast
-  DBMS_SESSION.SLEEP(60);
+  sosl_log.minimal_info_log('sosl_hello_world.sql', 'SOSL TEST', 'Hello World');
 END;
 /

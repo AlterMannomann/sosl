@@ -8,9 +8,9 @@ AS
   * Some functions are limited to roles, higher than SOSL_USER. Config login information are not visible to SOSL_USER
   * role. Mainly used to manage executors and retrieve basic information.
   * This package is made for users to interactively manage executors and get or set parameter. The return value is
-  * therefore usually a string that can be interpreted by a human being, not by programs or a number for IDs. The functions
-  * can be used with select statements as well as in PLSQL blocks or code. Inserts and updates will run as autonomous
-  * transactions.
+  * therefore usually a string that can be interpreted by a human being, not by programs or a number, mainly for IDs.
+  * The functions can be used with select statements as well as in PLSQL blocks or code. Inserts and updates will run
+  * as autonomous transactions.
   */
 
   /** Function SOSL_API.GET_CONFIG
@@ -76,6 +76,17 @@ AS
                         , p_to   IN VARCHAR2 DEFAULT '18:00'
                         )
     RETURN VARCHAR2
+  ;
+
+  /* FUNCTION SOSL_API.HAS_SCRIPTS
+  * Wrapper function for SOSL_SYS.HAS_SCRIPTS. Provided for reports to be run with SOSL_USER role.
+  * Collects and sums the output of all defined executor has_scripts functions of active and reviewed executors that
+  * return a number greater or equal to 0 as well as messages waiting in SOSL_RUN_QUEUE to be processed. Errors will get logged.
+  *
+  * @return The total amount of scripts waiting for processing or -1 on unhandled exceptions/all functions have errors.
+  */
+  FUNCTION has_scripts
+    RETURN NUMBER
   ;
 
   /** Function SOSL_API.CREATE_EXECUTOR
@@ -192,6 +203,18 @@ AS
                      , p_script_active  IN NUMBER   DEFAULT 0
                      )
     RETURN NUMBER
+  ;
+
+  /** Function SOSL_API.DB_IN_TIME
+  * Wrapper for SOSL_UTIL.DB_IN_TIME.
+  * Checks if the database is within the defined start and stop time of the SOSL server. If the database time is
+  * not in sync with the local server time of the SOSL server, the result may be wrong. Sync the time of the database
+  * and the local server to get reliable results.
+  *
+  * @return TRUE if the current database time is within the server timeframe otherwise FALSE.
+  */
+  FUNCTION db_in_time
+    RETURN BOOLEAN
   ;
 
 END;

@@ -118,6 +118,20 @@ AS
       RETURN 'ERROR executing SOSL_API.SET_TIMEFRAME see SOSL_SERVER_LOG for details';
   END set_timeframe;
 
+  FUNCTION has_scripts
+    RETURN NUMBER
+  IS
+    l_return NUMBER;
+  BEGIN
+    l_return := sosl_sys.has_scripts;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log('sosl_api.has_scripts', 'SOSL_API', SQLERRM);
+      RETURN -1;
+  END has_scripts;
+
   FUNCTION create_executor( p_executor_name         IN VARCHAR2
                           , p_function_owner        IN VARCHAR2
                           , p_fn_has_scripts        IN VARCHAR2
@@ -311,6 +325,22 @@ AS
       -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
       RETURN -1;
   END add_script;
+
+  FUNCTION db_in_time
+    RETURN BOOLEAN
+  IS
+    l_return        BOOLEAN;
+    l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+    l_caller        sosl_server_log.caller%TYPE       := 'sosl_api.db_in_time';
+  BEGIN
+    l_return := sosl_util.db_in_time;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+      RETURN FALSE;
+  END db_in_time;
 
 END;
 /

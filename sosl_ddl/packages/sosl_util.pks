@@ -380,6 +380,13 @@ AS
     RETURN NUMBER
   ;
 
+  /** Function SOSL_UTIL.DB_IN_TIME
+  * Checks if the database is within the defined start and stop time of the SOSL server. If the database time is
+  * not in sync with the local server time of the SOSL server, the result may be wrong. Sync the time of the database
+  * and the local server to get reliable results.
+  *
+  * @return TRUE if the current database time is within the server timeframe otherwise FALSE.
+  */
   FUNCTION db_in_time
     RETURN BOOLEAN
   ;

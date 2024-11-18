@@ -13,7 +13,9 @@ AS
          )
   SELECT sed.executor_name
        , sosl_constants.run_state_text(run_stats.run_state) AS run_state
-       , script_count
+       , run_stats.script_count
+       , run_stats.executor_id
+       , run_stats.run_state                                AS run_state_num
     FROM run_stats
     LEFT OUTER JOIN sosl_executor_definition sed
       ON run_stats.executor_id = sed.executor_id
