@@ -1,5 +1,5 @@
 # UNDER CONSTRUCTION
-Current state: pre-alpha version of CMD server. Simple hello world script working. Still a lot of things to do like NULL handling in CMD scripts.
+Current state: pre-alpha version of CMD server. Basically working with a bunch of files. Still a lot of things to do like adjust the rerun concept.
 
 **Important note:** SQL Developer in versions 23.x is not at all stable. It doesn't recognize database changes and delivers wrong result until restarted. SQL Plus is still reliable.
 
