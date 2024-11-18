@@ -116,6 +116,12 @@ This is just an option to enable and disable mail on demand. You might as well i
 The interface API requires a set of information to handle things correctly: executor id, external script id as VARCHAR2 and the script filename including relative or absolute path. The SOSL type SOSL_PAYLOAD offers the possibility to transfer this information within one object and is the required output for getting the next script. All other interface API functions should return NUMBER.
 
 SOSL does not take care about the order, scripts are delivered for execution, this is within the responsibility of the API function provider. The basic SOSL system, if no other executor is used, provides only a simple order mechanic, where scripts are processed by order number. Same order number just means the scripts get executed in an undefined order.
+### SQL Developer reports
+A small set of reports to check and control the server state, the run queue and the logs.
+<img width="785" alt="image" src="https://github.com/user-attachments/assets/bc3503d0-1d21-4f91-b2ce-d9bf5c47c5d3">
+<img width="704" alt="image" src="https://github.com/user-attachments/assets/b69dc021-e460-407c-834c-77238dbe3988">
+<img width="983" alt="image" src="https://github.com/user-attachments/assets/e0dc985b-dee0-47f2-bbee-921efd1bec19">
+
 ## Security
 First, it is difficult to obtain a minimum of security as Oracle, on the command line, requires username and password unless you are an authenticated system user like oracle on the db server, where you can login with slash (/) or a wallet is configured.
 
