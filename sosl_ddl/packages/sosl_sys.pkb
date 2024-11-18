@@ -81,6 +81,8 @@ AS
         FROM sosl_executor_definition
        WHERE function_owner = cp_function_owner
          AND fn_has_scripts = cp_function_name
+         -- always exclude current SOSL user
+         AND function_owner NOT IN (SELECT config_value FROM sosl_config WHERE config_name = 'SOSL_SCHEMA')
     ;
   BEGIN
     l_return := TRUE;
@@ -129,6 +131,8 @@ AS
         FROM sosl_executor_definition
        WHERE function_owner     = cp_function_owner
          AND fn_get_next_script = cp_function_name
+         -- always exclude current SOSL user
+         AND function_owner NOT IN (SELECT config_value FROM sosl_config WHERE config_name = 'SOSL_SCHEMA')
     ;
   BEGIN
     l_return := TRUE;
@@ -177,6 +181,8 @@ AS
         FROM sosl_executor_definition
        WHERE function_owner       = cp_function_owner
          AND fn_set_script_status = cp_function_name
+         -- always exclude current SOSL user
+         AND function_owner NOT IN (SELECT config_value FROM sosl_config WHERE config_name = 'SOSL_SCHEMA')
     ;
   BEGIN
     l_return := TRUE;
@@ -225,6 +231,8 @@ AS
         FROM sosl_executor_definition
        WHERE function_owner  = cp_function_owner
          AND fn_send_db_mail = cp_function_name
+         -- always exclude current SOSL user
+         AND function_owner NOT IN (SELECT config_value FROM sosl_config WHERE config_name = 'SOSL_SCHEMA')
     ;
   BEGIN
     l_return := TRUE;
@@ -303,6 +311,44 @@ AS
       RETURN 'SELECT -1 FROM dual';
   END build_signal_call;
 
+  FUNCTION get_has_script_cnt( p_function_name  IN VARCHAR2
+                             , p_function_owner IN VARCHAR2
+                             )
+    RETURN NUMBER
+  IS
+    l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SYS';
+    l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_sys.get_has_script_cnt function';
+    l_count             NUMBER;
+    l_success           BOOLEAN;
+    l_statement         VARCHAR2(1024);
+  BEGIN
+    -- flag to determine if at least one execution was successful
+    l_count     := 0;
+    l_statement := sosl_sys.build_script_call(p_function_owner, p_function_name);
+    BEGIN
+      EXECUTE IMMEDIATE l_statement INTO l_count;
+    EXCEPTION
+      WHEN OTHERS THEN
+        sosl_log.exception_log(l_self_caller, l_self_log_category, l_statement || ': ' || SQLERRM);
+        l_count := -1;
+    END;
+    IF l_count < 0
+    THEN
+      -- we have errors with this function disable executors using this function
+      IF NOT sosl_sys.deactivate_by_fn_has_scripts(p_function_owner, p_function_name, 'Function returns exceptions or values below zero. Executors deactivated. Fix function issue before.')
+      THEN
+        -- error situation
+        sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Could not deactivate executors for function ' || p_function_name || ' function owner ' || p_function_owner);
+      END IF;
+    END IF;
+    RETURN l_count;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_self_caller, l_self_log_category, SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN -1;
+  END get_has_script_cnt;
 
   FUNCTION get_has_script_cnt
     RETURN NUMBER
@@ -697,51 +743,97 @@ AS
   IS
     PRAGMA AUTONOMOUS_TRANSACTION;
     l_return            BOOLEAN;
+    l_total             NUMBER;
+    l_count             NUMBER;
     l_payload           SOSL_PAYLOAD;
     l_statement         VARCHAR2(1024);
     l_self_log_category sosl_server_log.log_category%TYPE := 'SOSL_SYS';
     l_self_caller       sosl_server_log.caller%TYPE       := 'sosl_sys.register_next_script';
+    -- there might exist more than one associated has_scripts function for get_next_script
+    CURSOR cur_get_has_scripts( cp_function_name  IN VARCHAR2
+                              , cp_function_owner IN VARCHAR2
+                              )
+    IS
+      SELECT function_owner
+           , fn_has_scripts
+        FROM sosl_executor_definition
+       WHERE executor_active    = sosl_constants.NUM_YES
+         AND executor_reviewed  = sosl_constants.NUM_YES
+         AND function_owner     = cp_function_owner
+         AND fn_get_next_script = cp_function_name
+       GROUP BY function_owner
+              , fn_has_scripts
+    ;
   BEGIN
     l_return := FALSE;
-    l_statement := sosl_sys.build_script_call(p_function_owner, p_function_name);
-    BEGIN
-      EXECUTE IMMEDIATE l_statement INTO l_payload;
-      IF      sosl_sys.is_executor_valid(l_payload.executor_id)
-         AND  l_payload.ext_script_id IS NOT NULL
-         AND  l_payload.script_file   IS NOT NULL
+    -- first check if we have specific results from the associated has_scripts functions
+    l_total := 0;
+    l_count := 0;
+    FOR rec IN cur_get_has_scripts(p_function_name, p_function_owner)
+    LOOP
+      l_count := sosl_sys.get_has_script_cnt(rec.fn_has_scripts, rec.function_owner);
+      IF l_count = -1
       THEN
-        -- valid payload
-        INSERT INTO sosl_run_queue
-          (executor_id, ext_script_id, script_file)
-          VALUES
-          (l_payload.executor_id, l_payload.ext_script_id, l_payload.script_file)
-        ;
-        COMMIT;
-        l_return := TRUE;
-      ELSE
-        -- invalid payload, check if usable and save with error state if possible
-        IF     sosl_sys.is_executor(l_payload.executor_id)
-           AND l_payload.ext_script_id IS NOT NULL
-           AND l_payload.script_file   IS NOT NULL
+        l_total := -1;
+        sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Invalid has_script function "' || rec.fn_has_scripts || '" for owner "' || rec.function_owner || '".');
+      END IF;
+      -- make sure that errors are kept
+      IF l_count != -1 AND l_total != -1
+      THEN
+        l_total := l_total + l_count;
+      END IF;
+    END LOOP;
+    -- if the associated has_scripts have available scripts
+    IF l_total = -1
+    THEN
+      -- we have an error already logged
+      l_return := FALSE;
+    ELSIF l_total > 0
+    THEN
+      -- we have scripts waiting
+      l_statement := sosl_sys.build_script_call(p_function_owner, p_function_name);
+      BEGIN
+        EXECUTE IMMEDIATE l_statement INTO l_payload;
+        IF      sosl_sys.is_executor_valid(l_payload.executor_id)
+           AND  l_payload.ext_script_id IS NOT NULL
+           AND  l_payload.script_file   IS NOT NULL
         THEN
-          -- insert the record with error state
+          -- valid payload
           INSERT INTO sosl_run_queue
-            (executor_id, ext_script_id, script_file, run_state)
+            (executor_id, ext_script_id, script_file)
             VALUES
-            (l_payload.executor_id, l_payload.ext_script_id, l_payload.script_file, sosl_constants.RUN_STATE_ERROR)
+            (l_payload.executor_id, l_payload.ext_script_id, l_payload.script_file)
           ;
           COMMIT;
+          l_return := TRUE;
+        ELSE
+          -- invalid payload, check if usable and save with error state if possible
+          IF     sosl_sys.is_executor(l_payload.executor_id)
+             AND l_payload.ext_script_id IS NOT NULL
+             AND l_payload.script_file   IS NOT NULL
+          THEN
+            -- insert the record with error state
+            INSERT INTO sosl_run_queue
+              (executor_id, ext_script_id, script_file, run_state)
+              VALUES
+              (l_payload.executor_id, l_payload.ext_script_id, l_payload.script_file, sosl_constants.RUN_STATE_ERROR)
+            ;
+            COMMIT;
+          END IF;
+          -- log the error
+          sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'SOSL_PAYLOAD has invalid content, either the executor "' || l_payload.executor_id || '" is not valid or payload fields are NULL. External script id "' || l_payload.ext_script_id || '" script file "' || l_payload.script_file || '".');
+          l_return := FALSE;
         END IF;
-        -- log the error
-        sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'SOSL_PAYLOAD has invalid content, either the executor "' || l_payload.executor_id || '" is not valid or payload fields are NULL. External script id "' || l_payload.ext_script_id || '" script file "' || l_payload.script_file || '".');
-        l_return := FALSE;
-      END IF;
-    EXCEPTION
-      WHEN OTHERS THEN
-        sosl_log.exception_log(l_self_caller, l_self_log_category, l_statement || ': ' || SQLERRM);
-        l_return := FALSE;
-    END;
-    -- if we have still FALSE return value, deactivate the executors for the given function
+      EXCEPTION
+        WHEN OTHERS THEN
+          sosl_log.exception_log(l_self_caller, l_self_log_category, l_statement || ': ' || SQLERRM);
+          l_return := FALSE;
+      END;
+    ELSE
+      -- do not care, not having scripts is okay, maybe queue or other executor
+      l_return := TRUE;
+    END IF;
+    -- if we have FALSE return value, deactivate the executors for the given function
     IF NOT l_return
     THEN
       IF NOT sosl_sys.deactivate_by_fn_get_next_script(p_function_owner, p_function_name, 'Function returns exceptions or values below zero. Executors deactivated. Fix function issue before.')

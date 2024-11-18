@@ -57,12 +57,12 @@ SELECT CASE
                                        , p_srv_guid => '&GUID'
                                        )
          ELSE '&OS_TIME. ' ||
-              &6..sosl_server.info_log( p_srv_caller => '../sosl_sql/server/sosl_execute.sql'
-                                      , p_srv_message => 'Successfully fetched parameters and set RUNNING state for &SCRIPT_FILE. and run id &RUN_ID.'
-                                      , p_identifier => '&SOSL_ID'
-                                      , p_local_log => '&SOSL_LOG'
-                                      , p_srv_guid => '&GUID'
-                                      )
+              &6..sosl_server.success_log( p_srv_caller => '../sosl_sql/server/sosl_execute.sql'
+                                         , p_srv_message => 'Successfully fetched parameters and set RUNNING state for &SCRIPT_FILE. and run id &RUN_ID.'
+                                         , p_identifier => '&SOSL_ID'
+                                         , p_local_log => '&SOSL_LOG'
+                                         , p_srv_guid => '&GUID'
+                                         )
          END AS info
   FROM dual;
 SPOOL OFF
@@ -101,12 +101,12 @@ SELECT CASE
                                                    , p_srv_guid => '&GUID'
                                                    )
          ELSE '&OS_TIME. ' ||
-              &SCRIPT_SCHEMA..sosl_server.info_log( p_srv_caller => '../sosl_sql/server/sosl_execute.sql'
-                                                  , p_srv_message => 'Successfully executed: &SCRIPT_FILE.'
-                                                  , p_identifier => '&SOSL_ID'
-                                                  , p_local_log => '&SOSL_LOG'
-                                                  , p_srv_guid => '&GUID'
-                                                  )
+              &SCRIPT_SCHEMA..sosl_server.success_log( p_srv_caller => '../sosl_sql/server/sosl_execute.sql'
+                                                     , p_srv_message => 'Successfully executed: &SCRIPT_FILE.'
+                                                     , p_identifier => '&SOSL_ID'
+                                                     , p_local_log => '&SOSL_LOG'
+                                                     , p_srv_guid => '&GUID'
+                                                     )
        END AS info
   FROM dual;
 SPOOL OFF

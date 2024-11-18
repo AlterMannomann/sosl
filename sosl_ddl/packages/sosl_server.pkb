@@ -410,8 +410,9 @@ AS
       RETURN -1;
   END set_script_error;
 
-  FUNCTION info_log( p_srv_caller   IN VARCHAR2
+  FUNCTION main_log( p_srv_caller   IN VARCHAR2
                    , p_srv_message  IN VARCHAR2
+                   , p_log_type     IN VARCHAR2
                    , p_identifier   IN VARCHAR2 DEFAULT NULL
                    , p_local_log    IN VARCHAR2 DEFAULT NULL
                    , p_srv_run_id   IN NUMBER   DEFAULT NULL
@@ -421,7 +422,9 @@ AS
   IS
     l_message   VARCHAR2(32767);
     l_payload   SOSL_PAYLOAD;
+    l_log_type  sosl_server_log.log_type%TYPE;
   BEGIN
+    l_log_type := sosl_log.get_valid_log_type(p_log_type);
     IF p_local_log IS NOT NULL
     THEN
       l_message := p_srv_message || ' local log file: ' || p_local_log;
@@ -435,7 +438,7 @@ AS
       l_payload := SOSL_PAYLOAD(NULL, NULL, NULL);
     END IF;
     sosl_log.full_log( p_message => l_message
-                     , p_log_type => sosl_constants.LOG_INFO_TYPE
+                     , p_log_type => l_log_type
                      , p_log_category => 'SOSL_SERVER'
                      , p_caller => p_srv_caller
                      , p_guid => p_srv_guid
@@ -450,9 +453,50 @@ AS
   EXCEPTION
     WHEN OTHERS THEN
       -- log the error instead of RAISE
+      sosl_log.exception_log('sosl_server.main_log', 'SOSL_SERVER', SQLERRM);
+      RETURN SUBSTR(SQLERRM, 1, 4000);
+  END main_log;
+
+
+  FUNCTION info_log( p_srv_caller   IN VARCHAR2
+                   , p_srv_message  IN VARCHAR2
+                   , p_identifier   IN VARCHAR2 DEFAULT NULL
+                   , p_local_log    IN VARCHAR2 DEFAULT NULL
+                   , p_srv_run_id   IN NUMBER   DEFAULT NULL
+                   , p_srv_guid     IN VARCHAR2 DEFAULT NULL
+                   )
+    RETURN VARCHAR2
+  IS
+    l_message   VARCHAR2(32767);
+  BEGIN
+    l_message := main_log(p_srv_caller, p_srv_message, sosl_constants.LOG_INFO_TYPE, p_identifier, p_local_log, p_srv_run_id, p_srv_guid);
+    RETURN l_message;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
       sosl_log.exception_log('sosl_server.info_log', 'SOSL_SERVER', SQLERRM);
       RETURN SUBSTR(SQLERRM, 1, 4000);
   END info_log;
+
+  FUNCTION success_log( p_srv_caller   IN VARCHAR2
+                      , p_srv_message  IN VARCHAR2
+                      , p_identifier   IN VARCHAR2 DEFAULT NULL
+                      , p_local_log    IN VARCHAR2 DEFAULT NULL
+                      , p_srv_run_id   IN NUMBER   DEFAULT NULL
+                      , p_srv_guid     IN VARCHAR2 DEFAULT NULL
+                      )
+    RETURN VARCHAR2
+  IS
+    l_message   VARCHAR2(32767);
+  BEGIN
+    l_message := main_log(p_srv_caller, p_srv_message, sosl_constants.LOG_SUCCESS_TYPE, p_identifier, p_local_log, p_srv_run_id, p_srv_guid);
+    RETURN l_message;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log('sosl_server.success_log', 'SOSL_SERVER', SQLERRM);
+      RETURN SUBSTR(SQLERRM, 1, 4000);
+  END success_log;
 
   FUNCTION warning_log( p_srv_caller   IN VARCHAR2
                       , p_srv_message  IN VARCHAR2
@@ -464,33 +508,9 @@ AS
     RETURN VARCHAR2
   IS
     l_message   VARCHAR2(32767);
-    l_payload   SOSL_PAYLOAD;
   BEGIN
-    IF p_local_log IS NOT NULL
-    THEN
-      l_message := p_srv_message || ' local log file: ' || p_local_log;
-    ELSE
-      l_message := p_srv_message;
-    END IF;
-    IF p_srv_run_id IS NOT NULL
-    THEN
-      l_payload := sosl_sys.get_payload(p_srv_run_id);
-    ELSE
-      l_payload := SOSL_PAYLOAD(NULL, NULL, NULL);
-    END IF;
-    sosl_log.full_log( p_message => l_message
-                     , p_log_type => sosl_constants.LOG_WARNING_TYPE
-                     , p_log_category => 'SOSL_SERVER'
-                     , p_caller => p_srv_caller
-                     , p_guid => p_srv_guid
-                     , p_sosl_identifier => p_identifier
-                     , p_executor_id => l_payload.executor_id
-                     , p_ext_script_id => l_payload.ext_script_id
-                     , p_script_file => l_payload.script_file
-                     , p_run_id => p_srv_run_id
-                     )
-    ;
-    RETURN p_srv_message;
+    l_message := main_log(p_srv_caller, p_srv_message, sosl_constants.LOG_WARNING_TYPE, p_identifier, p_local_log, p_srv_run_id, p_srv_guid);
+    RETURN l_message;
   EXCEPTION
     WHEN OTHERS THEN
       -- log the error instead of RAISE
@@ -508,33 +528,9 @@ AS
     RETURN VARCHAR2
   IS
     l_message   VARCHAR2(32767);
-    l_payload   SOSL_PAYLOAD;
   BEGIN
-    IF p_local_log IS NOT NULL
-    THEN
-      l_message := p_srv_message || ' local log file: ' || p_local_log;
-    ELSE
-      l_message := p_srv_message;
-    END IF;
-    IF p_srv_run_id IS NOT NULL
-    THEN
-      l_payload := sosl_sys.get_payload(p_srv_run_id);
-    ELSE
-      l_payload := SOSL_PAYLOAD(NULL, NULL, NULL);
-    END IF;
-    sosl_log.full_log( p_message => l_message
-                     , p_log_type => sosl_constants.LOG_ERROR_TYPE
-                     , p_log_category => 'SOSL_SERVER'
-                     , p_caller => p_srv_caller
-                     , p_guid => p_srv_guid
-                     , p_sosl_identifier => p_identifier
-                     , p_executor_id => l_payload.executor_id
-                     , p_ext_script_id => l_payload.ext_script_id
-                     , p_script_file => l_payload.script_file
-                     , p_run_id => p_srv_run_id
-                     )
-    ;
-    RETURN p_srv_message;
+    l_message := main_log(p_srv_caller, p_srv_message, sosl_constants.LOG_ERROR_TYPE, p_identifier, p_local_log, p_srv_run_id, p_srv_guid);
+    RETURN l_message;
   EXCEPTION
     WHEN OTHERS THEN
       -- log the error instead of RAISE

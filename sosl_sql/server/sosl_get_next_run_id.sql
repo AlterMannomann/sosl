@@ -36,12 +36,12 @@ SELECT CASE
                                    , p_srv_guid => '&5'
                                    )
          ELSE '&2. ' ||
-              sosl_server.info_log( p_srv_caller => '../sosl_sql/server/sosl_get_next_run_id.sql'
-                                  , p_srv_message => 'Fetched sosl_server.get_next_script run id: &RUN_ID. and set script to STARTED'
-                                  , p_identifier => '&1'
-                                  , p_local_log => '&4'
-                                  , p_srv_guid => '&5'
-                                  )
+              sosl_server.success_log( p_srv_caller => '../sosl_sql/server/sosl_get_next_run_id.sql'
+                                     , p_srv_message => 'Fetched sosl_server.get_next_script run id: &RUN_ID. and set script to STARTED'
+                                     , p_identifier => '&1'
+                                     , p_local_log => '&4'
+                                     , p_srv_guid => '&5'
+                                     )
        END AS info
   FROM dual;
 SPOOL OFF
