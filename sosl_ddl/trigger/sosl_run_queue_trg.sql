@@ -86,16 +86,15 @@ BEGIN
     IF :NEW.run_state != :OLD.run_state
     THEN
       -- normal transitions, organized as ordered sequence numbers 0 to 4
-      -- WAITING -> ENQUEUED, ENQUEUED -> STARTED, STARTED -> RUNNING, RUNNING -> FINISHED, FINSHED -> WAITING
+      -- WAITING -> ENQUEUED, ENQUEUED -> STARTED, STARTED -> RUNNING, RUNNING -> FINISHED
       IF     (   :OLD.run_state = sosl_constants.RUN_STATE_ERROR
               OR :OLD.run_state = sosl_constants.RUN_STATE_FINISHED
              )
-         AND :NEW.run_state != sosl_constants.RUN_STATE_WAITING
       THEN
         -- log it
-        sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Wrong state transition: ' || sosl_constants.run_state_text(:OLD.run_state) || ' not allowed to change to ' || sosl_constants.run_state_text(:NEW.run_state) || '. State set to ERROR.');
-        -- ignore invalid run state, set state to error
-        :NEW.run_state := sosl_constants.RUN_STATE_ERROR;
+        sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Final run states cannot be changed: ' || sosl_constants.run_state_text(:OLD.run_state) || ' not allowed to change to ' || sosl_constants.run_state_text(:NEW.run_state) || '. State left unchanged.');
+        -- ignore invalid run state, leave state unchanged
+        :NEW.run_state := :OLD.run_state;
       ELSE
         -- next state must be exactly old run state +1
         IF :NEW.run_state != (:OLD.run_state + 1)
