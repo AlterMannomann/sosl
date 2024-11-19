@@ -76,7 +76,7 @@ SELECT srv_schema.sosl_schema
  CROSS JOIN srv_time_to
  CROSS JOIN srv_schema]]></sql>
 		</query>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[SOSL run configuration]]></name>
 			<description><![CDATA[The basic condiguration of SOSL that can be set using the database.]]></description>
 			<tooltip><![CDATA[SOSL configuration]]></tooltip>
@@ -116,7 +116,7 @@ SELECT wait_short.wait_seconds_having_jobs
  CROSS JOIN max_parall]]></sql>
 			</query>
 		</display>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[SOSL server paths]]></name>
 			<description><![CDATA[The defined paths the SOSL server uses.]]></description>
 			<tooltip><![CDATA[SOSL server paths]]></tooltip>
@@ -133,7 +133,7 @@ SELECT wait_short.wait_seconds_having_jobs
  ORDER BY config_name]]></sql>
 			</query>
 		</display>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[SOSL defaults]]></name>
 			<description><![CDATA[Local defined defaults the SOSL server currently uses.]]></description>
 			<tooltip><![CDATA[SOSL defaults]]></tooltip>
@@ -156,7 +156,7 @@ SELECT wait_short.wait_seconds_having_jobs
  ORDER BY config_name]]></sql>
 			</query>
 		</display>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[SOSL statistics]]></name>
 			<description><![CDATA[Displays the total runs and run states.]]></description>
 			<tooltip><![CDATA[SOSL statistics]]></tooltip>
@@ -199,7 +199,8 @@ SELECT wait_short.wait_seconds_having_jobs
 			<TYPE><![CDATA[horizontal]]></TYPE>
 		</CustomValues>
 		<query>
-			<sql><![CDATA[SELECT CASE 
+			<sql><![CDATA[SELECT run_id
+     , CASE 
          WHEN run_state_num = sosl_constants.get_run_state_error
          THEN sosl_constants.red
          WHEN run_state_num = sosl_constants.get_run_state_waiting
@@ -233,7 +234,7 @@ SELECT wait_short.wait_seconds_having_jobs
      , executor_id
   FROM sosl_run_queue_v]]></sql>
 		</query>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[Executor details]]></name>
 			<description><![CDATA[]]></description>
 			<tooltip><![CDATA[]]></tooltip>
@@ -255,7 +256,7 @@ SELECT wait_short.wait_seconds_having_jobs
 				</binds>
 			</query>
 		</display>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[Executor statistics]]></name>
 			<description><![CDATA[]]></description>
 			<tooltip><![CDATA[]]></tooltip>
@@ -335,10 +336,10 @@ SELECT wait_short.wait_seconds_having_jobs
      , exec_timestamp
   FROM sosl_server_log_v]]></sql>
 		</query>
-		<display id="null" type="" style="Table" enable="true">
-			<name><![CDATA[Errors and Warnings]]></name>
-			<description><![CDATA[]]></description>
-			<tooltip><![CDATA[]]></tooltip>
+		<display id="" type="" style="Table" enable="true">
+			<name><![CDATA[Errors today]]></name>
+			<description><![CDATA[Lists only todays errors in the SOSL server log]]></description>
+			<tooltip><![CDATA[Errors today]]></tooltip>
 			<drillclass><![CDATA[]]></drillclass>
 			<CustomValues>
 				<TYPE><![CDATA[horizontal]]></TYPE>
@@ -371,7 +372,301 @@ SELECT wait_short.wait_seconds_having_jobs
      , full_message
      , exec_timestamp
   FROM sosl_server_log_v
- WHERE log_type IN (sosl_constants.get_log_error_type, sosl_constants.get_log_fatal_type, sosl_constants.get_log_warning_type)]]></sql>
+ WHERE log_type IN (sosl_constants.get_log_error_type, sosl_constants.get_log_fatal_type)
+   AND TRUNC(exec_timestamp) = TRUNC(SYSDATE)]]></sql>
+			</query>
+		</display>
+		<display id="" type="" style="Table" enable="true">
+			<name><![CDATA[Warnings today]]></name>
+			<description><![CDATA[Lists only todays warnings in the SOSL server log]]></description>
+			<tooltip><![CDATA[Warnings today]]></tooltip>
+			<drillclass><![CDATA[]]></drillclass>
+			<CustomValues>
+				<TYPE><![CDATA[horizontal]]></TYPE>
+			</CustomValues>
+			<query>
+				<sql><![CDATA[SELECT exec_time
+     , log_type
+     , CASE 
+         WHEN log_type IN (sosl_constants.get_log_error_type, sosl_constants.get_log_fatal_type)
+         THEN sosl_constants.red
+         WHEN log_type = sosl_constants.get_log_warning_type
+         THEN sosl_constants.yellow
+         WHEN log_type = sosl_constants.get_log_info_type
+         THEN sosl_constants.gray 
+         WHEN log_type = sosl_constants.get_log_success_type
+         THEN sosl_constants.green
+         ELSE sosl_constants.gray
+       END AS status  
+     , log_category
+     , message
+     , run_id
+     , executor_id
+     , guid
+     , sosl_identifier
+     , caller
+     , ext_script_id
+     , script_file
+     , created_by
+     , created_by_os
+     , full_message
+     , exec_timestamp
+  FROM sosl_server_log_v
+ WHERE log_type = sosl_constants.get_log_warning_type
+   AND TRUNC(exec_timestamp) = TRUNC(SYSDATE)]]></sql>
+			</query>
+		</display>
+		<display id="" type="" style="Table" enable="true">
+			<name><![CDATA[Errors all]]></name>
+			<description><![CDATA[Lists all errors in the SOSL server log]]></description>
+			<tooltip><![CDATA[Errors all]]></tooltip>
+			<drillclass><![CDATA[]]></drillclass>
+			<CustomValues>
+				<TYPE><![CDATA[horizontal]]></TYPE>
+			</CustomValues>
+			<query>
+				<sql><![CDATA[SELECT exec_time
+     , log_type
+     , CASE 
+         WHEN log_type IN (sosl_constants.get_log_error_type, sosl_constants.get_log_fatal_type)
+         THEN sosl_constants.red
+         WHEN log_type = sosl_constants.get_log_warning_type
+         THEN sosl_constants.yellow
+         WHEN log_type = sosl_constants.get_log_info_type
+         THEN sosl_constants.gray 
+         WHEN log_type = sosl_constants.get_log_success_type
+         THEN sosl_constants.green
+         ELSE sosl_constants.gray
+       END AS status  
+     , log_category
+     , message
+     , run_id
+     , executor_id
+     , guid
+     , sosl_identifier
+     , caller
+     , ext_script_id
+     , script_file
+     , created_by
+     , created_by_os
+     , full_message
+     , exec_timestamp
+  FROM sosl_server_log_v
+ WHERE log_type IN (sosl_constants.get_log_error_type, sosl_constants.get_log_fatal_type)]]></sql>
+			</query>
+		</display>
+		<display id="" type="" style="Table" enable="true">
+			<name><![CDATA[Warnings all]]></name>
+			<description><![CDATA[Lists all warnings in the SOSL server log]]></description>
+			<tooltip><![CDATA[Warnings all]]></tooltip>
+			<drillclass><![CDATA[]]></drillclass>
+			<CustomValues>
+				<TYPE><![CDATA[horizontal]]></TYPE>
+			</CustomValues>
+			<query>
+				<sql><![CDATA[SELECT exec_time
+     , log_type
+     , CASE 
+         WHEN log_type IN (sosl_constants.get_log_error_type, sosl_constants.get_log_fatal_type)
+         THEN sosl_constants.red
+         WHEN log_type = sosl_constants.get_log_warning_type
+         THEN sosl_constants.yellow
+         WHEN log_type = sosl_constants.get_log_info_type
+         THEN sosl_constants.gray 
+         WHEN log_type = sosl_constants.get_log_success_type
+         THEN sosl_constants.green
+         ELSE sosl_constants.gray
+       END AS status  
+     , log_category
+     , message
+     , run_id
+     , executor_id
+     , guid
+     , sosl_identifier
+     , caller
+     , ext_script_id
+     , script_file
+     , created_by
+     , created_by_os
+     , full_message
+     , exec_timestamp
+  FROM sosl_server_log_v
+ WHERE log_type = sosl_constants.get_log_warning_type]]></sql>
+			</query>
+		</display>
+		<display id="" type="" style="Table" enable="true">
+			<name><![CDATA[Error details]]></name>
+			<description><![CDATA[Error details if any from SOSLERRORLOG]]></description>
+			<tooltip><![CDATA[Error details]]></tooltip>
+			<drillclass><![CDATA[]]></drillclass>
+			<CustomValues>
+				<TYPE><![CDATA[horizontal]]></TYPE>
+			</CustomValues>
+			<query>
+				<sql><![CDATA[SELECT *
+  FROM sosl_sperrorlog_v
+ WHERE identifier = :SOSL_IDENTIFIER]]></sql>
+				<binds>
+					<bind id="SOSL_IDENTIFIER">
+						<prompt><![CDATA[SOSL_IDENTIFIER]]></prompt>
+						<tooltip><![CDATA[SOSL_IDENTIFIER]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+				</binds>
+			</query>
+		</display>
+	</display>
+	<display id="415c18f8-0193-1000-8003-c0a801804315" type="" style="Table" enable="true">
+		<name><![CDATA[SOSL executors]]></name>
+		<description><![CDATA[Executors and related jobs]]></description>
+		<tooltip><![CDATA[SOSL executors]]></tooltip>
+		<drillclass><![CDATA[]]></drillclass>
+		<CustomValues>
+			<TYPE><![CDATA[horizontal]]></TYPE>
+		</CustomValues>
+		<query>
+			<sql><![CDATA[SELECT executor_name
+     , function_owner
+     , use_mail
+     , executor_active
+     , executor_reviewed
+     , fn_has_scripts
+     , fn_get_next_script
+     , fn_set_script_status
+     , fn_send_db_mail
+     , script_schema
+     , cfg_file
+     , executor_description
+     , executor_id
+     , created
+     , created_by
+     , created_by_os
+     , updated
+     , updated_by
+     , updated_by_os
+  FROM sosl_executors_v]]></sql>
+		</query>
+		<display id="" type="" style="Table" enable="true">
+			<name><![CDATA[Jobs today]]></name>
+			<description><![CDATA[]]></description>
+			<tooltip><![CDATA[]]></tooltip>
+			<drillclass><![CDATA[]]></drillclass>
+			<CustomValues>
+				<TYPE><![CDATA[horizontal]]></TYPE>
+			</CustomValues>
+			<query>
+				<sql><![CDATA[SELECT run_id
+     , CASE 
+         WHEN run_state_num = sosl_constants.get_run_state_error
+         THEN sosl_constants.red
+         WHEN run_state_num = sosl_constants.get_run_state_waiting
+         THEN sosl_constants.gray
+         WHEN run_state_num = sosl_constants.get_run_state_finished
+         THEN sosl_constants.green
+         ELSE sosl_constants.yellow
+       END AS status  
+     , script_file 
+     , run_state
+     , executor_name
+     , ext_script_id
+     , enqueued
+     , running_since
+     , finished
+     , created
+     , waiting
+     , started
+     , created_by
+     , created_by_os
+     , waiting_by 
+     , waiting_by_os
+     , enqueued_by 
+     , enqueued_by_os
+     , started_by
+     , started_by_os
+     , running_by
+     , running_by_os
+     , finished_by
+     , finished_by_os
+     , executor_id
+  FROM sosl_run_queue_v
+ WHERE executor_id                                               = :EXECUTOR_ID
+   AND TRUNC(TO_TIMESTAMP(created, 'YYYY-MM-DD HH24:MI:SS.FF9')) = TRUNC(SYSDATE)]]></sql>
+				<binds>
+					<bind id="EXECUTOR_ID">
+						<prompt><![CDATA[EXECUTOR_ID]]></prompt>
+						<tooltip><![CDATA[EXECUTOR_ID]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+				</binds>
+			</query>
+		</display>
+		<display id="" type="" style="Table" enable="true">
+			<name><![CDATA[Run states today]]></name>
+			<description><![CDATA[Run states statistics for current day]]></description>
+			<tooltip><![CDATA[Run states today]]></tooltip>
+			<drillclass><![CDATA[]]></drillclass>
+			<CustomValues>
+				<TYPE><![CDATA[horizontal]]></TYPE>
+			</CustomValues>
+			<query>
+				<sql><![CDATA[-- get states
+    WITH run_stats AS
+         (SELECT /*+MATERIALIZE*/
+                 executor_id
+               , run_state_num
+               , COUNT(*) AS script_count
+            FROM sosl_run_queue_v
+           WHERE TRUNC(TO_TIMESTAMP(created, 'YYYY-MM-DD HH24:MI:SS.FF9')) = TRUNC(SYSDATE)
+              OR TRUNC(TO_TIMESTAMP(finished, 'YYYY-MM-DD HH24:MI:SS.FF9')) = TRUNC(SYSDATE)
+              OR TRUNC(TO_TIMESTAMP(running_since, 'YYYY-MM-DD HH24:MI:SS.FF9')) = TRUNC(SYSDATE)
+           GROUP BY executor_id
+                  , run_state_num
+         )
+       , details AS 
+         (SELECT sed.executor_name
+               , sosl_constants.run_state_text(run_stats.run_state_num) AS run_state
+               , run_stats.script_count
+               , run_stats.executor_id
+               , run_stats.run_state_num
+            FROM run_stats
+            LEFT OUTER JOIN sosl_executors_v sed
+              ON run_stats.executor_id = sed.executor_id
+           ORDER BY run_stats.run_state_num
+                  , run_stats.executor_id
+         )   
+SELECT run_state 
+     , script_count
+     , CASE 
+         WHEN run_state_num = sosl_constants.get_run_state_error
+         THEN CASE 
+                WHEN script_count = 0
+                THEN sosl_constants.green
+                ELSE sosl_constants.red
+              END
+         WHEN run_state_num = sosl_constants.get_run_state_finished
+         THEN CASE 
+                WHEN script_count = 0
+                THEN sosl_constants.gray
+                ELSE sosl_constants.green
+              END
+         ELSE CASE 
+                WHEN script_count = 0
+                THEN sosl_constants.gray
+                ELSE sosl_constants.yellow
+              END  
+       END AS status
+  FROM details
+ WHERE executor_id = :EXECUTOR_ID]]></sql>
+				<binds>
+					<bind id="EXECUTOR_ID">
+						<prompt><![CDATA[EXECUTOR_ID]]></prompt>
+						<tooltip><![CDATA[EXECUTOR_ID]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+				</binds>
 			</query>
 		</display>
 	</display>

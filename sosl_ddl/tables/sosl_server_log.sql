@@ -51,3 +51,4 @@ CREATE INDEX sosl_server_log_idx
 
 -- Grants, inherited by others, no guest and user access on tables
 GRANT SELECT ON sosl_server_log TO sosl_reviewer;
+GRANT DELETE ON sosl_server_log TO sosl_admin;

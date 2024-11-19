@@ -49,7 +49,7 @@ IF NOT EXIST %LOCAL_CFG% (
 REM *****************************************************************************************************
 REM All details successfully gathered, start the CMD that will run the script as an independent session
 REM *****************************************************************************************************
-START sosl_execute_script.cmd "%LOCAL_CFG%" "%LOCAL_RUN_ID%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%" "%SOSL_GUID%" "%SOSL_SCHEMA%"
+START "SOSL execute %SOSL_GUID%" /MIN sosl_execute_script.cmd "%LOCAL_CFG%" "%LOCAL_RUN_ID%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%" "%SOSL_GUID%" "%SOSL_SCHEMA%"
 GOTO :SOSL_RUN_END
 :SOSL_RUN_ERROR
 REM log to whatever definition of log file we have, on errors use the default

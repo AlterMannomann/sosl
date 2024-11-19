@@ -131,6 +131,10 @@ SQL> GRANT SELECT ON soslerrorlog TO sosl_reviewer;
 
 Grant succeeded.
 
+SQL> GRANT DELETE ON soslerrorlog TO sosl_admin;
+
+Grant succeeded.
+
 SQL> -- logging table
 SQL> @@../sosl_ddl/tables/sosl_server_log.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
@@ -237,6 +241,10 @@ SQL> -- no constraints, as Oracle does not allow package functions in CHECK cond
 SQL> 
 SQL> -- Grants, inherited by others, no guest and user access on tables
 SQL> GRANT SELECT ON sosl_server_log TO sosl_reviewer;
+
+Grant succeeded.
+
+SQL> GRANT DELETE ON sosl_server_log TO sosl_admin;
 
 Grant succeeded.
 
@@ -685,6 +693,14 @@ SQL> ALTER TABLE sosl_run_queue
 
 Table altered.
 
+SQL> GRANT SELECT ON sosl_run_queue TO sosl_reviewer;
+
+Grant succeeded.
+
+SQL> GRANT DELETE ON sosl_run_queue TO sosl_admin;
+
+Grant succeeded.
+
 SQL> -- internal interface objects using the API
 SQL> @@../sosl_ddl/tables/sosl_if_script.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
@@ -802,6 +818,18 @@ SQL> ALTER TABLE sosl_if_script
 
 Table altered.
 
+SQL> GRANT SELECT ON sosl_if_script TO sosl_reviewer;
+
+Grant succeeded.
+
+SQL> GRANT INSERT ON sosl_if_script TO sosl_executor;
+
+Grant succeeded.
+
+SQL> GRANT DELETE ON sosl_if_script TO sosl_admin;
+
+Grant succeeded.
+
 SQL> -- package with no dependency on SOSL objects
 SQL> @@../sosl_ddl/packages/sosl_constants.pks
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
@@ -844,179 +872,198 @@ SQL> CREATE OR REPLACE PACKAGE sosl_constants
  35    RUN_STATE_RUNNING     CONSTANT INTEGER  := 3;
  36    RUN_STATE_FINISHED    CONSTANT INTEGER  := 4;
  37    RUN_STATE_ERROR	     CONSTANT INTEGER  := -1;
- 38    -- formatting
- 39    LF		     CONSTANT CHAR(1)  := CHR(10);
- 40    CR		     CONSTANT CHAR(1)  := CHR(13);
- 41    CRLF		     CONSTANT CHAR(2)  := CHR(13) || CHR(10);
- 42    -- SQL Developer gauge formatting - only works with SQL Developer
- 43    -- syntax: SQLDEV:GAUGE:min:max:min_treshold:max_treshold:value
- 44    PURE_GRAY	     CONSTANT CHAR(23) := 'SQLDEV:GAUGE:0:0:0:0:-1';
- 45    PURE_RED 	     CONSTANT CHAR(23) := 'SQLDEV:GAUGE:0:0:1:0:-1';
- 46    PURE_YELLOW	     CONSTANT CHAR(23) := 'SQLDEV:GAUGE:0:1:0:1:-1';
- 47    PURE_GREEN	     CONSTANT CHAR(23) := 'SQLDEV:GAUGE:0:1:1:0:-1';
- 48    /*====================================== end package constants used by SOSL ======================================*/
- 49  
- 50    /* FUNCTION SOSL_CONSTANTS.run_state_text
- 51    * Returns the text interpretation (english) for the supported run states.
- 52    *
- 53    * @param p_run_state The numerical run state to express as text.
- 54    *
- 55    * @return The text equation for the given run state or sosl_constants.GEN_NA_TYPE on errors.
- 56    */
- 57    FUNCTION run_state_text(p_run_state IN NUMBER)
- 58  	 RETURN VARCHAR2
- 59  	 DETERMINISTIC
- 60  	 PARALLEL_ENABLE
- 61    ;
- 62  
- 63    -- All get_ functions only return the defined constant, no extra code. Constant name prefixed with GET_.
- 64    FUNCTION get_log_error_type
- 65  	 RETURN VARCHAR2
- 66  	 DETERMINISTIC
- 67  	 PARALLEL_ENABLE
- 68    ;
- 69    FUNCTION get_log_warning_type
- 70  	 RETURN VARCHAR2
- 71  	 DETERMINISTIC
- 72  	 PARALLEL_ENABLE
- 73    ;
- 74    FUNCTION get_log_fatal_type
- 75  	 RETURN VARCHAR2
- 76  	 DETERMINISTIC
- 77  	 PARALLEL_ENABLE
- 78    ;
- 79    FUNCTION get_log_info_type
- 80  	 RETURN VARCHAR2
- 81  	 DETERMINISTIC
- 82  	 PARALLEL_ENABLE
- 83    ;
- 84    FUNCTION get_log_success_type
- 85  	 RETURN VARCHAR2
- 86  	 DETERMINISTIC
- 87  	 PARALLEL_ENABLE
- 88    ;
- 89    FUNCTION get_gen_na_type
- 90  	 RETURN VARCHAR2
- 91  	 DETERMINISTIC
- 92  	 PARALLEL_ENABLE
- 93    ;
- 94    FUNCTION get_gen_na_date_type
- 95  	 RETURN DATE
- 96  	 DETERMINISTIC
- 97  	 PARALLEL_ENABLE
- 98    ;
- 99    FUNCTION get_gen_na_timestamp_type
-100  	 RETURN DATE
-101  	 DETERMINISTIC
-102  	 PARALLEL_ENABLE
-103    ;
-104    FUNCTION get_gen_date_format
-105  	 RETURN VARCHAR2
-106  	 DETERMINISTIC
-107  	 PARALLEL_ENABLE
-108    ;
-109    FUNCTION get_gen_timestamp_format
-110  	 RETURN VARCHAR2
-111  	 DETERMINISTIC
-112  	 PARALLEL_ENABLE
-113    ;
-114    FUNCTION get_gen_null_text
-115  	 RETURN VARCHAR2
-116  	 DETERMINISTIC
-117  	 PARALLEL_ENABLE
-118    ;
-119    FUNCTION get_num_yes
-120  	 RETURN NUMBER
-121  	 DETERMINISTIC
-122  	 PARALLEL_ENABLE
-123    ;
-124    FUNCTION get_num_no
-125  	 RETURN NUMBER
-126  	 DETERMINISTIC
-127  	 PARALLEL_ENABLE
-128    ;
-129    FUNCTION get_num_error
-130  	 RETURN NUMBER
-131  	 DETERMINISTIC
-132  	 PARALLEL_ENABLE
-133    ;
-134    FUNCTION get_num_success
-135  	 RETURN NUMBER
-136  	 DETERMINISTIC
-137  	 PARALLEL_ENABLE
-138    ;
-139    FUNCTION get_run_state_waiting
-140  	 RETURN NUMBER
-141  	 DETERMINISTIC
-142  	 PARALLEL_ENABLE
-143    ;
-144    FUNCTION get_run_state_enqueued
-145  	 RETURN NUMBER
-146  	 DETERMINISTIC
-147  	 PARALLEL_ENABLE
-148    ;
-149    FUNCTION get_run_state_started
-150  	 RETURN NUMBER
-151  	 DETERMINISTIC
-152  	 PARALLEL_ENABLE
-153    ;
-154    FUNCTION get_run_state_running
-155  	 RETURN NUMBER
-156  	 DETERMINISTIC
-157  	 PARALLEL_ENABLE
-158    ;
-159    FUNCTION get_run_state_finished
-160  	 RETURN NUMBER
-161  	 DETERMINISTIC
-162  	 PARALLEL_ENABLE
-163    ;
-164    FUNCTION get_run_state_error
-165  	 RETURN NUMBER
-166  	 DETERMINISTIC
-167  	 PARALLEL_ENABLE
-168    ;
-169    FUNCTION get_lf
-170  	 RETURN VARCHAR2
-171  	 DETERMINISTIC
-172  	 PARALLEL_ENABLE
-173    ;
-174    FUNCTION get_cr
-175  	 RETURN VARCHAR2
-176  	 DETERMINISTIC
-177  	 PARALLEL_ENABLE
-178    ;
-179    FUNCTION get_crlf
-180  	 RETURN VARCHAR2
-181  	 DETERMINISTIC
-182  	 PARALLEL_ENABLE
-183    ;
-184  
-185    FUNCTION gray
-186  	 RETURN VARCHAR2
-187  	 DETERMINISTIC
-188  	 PARALLEL_ENABLE
-189    ;
-190  
-191    FUNCTION red
-192  	 RETURN VARCHAR2
-193  	 DETERMINISTIC
-194  	 PARALLEL_ENABLE
-195    ;
-196  
-197    FUNCTION yellow
-198  	 RETURN VARCHAR2
-199  	 DETERMINISTIC
-200  	 PARALLEL_ENABLE
-201    ;
-202  
-203    FUNCTION green
-204  	 RETURN VARCHAR2
-205  	 DETERMINISTIC
-206  	 PARALLEL_ENABLE
-207    ;
-208  
-209  END;
-210  /
+ 38    -- server run modes
+ 39    SERVER_RUN_MODE	     CONSTANT CHAR(3)  := 'RUN';
+ 40    SERVER_PAUSE_MODE     CONSTANT CHAR(5)  := 'PAUSE';
+ 41    SERVER_STOP_MODE      CONSTANT CHAR(4)  := 'STOP';
+ 42    -- formatting
+ 43    LF		     CONSTANT CHAR(1)  := CHR(10);
+ 44    CR		     CONSTANT CHAR(1)  := CHR(13);
+ 45    CRLF		     CONSTANT CHAR(2)  := CHR(13) || CHR(10);
+ 46    -- SQL Developer gauge formatting - only works with SQL Developer
+ 47    -- syntax: SQLDEV:GAUGE:min:max:min_treshold:max_treshold:value
+ 48    PURE_GRAY	     CONSTANT CHAR(23) := 'SQLDEV:GAUGE:0:0:0:0:-1';
+ 49    PURE_RED 	     CONSTANT CHAR(23) := 'SQLDEV:GAUGE:0:0:1:0:-1';
+ 50    PURE_YELLOW	     CONSTANT CHAR(23) := 'SQLDEV:GAUGE:0:1:0:1:-1';
+ 51    PURE_GREEN	     CONSTANT CHAR(23) := 'SQLDEV:GAUGE:0:1:1:0:-1';
+ 52    /*====================================== end package constants used by SOSL ======================================*/
+ 53  
+ 54    /* FUNCTION SOSL_CONSTANTS.run_state_text
+ 55    * Returns the text interpretation (english) for the supported run states.
+ 56    *
+ 57    * @param p_run_state The numerical run state to express as text.
+ 58    *
+ 59    * @return The text equation for the given run state or sosl_constants.GEN_NA_TYPE on errors.
+ 60    */
+ 61    FUNCTION run_state_text(p_run_state IN NUMBER)
+ 62  	 RETURN VARCHAR2
+ 63  	 DETERMINISTIC
+ 64  	 PARALLEL_ENABLE
+ 65    ;
+ 66  
+ 67    -- All get_ functions only return the defined constant, no extra code. Constant name prefixed with GET_.
+ 68    FUNCTION get_log_error_type
+ 69  	 RETURN VARCHAR2
+ 70  	 DETERMINISTIC
+ 71  	 PARALLEL_ENABLE
+ 72    ;
+ 73    FUNCTION get_log_warning_type
+ 74  	 RETURN VARCHAR2
+ 75  	 DETERMINISTIC
+ 76  	 PARALLEL_ENABLE
+ 77    ;
+ 78    FUNCTION get_log_fatal_type
+ 79  	 RETURN VARCHAR2
+ 80  	 DETERMINISTIC
+ 81  	 PARALLEL_ENABLE
+ 82    ;
+ 83    FUNCTION get_log_info_type
+ 84  	 RETURN VARCHAR2
+ 85  	 DETERMINISTIC
+ 86  	 PARALLEL_ENABLE
+ 87    ;
+ 88    FUNCTION get_log_success_type
+ 89  	 RETURN VARCHAR2
+ 90  	 DETERMINISTIC
+ 91  	 PARALLEL_ENABLE
+ 92    ;
+ 93    FUNCTION get_gen_na_type
+ 94  	 RETURN VARCHAR2
+ 95  	 DETERMINISTIC
+ 96  	 PARALLEL_ENABLE
+ 97    ;
+ 98    FUNCTION get_gen_na_date_type
+ 99  	 RETURN DATE
+100  	 DETERMINISTIC
+101  	 PARALLEL_ENABLE
+102    ;
+103    FUNCTION get_gen_na_timestamp_type
+104  	 RETURN DATE
+105  	 DETERMINISTIC
+106  	 PARALLEL_ENABLE
+107    ;
+108    FUNCTION get_gen_date_format
+109  	 RETURN VARCHAR2
+110  	 DETERMINISTIC
+111  	 PARALLEL_ENABLE
+112    ;
+113    FUNCTION get_gen_timestamp_format
+114  	 RETURN VARCHAR2
+115  	 DETERMINISTIC
+116  	 PARALLEL_ENABLE
+117    ;
+118    FUNCTION get_gen_null_text
+119  	 RETURN VARCHAR2
+120  	 DETERMINISTIC
+121  	 PARALLEL_ENABLE
+122    ;
+123    FUNCTION get_num_yes
+124  	 RETURN NUMBER
+125  	 DETERMINISTIC
+126  	 PARALLEL_ENABLE
+127    ;
+128    FUNCTION get_num_no
+129  	 RETURN NUMBER
+130  	 DETERMINISTIC
+131  	 PARALLEL_ENABLE
+132    ;
+133    FUNCTION get_num_error
+134  	 RETURN NUMBER
+135  	 DETERMINISTIC
+136  	 PARALLEL_ENABLE
+137    ;
+138    FUNCTION get_num_success
+139  	 RETURN NUMBER
+140  	 DETERMINISTIC
+141  	 PARALLEL_ENABLE
+142    ;
+143    FUNCTION get_run_state_waiting
+144  	 RETURN NUMBER
+145  	 DETERMINISTIC
+146  	 PARALLEL_ENABLE
+147    ;
+148    FUNCTION get_run_state_enqueued
+149  	 RETURN NUMBER
+150  	 DETERMINISTIC
+151  	 PARALLEL_ENABLE
+152    ;
+153    FUNCTION get_run_state_started
+154  	 RETURN NUMBER
+155  	 DETERMINISTIC
+156  	 PARALLEL_ENABLE
+157    ;
+158    FUNCTION get_run_state_running
+159  	 RETURN NUMBER
+160  	 DETERMINISTIC
+161  	 PARALLEL_ENABLE
+162    ;
+163    FUNCTION get_run_state_finished
+164  	 RETURN NUMBER
+165  	 DETERMINISTIC
+166  	 PARALLEL_ENABLE
+167    ;
+168    FUNCTION get_run_state_error
+169  	 RETURN NUMBER
+170  	 DETERMINISTIC
+171  	 PARALLEL_ENABLE
+172    ;
+173    FUNCTION get_server_run_mode
+174  	 RETURN VARCHAR2
+175  	 DETERMINISTIC
+176  	 PARALLEL_ENABLE
+177    ;
+178    FUNCTION get_server_pause_mode
+179  	 RETURN VARCHAR2
+180  	 DETERMINISTIC
+181  	 PARALLEL_ENABLE
+182    ;
+183    FUNCTION get_server_stop_mode
+184  	 RETURN VARCHAR2
+185  	 DETERMINISTIC
+186  	 PARALLEL_ENABLE
+187    ;
+188    FUNCTION get_lf
+189  	 RETURN VARCHAR2
+190  	 DETERMINISTIC
+191  	 PARALLEL_ENABLE
+192    ;
+193    FUNCTION get_cr
+194  	 RETURN VARCHAR2
+195  	 DETERMINISTIC
+196  	 PARALLEL_ENABLE
+197    ;
+198    FUNCTION get_crlf
+199  	 RETURN VARCHAR2
+200  	 DETERMINISTIC
+201  	 PARALLEL_ENABLE
+202    ;
+203  
+204    FUNCTION gray
+205  	 RETURN VARCHAR2
+206  	 DETERMINISTIC
+207  	 PARALLEL_ENABLE
+208    ;
+209  
+210    FUNCTION red
+211  	 RETURN VARCHAR2
+212  	 DETERMINISTIC
+213  	 PARALLEL_ENABLE
+214    ;
+215  
+216    FUNCTION yellow
+217  	 RETURN VARCHAR2
+218  	 DETERMINISTIC
+219  	 PARALLEL_ENABLE
+220    ;
+221  
+222    FUNCTION green
+223  	 RETURN VARCHAR2
+224  	 DETERMINISTIC
+225  	 PARALLEL_ENABLE
+226    ;
+227  
+228  END;
+229  /
 
 Package created.
 
@@ -1249,71 +1296,98 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_constants
 219  	 RETURN sosl_constants.RUN_STATE_ERROR;
 220    END get_run_state_error;
 221  
-222    FUNCTION get_lf
+222    FUNCTION get_server_run_mode
 223  	 RETURN VARCHAR2
 224  	 DETERMINISTIC
 225  	 PARALLEL_ENABLE
 226    IS
 227    BEGIN
-228  	 RETURN sosl_constants.LF;
-229    END get_lf;
+228  	 RETURN sosl_constants.SERVER_RUN_MODE;
+229    END get_server_run_mode;
 230  
-231    FUNCTION get_cr
+231    FUNCTION get_server_pause_mode
 232  	 RETURN VARCHAR2
 233  	 DETERMINISTIC
 234  	 PARALLEL_ENABLE
 235    IS
 236    BEGIN
-237  	 RETURN sosl_constants.CR;
-238    END get_cr;
+237  	 RETURN sosl_constants.SERVER_PAUSE_MODE;
+238    END get_server_pause_mode;
 239  
-240    FUNCTION get_crlf
+240    FUNCTION get_server_stop_mode
 241  	 RETURN VARCHAR2
 242  	 DETERMINISTIC
 243  	 PARALLEL_ENABLE
 244    IS
 245    BEGIN
-246  	 RETURN sosl_constants.CRLF;
-247    END get_crlf;
+246  	 RETURN sosl_constants.SERVER_STOP_MODE;
+247    END get_server_stop_mode;
 248  
-249    FUNCTION gray
+249    FUNCTION get_lf
 250  	 RETURN VARCHAR2
 251  	 DETERMINISTIC
 252  	 PARALLEL_ENABLE
 253    IS
 254    BEGIN
-255  	 RETURN sosl_constants.PURE_GRAY;
-256    END gray;
+255  	 RETURN sosl_constants.LF;
+256    END get_lf;
 257  
-258    FUNCTION red
+258    FUNCTION get_cr
 259  	 RETURN VARCHAR2
 260  	 DETERMINISTIC
 261  	 PARALLEL_ENABLE
 262    IS
 263    BEGIN
-264  	 RETURN sosl_constants.PURE_RED;
-265    END red;
+264  	 RETURN sosl_constants.CR;
+265    END get_cr;
 266  
-267    FUNCTION yellow
+267    FUNCTION get_crlf
 268  	 RETURN VARCHAR2
 269  	 DETERMINISTIC
 270  	 PARALLEL_ENABLE
 271    IS
 272    BEGIN
-273  	 RETURN sosl_constants.PURE_YELLOW;
-274    END yellow;
+273  	 RETURN sosl_constants.CRLF;
+274    END get_crlf;
 275  
-276    FUNCTION green
+276    FUNCTION gray
 277  	 RETURN VARCHAR2
 278  	 DETERMINISTIC
 279  	 PARALLEL_ENABLE
 280    IS
 281    BEGIN
-282  	 RETURN sosl_constants.PURE_GREEN;
-283    END green;
+282  	 RETURN sosl_constants.PURE_GRAY;
+283    END gray;
 284  
-285  END;
-286  /
+285    FUNCTION red
+286  	 RETURN VARCHAR2
+287  	 DETERMINISTIC
+288  	 PARALLEL_ENABLE
+289    IS
+290    BEGIN
+291  	 RETURN sosl_constants.PURE_RED;
+292    END red;
+293  
+294    FUNCTION yellow
+295  	 RETURN VARCHAR2
+296  	 DETERMINISTIC
+297  	 PARALLEL_ENABLE
+298    IS
+299    BEGIN
+300  	 RETURN sosl_constants.PURE_YELLOW;
+301    END yellow;
+302  
+303    FUNCTION green
+304  	 RETURN VARCHAR2
+305  	 DETERMINISTIC
+306  	 PARALLEL_ENABLE
+307    IS
+308    BEGIN
+309  	 RETURN sosl_constants.PURE_GREEN;
+310    END green;
+311  
+312  END;
+313  /
 
 Package body created.
 
@@ -3031,8 +3105,32 @@ SQL> CREATE OR REPLACE PACKAGE sosl_util
 388  	 RETURN BOOLEAN
 389    ;
 390  
-391  END;
-392  /
+391    /** Function SOSL_UTIL.CLEANUP_LOGS
+392    * Deletes old logs. The parameter cannot be lower than one day. The current day is always kept. Runs as autonomous transaction.
+393    * Will cleanup SOSL_SERVER_LOG and SOSLERRORLOG tables.
+394    *
+395    * @param p_older_than The amount of days to keep data. Must be >= 1.
+396    *
+397    * @return Execution indicator: 0 if successful otherwise -1.
+398    */
+399    FUNCTION cleanup_logs(p_older_than IN NUMBER DEFAULT 7)
+400  	 RETURN NUMBER
+401    ;
+402  
+403    /** Function SOSL_UTIL.CLEANUP_QUEUE
+404    * Deletes old queue entries with state FINISHED or ERROR. The parameter cannot be lower than one day. The current day is always kept.
+405    * Runs as autonomous transaction. Will cleanup SOSL_RUN_QUEUE.
+406    *
+407    * @param p_older_than The amount of days to keep data. Must be >= 1.
+408    *
+409    * @return Execution indicator: 0 if successful otherwise -1.
+410    */
+411    FUNCTION cleanup_queue(p_older_than IN NUMBER DEFAULT 7)
+412  	 RETURN NUMBER
+413    ;
+414  
+415  END;
+416  /
 
 Package created.
 
@@ -3741,8 +3839,22 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_util
 700  	   RETURN FALSE;
 701    END db_in_time;
 702  
-703  END;
-704  /
+703    FUNCTION cleanup_logs(p_older_than IN NUMBER DEFAULT 7)
+704  	 RETURN NUMBER
+705    IS
+706    BEGIN
+707  	 RETURN -1;
+708    END cleanup_logs;
+709  
+710    FUNCTION cleanup_queue(p_older_than IN NUMBER DEFAULT 7)
+711  	 RETURN NUMBER
+712    IS
+713    BEGIN
+714  	 RETURN -1;
+715    END cleanup_queue;
+716  
+717  END;
+718  /
 
 Package body created.
 
@@ -5440,84 +5552,85 @@ SQL> CREATE OR REPLACE PACKAGE sosl_server
 322    * Wrapper function for SOSL_SYS.HAS_SCRIPTS.
 323    * Collects and sums the output of all defined executor has_scripts functions of active and reviewed executors that
 324    * return a number greater or equal to 0 as well as messages waiting in SOSL_RUN_QUEUE to be processed. Errors will get logged.
-325    *
-326    * @return The total amount of scripts waiting for processing or -1 on unhandled exceptions/all functions have errors.
-327    */
-328    FUNCTION has_scripts
-329  	 RETURN NUMBER
-330    ;
-331  
-332    /* FUNCTION SOSL_SERVER.GET_NEXT_SCRIPT
-333    * Wrapper function for SOSL_SYS.GET_NEXT_SCRIPT.
-334    * It collects from all executors the next script to execute, queues them in SOSL_RUN_QUEUE and then fetches the first script in the
-335    * run queue as next script to execute. If no scripts are available or on errors, the function will return -1.
-336    * Errors will be logged. From interface functions it excepts the return type SOSL_PAYLOAD.
-337    *
-338    * @return The next script reference as RUN_ID from SOSL_RUN_QUEUE, containing run id that can be related to executor, external script id and scriptfile.
-339    */
-340    FUNCTION get_next_script
-341  	 RETURN NUMBER
-342    ;
-343  
-344    /* FUNCTION SOSL_SERVER.UPDATE_RUN_ID
-345    * Updates the run id with details from the server. Errors get logged.
-346    *
-347    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
-348    * @param p_identifier The exact identifier used by the SOSL server for the main part of the script execution.
-349    * @param p_guid The (optional) GUID used by the SOSL server for this script execution.
-350    *
-351    * @return Exit code, either 0 = successful or -1 on error.
-352    */
-353    FUNCTION update_run_id( p_run_id      IN NUMBER
-354  			     , p_identifier  IN VARCHAR2
-355  			     , p_guid	     IN VARCHAR2 DEFAULT NULL
-356  			     )
-357  	 RETURN NUMBER
-358    ;
-359  
-360    /* FUNCTION SOSL_SERVER.DUMMY_MAIL
-361    * This is a testing function that will NOT send any mail. It will log the mail message created in SOSL_SERVER_LOG using
-362    * the field full_message, so output can be controlled.
-363    *
-364    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
-365    * @param p_recipients The semicolon separated list of mail recipient addresses.
-366    * @param p_subject A preferablly short subject for the mail.
-367    * @param p_message The correctly formatted mail message.
-368    *
-369    * @return Will return TRUE on success or FALSE on errors.
-370    */
-371    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
-372  			  , p_recipients  IN VARCHAR2
-373  			  , p_subject	  IN VARCHAR2
-374  			  , p_message	  IN VARCHAR2
-375  			  )
-376  	 RETURN BOOLEAN
-377    ;
-378  
-379    /* FUNCTION SOSL_SERVER.HAS_RUN_ID
-380    * Checks if a given run id exists. Errors get logged.
-381    *
-382    * @param p_run_id The run id to verify.
-383    *
-384    * @return TRUE if run id exists otherwise FALSE.
-385    */
-386    FUNCTION has_run_id(p_run_id IN NUMBER)
-387  	 RETURN BOOLEAN
-388    ;
-389  
-390    /* FUNCTION SOSL_SERVER.GET_PAYLOAD
-391    * Builds a SOSL_PAYLOAD object from the given run id. Wrapper for SOSL_SYS.
-392    *
-393    * @param p_run_id The run id to get the SOSL_PAYLOAD object for.
-394    *
-395    * @return On success a valid SOSL_PAYLOAD object or NULL on errors.
-396    */
-397    FUNCTION get_payload(p_run_id IN NUMBER)
-398  	 RETURN SOSL_PAYLOAD
-399    ;
-400  
-401  END;
-402  /
+325    * If the SOSL server is set to STOP or PAUSE, will always return 0 and not check available scripts.
+326    *
+327    * @return The total amount of scripts waiting for processing or -1 on unhandled exceptions/all functions have errors.
+328    */
+329    FUNCTION has_scripts
+330  	 RETURN NUMBER
+331    ;
+332  
+333    /* FUNCTION SOSL_SERVER.GET_NEXT_SCRIPT
+334    * Wrapper function for SOSL_SYS.GET_NEXT_SCRIPT.
+335    * It collects from all executors the next script to execute, queues them in SOSL_RUN_QUEUE and then fetches the first script in the
+336    * run queue as next script to execute. If no scripts are available or on errors, the function will return -1.
+337    * Errors will be logged. From interface functions it excepts the return type SOSL_PAYLOAD.
+338    *
+339    * @return The next script reference as RUN_ID from SOSL_RUN_QUEUE, containing run id that can be related to executor, external script id and scriptfile.
+340    */
+341    FUNCTION get_next_script
+342  	 RETURN NUMBER
+343    ;
+344  
+345    /* FUNCTION SOSL_SERVER.UPDATE_RUN_ID
+346    * Updates the run id with details from the server. Errors get logged.
+347    *
+348    * @param p_run_id A valid run id for table SOSL_RUN_QUEUE.
+349    * @param p_identifier The exact identifier used by the SOSL server for the main part of the script execution.
+350    * @param p_guid The (optional) GUID used by the SOSL server for this script execution.
+351    *
+352    * @return Exit code, either 0 = successful or -1 on error.
+353    */
+354    FUNCTION update_run_id( p_run_id      IN NUMBER
+355  			     , p_identifier  IN VARCHAR2
+356  			     , p_guid	     IN VARCHAR2 DEFAULT NULL
+357  			     )
+358  	 RETURN NUMBER
+359    ;
+360  
+361    /* FUNCTION SOSL_SERVER.DUMMY_MAIL
+362    * This is a testing function that will NOT send any mail. It will log the mail message created in SOSL_SERVER_LOG using
+363    * the field full_message, so output can be controlled.
+364    *
+365    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
+366    * @param p_recipients The semicolon separated list of mail recipient addresses.
+367    * @param p_subject A preferablly short subject for the mail.
+368    * @param p_message The correctly formatted mail message.
+369    *
+370    * @return Will return TRUE on success or FALSE on errors.
+371    */
+372    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
+373  			  , p_recipients  IN VARCHAR2
+374  			  , p_subject	  IN VARCHAR2
+375  			  , p_message	  IN VARCHAR2
+376  			  )
+377  	 RETURN BOOLEAN
+378    ;
+379  
+380    /* FUNCTION SOSL_SERVER.HAS_RUN_ID
+381    * Checks if a given run id exists. Errors get logged.
+382    *
+383    * @param p_run_id The run id to verify.
+384    *
+385    * @return TRUE if run id exists otherwise FALSE.
+386    */
+387    FUNCTION has_run_id(p_run_id IN NUMBER)
+388  	 RETURN BOOLEAN
+389    ;
+390  
+391    /* FUNCTION SOSL_SERVER.GET_PAYLOAD
+392    * Builds a SOSL_PAYLOAD object from the given run id. Wrapper for SOSL_SYS.
+393    *
+394    * @param p_run_id The run id to get the SOSL_PAYLOAD object for.
+395    *
+396    * @return On success a valid SOSL_PAYLOAD object or NULL on errors.
+397    */
+398    FUNCTION get_payload(p_run_id IN NUMBER)
+399  	 RETURN SOSL_PAYLOAD
+400    ;
+401  
+402  END;
+403  /
 
 Package created.
 
@@ -6071,114 +6184,122 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_server
 540  	 RETURN NUMBER
 541    IS
 542  	 l_return NUMBER;
-543    BEGIN
-544  	 l_return := sosl_sys.has_scripts;
-545  	 RETURN l_return;
-546    EXCEPTION
-547  	 WHEN OTHERS THEN
-548  	   -- log the error instead of RAISE
-549  	   sosl_log.exception_log('sosl_server.has_scripts', 'SOSL_SERVER', SQLERRM);
-550  	   RETURN -1;
-551    END has_scripts;
-552  
-553    FUNCTION get_next_script
-554  	 RETURN NUMBER
-555    IS
-556  	 l_return NUMBER;
-557    BEGIN
-558  	 l_return := sosl_sys.get_next_script;
-559  	 RETURN l_return;
-560    EXCEPTION
-561  	 WHEN OTHERS THEN
-562  	   -- log the error instead of RAISE
-563  	   sosl_log.exception_log('sosl_server.get_next_script', 'SOSL_SERVER', SQLERRM);
-564  	   RETURN -1;
-565    END get_next_script;
-566  
-567    FUNCTION update_run_id( p_run_id      IN NUMBER
-568  			     , p_identifier  IN VARCHAR2
-569  			     , p_guid	     IN VARCHAR2 DEFAULT NULL
-570  			     )
-571  	 RETURN NUMBER
-572    IS
-573  	 l_return  NUMBER;
-574  	 l_result  NUMBER;
-575    BEGIN
-576  	 l_return := -1;
-577  	 l_result := sosl_server.set_identifier(p_run_id, p_identifier);
-578  	 IF l_result = 0
-579  	 THEN
-580  	   l_return := 0;
-581  	 END IF;
-582  	 IF p_guid IS NOT NULL
-583  	 THEN
-584  	   l_result := sosl_server.set_guid(p_run_id, p_guid);
-585  	   IF l_result != 0
-586  	   THEN
-587  	     l_return := -1;
-588  	   END IF;
+543  	 l_mode   VARCHAR2(128);
+544    BEGIN
+545  	 -- check config
+546  	 l_mode := get_config('SOSL_RUNMODE');
+547  	 IF l_mode = 'RUN'
+548  	 THEN
+549  	   l_return := sosl_sys.has_scripts;
+550  	 ELSE
+551  	   l_return := 0;
+552  	 END IF;
+553  	 RETURN l_return;
+554    EXCEPTION
+555  	 WHEN OTHERS THEN
+556  	   -- log the error instead of RAISE
+557  	   sosl_log.exception_log('sosl_server.has_scripts', 'SOSL_SERVER', SQLERRM);
+558  	   RETURN -1;
+559    END has_scripts;
+560  
+561    FUNCTION get_next_script
+562  	 RETURN NUMBER
+563    IS
+564  	 l_return NUMBER;
+565    BEGIN
+566  	 l_return := sosl_sys.get_next_script;
+567  	 RETURN l_return;
+568    EXCEPTION
+569  	 WHEN OTHERS THEN
+570  	   -- log the error instead of RAISE
+571  	   sosl_log.exception_log('sosl_server.get_next_script', 'SOSL_SERVER', SQLERRM);
+572  	   RETURN -1;
+573    END get_next_script;
+574  
+575    FUNCTION update_run_id( p_run_id      IN NUMBER
+576  			     , p_identifier  IN VARCHAR2
+577  			     , p_guid	     IN VARCHAR2 DEFAULT NULL
+578  			     )
+579  	 RETURN NUMBER
+580    IS
+581  	 l_return  NUMBER;
+582  	 l_result  NUMBER;
+583    BEGIN
+584  	 l_return := -1;
+585  	 l_result := sosl_server.set_identifier(p_run_id, p_identifier);
+586  	 IF l_result = 0
+587  	 THEN
+588  	   l_return := 0;
 589  	 END IF;
-590  	 RETURN l_return;
-591    EXCEPTION
-592  	 WHEN OTHERS THEN
-593  	   -- log the error instead of RAISE
-594  	   sosl_log.exception_log('sosl_server.update_run_id', 'SOSL_SERVER', SQLERRM);
-595  	   RETURN -1;
-596    END update_run_id;
-597  
-598    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
-599  			  , p_recipients  IN VARCHAR2
-600  			  , p_subject	  IN VARCHAR2
-601  			  , p_message	  IN VARCHAR2
-602  			  )
-603  	 RETURN BOOLEAN
-604    IS
-605  	 l_result  NUMBER;
-606  	 l_return  BOOLEAN;
-607    BEGIN
-608  	 l_result  := sosl_util.dummy_mail(p_sender, p_recipients, p_subject, p_message);
-609  	 l_return  := (l_result = 0);
-610  	 RETURN l_return;
-611    EXCEPTION
-612  	 WHEN OTHERS THEN
-613  	   -- log the error instead of RAISE
-614  	   sosl_log.exception_log('sosl_server.dummy_mail', 'SOSL_SERVER', SQLERRM);
-615  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
-616  	   RETURN FALSE;
-617    END dummy_mail;
-618  
-619    FUNCTION has_run_id(p_run_id IN NUMBER)
-620  	 RETURN BOOLEAN
-621    IS
-622  	 l_return BOOLEAN;
-623    BEGIN
-624  	 l_return := sosl_sys.has_run_id(p_run_id);
-625  	 RETURN l_return;
-626    EXCEPTION
-627  	 WHEN OTHERS THEN
-628  	   -- log the error instead of RAISE
-629  	   sosl_log.exception_log('sosl_server.has_run_id', 'SOSL_SERVER', SQLERRM);
-630  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
-631  	   RETURN FALSE;
-632    END has_run_id;
-633  
-634    FUNCTION get_payload(p_run_id IN NUMBER)
-635  	 RETURN SOSL_PAYLOAD
-636    IS
-637  	 l_sosl_payload  SOSL_PAYLOAD;
-638    BEGIN
-639  	 l_sosl_payload := sosl_sys.get_payload(p_run_id);
-640  	 RETURN l_sosl_payload;
-641    EXCEPTION
-642  	 WHEN OTHERS THEN
-643  	   -- log the error instead of RAISE
-644  	   sosl_log.exception_log('sosl_server.get_payload', 'SOSL_SERVER', SQLERRM);
-645  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
-646  	   RETURN NULL;
-647    END get_payload;
-648  
-649  END;
-650  /
+590  	 IF p_guid IS NOT NULL
+591  	 THEN
+592  	   l_result := sosl_server.set_guid(p_run_id, p_guid);
+593  	   IF l_result != 0
+594  	   THEN
+595  	     l_return := -1;
+596  	   END IF;
+597  	 END IF;
+598  	 RETURN l_return;
+599    EXCEPTION
+600  	 WHEN OTHERS THEN
+601  	   -- log the error instead of RAISE
+602  	   sosl_log.exception_log('sosl_server.update_run_id', 'SOSL_SERVER', SQLERRM);
+603  	   RETURN -1;
+604    END update_run_id;
+605  
+606    FUNCTION dummy_mail( p_sender	  IN VARCHAR2
+607  			  , p_recipients  IN VARCHAR2
+608  			  , p_subject	  IN VARCHAR2
+609  			  , p_message	  IN VARCHAR2
+610  			  )
+611  	 RETURN BOOLEAN
+612    IS
+613  	 l_result  NUMBER;
+614  	 l_return  BOOLEAN;
+615    BEGIN
+616  	 l_result  := sosl_util.dummy_mail(p_sender, p_recipients, p_subject, p_message);
+617  	 l_return  := (l_result = 0);
+618  	 RETURN l_return;
+619    EXCEPTION
+620  	 WHEN OTHERS THEN
+621  	   -- log the error instead of RAISE
+622  	   sosl_log.exception_log('sosl_server.dummy_mail', 'SOSL_SERVER', SQLERRM);
+623  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+624  	   RETURN FALSE;
+625    END dummy_mail;
+626  
+627    FUNCTION has_run_id(p_run_id IN NUMBER)
+628  	 RETURN BOOLEAN
+629    IS
+630  	 l_return BOOLEAN;
+631    BEGIN
+632  	 l_return := sosl_sys.has_run_id(p_run_id);
+633  	 RETURN l_return;
+634    EXCEPTION
+635  	 WHEN OTHERS THEN
+636  	   -- log the error instead of RAISE
+637  	   sosl_log.exception_log('sosl_server.has_run_id', 'SOSL_SERVER', SQLERRM);
+638  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+639  	   RETURN FALSE;
+640    END has_run_id;
+641  
+642    FUNCTION get_payload(p_run_id IN NUMBER)
+643  	 RETURN SOSL_PAYLOAD
+644    IS
+645  	 l_sosl_payload  SOSL_PAYLOAD;
+646    BEGIN
+647  	 l_sosl_payload := sosl_sys.get_payload(p_run_id);
+648  	 RETURN l_sosl_payload;
+649    EXCEPTION
+650  	 WHEN OTHERS THEN
+651  	   -- log the error instead of RAISE
+652  	   sosl_log.exception_log('sosl_server.get_payload', 'SOSL_SERVER', SQLERRM);
+653  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+654  	   RETURN NULL;
+655    END get_payload;
+656  
+657  END;
+658  /
 
 Package body created.
 
@@ -6390,7 +6511,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_config_upd_trg
  57  				   , 'Tried to change SOSL_SCHEMA in SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
  58  				   )
  59  	 ;
- 60  	 RAISE_APPLICATION_ERROR(-20014, '-20014 The SOSL_SCHEMA value ' || :OLD.config_value || ' cannot be changed.');
+ 60  	 RAISE_APPLICATION_ERROR(-20014, 'The SOSL_SCHEMA value ' || :OLD.config_value || ' cannot be changed.');
  61    END IF;
  62    -- report value changes allowed
  63    sosl_log.log_column_change(:OLD.config_value, :NEW.config_value, :OLD.config_name, l_self_caller, FALSE);
@@ -6438,8 +6559,63 @@ SQL> CREATE OR REPLACE TRIGGER sosl_config_upd_trg
 105  	   RAISE_APPLICATION_ERROR(-20011, 'The given config_value "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" could not be converted successfully to a number.');
 106  	 END IF;
 107    END IF;
-108  END;
-109  /
+108    -- check run mode
+109    IF     :OLD.config_name	     = 'SOSL_RUNMODE'
+110  	  AND :OLD.config_value     != :NEW.config_value
+111  	  AND :NEW.config_value NOT IN (sosl_constants.SERVER_RUN_MODE, sosl_constants.SERVER_PAUSE_MODE, sosl_constants.SERVER_STOP_MODE)
+112    THEN
+113  	   sosl_log.minimal_error_log( l_self_caller
+114  				     , l_self_log_category
+115  				     , '-20015 The given runmode "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" is not supported, only RUN, PAUSE or STOP accepted.'
+116  				     , 'Wrong type of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+117  				     )
+118  	   ;
+119  	 RAISE_APPLICATION_ERROR(-20015, 'The given runmode "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" is not supported, only RUN, PAUSE or STOP accepted.');
+120    END IF;
+121    -- check server state
+122    IF     :OLD.config_name	     = 'SOSL_SERVER_STATE'
+123  	  AND :OLD.config_value     != :NEW.config_value
+124  	  AND :NEW.config_value NOT IN ('ACTIVE', 'INACTIVE')
+125    THEN
+126  	   sosl_log.minimal_error_log( l_self_caller
+127  				     , l_self_log_category
+128  				     , '-20016 The given server state "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" is not supported, only ACTIVE or INACTIVE accepted.'
+129  				     , 'Wrong type of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+130  				     )
+131  	   ;
+132  	 RAISE_APPLICATION_ERROR(-20016, 'The given server state "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" is not supported, only ACTIVE or INACTIVE accepted.');
+133    END IF;
+134    -- check start and stop times
+135    IF     :OLD.config_name	    IN ('SOSL_START_JOBS', 'SOSL_STOP_JOBS')
+136  	  AND :OLD.config_value     != :NEW.config_value
+137    THEN
+138  	 IF    SUBSTR(:NEW.config_value, 3, 1) != ':'
+139  	    OR NOT REGEXP_LIKE(SUBSTR(:NEW.config_value, 1, 2), '^[0-9][0-9]')
+140  	    OR NOT REGEXP_LIKE(SUBSTR(:NEW.config_value, 4, 5), '^[0-9][0-9]')
+141  	 THEN
+142  	   sosl_log.minimal_error_log( l_self_caller
+143  				     , l_self_log_category
+144  				     , '-20017 The given time frame "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" for start and stop times is not supported. Format is HH24:MI with leading zeros, e.g. 05:04 and must be a valid time.'
+145  				     , 'Wrong type of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+146  				     )
+147  	   ;
+148  	   RAISE_APPLICATION_ERROR(-20017, 'The given time frame "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" for start and stop times is not supported. Format is HH24:MI with leading zeros, e.g. 05:04 and must be a valid time.');
+149  	 END IF;
+150  	 -- check times
+151  	 IF    TO_NUMBER(SUBSTR(:NEW.config_value, 1, 2)) > 23
+152  	    OR TO_NUMBER(SUBSTR(:NEW.config_value, 4, 5)) > 59
+153  	 THEN
+154  	   sosl_log.minimal_error_log( l_self_caller
+155  				     , l_self_log_category
+156  				     , '-20017 The given time frame "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" for start and stop times is not supported. Format is HH24:MI with leading zeros, e.g. 05:04 and must be a valid time.'
+157  				     , 'Wrong type of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+158  				     )
+159  	   ;
+160  	   RAISE_APPLICATION_ERROR(-20017, 'The given time frame "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" for start and stop times is not supported. Format is HH24:MI with leading zeros, e.g. 05:04 and must be a valid time.');
+161  	 END IF;
+162    END IF;
+163  END;
+164  /
 
 Trigger created.
 
@@ -6470,7 +6646,7 @@ SQL> CREATE OR REPLACE TRIGGER sosl_config_del_trg
  25    THEN
  26  	 sosl_log.minimal_error_log( 'sosl_config_del_trg'
  27  				   , 'SOSL_CONFIG'
- 28  				   , '-20015 The given system config_name "' || :OLD.config_name || '" cannot be deleted.'
+ 28  				   , '-20013 The given system config_name "' || :OLD.config_name || '" cannot be deleted.'
  29  				   , 'Forbidden delete of config name for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
  30  				   )
  31  	 ;
@@ -6954,9 +7130,9 @@ SQL> -- Not allowed to be used as AI training material without explicite permiss
 SQL> -- load default values that can be configured in the database (mandatory)
 SQL> -- basic configuration
 SQL> INSERT INTO sosl_config
-  2    (config_name, config_value, config_type, config_description)
+  2    (config_name, config_value, config_type, config_max_length, config_description)
   3    VALUES
-  4    ('SOSL_RUNMODE', 'RUN', 'CHAR', 'Determines if the server should RUN, WAIT or STOP. Read by the SOSL server. RUN will cause the SOSL server, if started to run as long as it does not get a STOP signal from the database. Set it to STOP to stop the SOSL server. Set to WAIT if the server should not call any script apart the check for the run mode. Can be locally overwritten.')
+  4    ('SOSL_RUNMODE', 'RUN', 'CHAR', 5, 'Determines if the server should RUN, PAUSE or STOP. Read by the SOSL server. RUN will cause the SOSL server, if started to run as long as it does not get a STOP signal from the database. Set it to STOP to stop the SOSL server. Set to PAUSE if the server should not call any script apart the check for the run mode. Can be locally overwritten.')
   5  ;
 
 1 row created.
@@ -8675,6 +8851,28 @@ SQL> CREATE OR REPLACE VIEW sosl_server_log_v
 View created.
 
 SQL> GRANT SELECT ON sosl_server_log_v TO sosl_user;
+
+Grant succeeded.
+
+SQL> @@../sosl_ddl/views/sosl_sperrorlog_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> CREATE OR REPLACE VIEW sosl_sperrorlog_v
+  2  AS
+  3    SELECT TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI:SS.FF9') AS exec_time
+  4  	    , username
+  5  	    , script
+  6  	    , identifier
+  7  	    , message
+  8  	    , statement
+  9  	    , timestamp AS exec_timestamp
+ 10  	 FROM soslerrorlog
+ 11  	ORDER BY timestamp DESC
+ 12  ;
+
+View created.
+
+SQL> GRANT SELECT ON sosl_sperrorlog_v TO sosl_user;
 
 Grant succeeded.
 

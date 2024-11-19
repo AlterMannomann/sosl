@@ -325,6 +325,7 @@ AS
   * Wrapper function for SOSL_SYS.HAS_SCRIPTS.
   * Collects and sums the output of all defined executor has_scripts functions of active and reviewed executors that
   * return a number greater or equal to 0 as well as messages waiting in SOSL_RUN_QUEUE to be processed. Errors will get logged.
+  * If the SOSL server is set to STOP or PAUSE, will always return 0 and not check available scripts.
   *
   * @return The total amount of scripts waiting for processing or -1 on unhandled exceptions/all functions have errors.
   */

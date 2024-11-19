@@ -64,6 +64,7 @@ CREATE SYNONYM sosl_sessions FOR sys.sosl_sessions;
 @@../sosl_ddl/views/sosl_run_stats_by_executor_v.sql
 @@../sosl_ddl/views/sosl_run_stats_total_v.sql
 @@../sosl_ddl/views/sosl_server_log_v.sql
+@@../sosl_ddl/views/sosl_sperrorlog_v.sql
 -- ==============INSTALL done==============
 @@../sosl_sql/util/log_silent.sql
 -- check errors and display them, if so

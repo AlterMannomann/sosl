@@ -391,5 +391,29 @@ AS
     RETURN BOOLEAN
   ;
 
+  /** Function SOSL_UTIL.CLEANUP_LOGS
+  * Deletes old logs. The parameter cannot be lower than one day. The current day is always kept. Runs as autonomous transaction.
+  * Will cleanup SOSL_SERVER_LOG and SOSLERRORLOG tables.
+  *
+  * @param p_older_than The amount of days to keep data. Must be >= 1.
+  *
+  * @return Execution indicator: 0 if successful otherwise -1.
+  */
+  FUNCTION cleanup_logs(p_older_than IN NUMBER DEFAULT 7)
+    RETURN NUMBER
+  ;
+
+  /** Function SOSL_UTIL.CLEANUP_QUEUE
+  * Deletes old queue entries with state FINISHED or ERROR. The parameter cannot be lower than one day. The current day is always kept.
+  * Runs as autonomous transaction. Will cleanup SOSL_RUN_QUEUE.
+  *
+  * @param p_older_than The amount of days to keep data. Must be >= 1.
+  *
+  * @return Execution indicator: 0 if successful otherwise -1.
+  */
+  FUNCTION cleanup_queue(p_older_than IN NUMBER DEFAULT 7)
+    RETURN NUMBER
+  ;
+
 END;
 /

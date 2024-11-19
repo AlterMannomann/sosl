@@ -542,8 +542,16 @@ AS
     RETURN NUMBER
   IS
     l_return NUMBER;
+    l_mode   VARCHAR2(128);
   BEGIN
-    l_return := sosl_sys.has_scripts;
+    -- check config
+    l_mode := get_config('SOSL_RUNMODE');
+    IF l_mode = 'RUN'
+    THEN
+      l_return := sosl_sys.has_scripts;
+    ELSE
+      l_return := 0;
+    END IF;
     RETURN l_return;
   EXCEPTION
     WHEN OTHERS THEN

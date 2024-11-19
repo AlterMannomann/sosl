@@ -1,5 +1,5 @@
 # UNDER CONSTRUCTION
-Current state: pre-alpha version of CMD server. Basically working with a bunch of files. Still a lot of things to do like adjust the rerun concept.
+Current state: alpha version of CMD server. Basically working with a bunch of files. Adjusting, improving and testing.
 
 **Important note:** SQL Developer in versions 23.x is not at all stable. It doesn't recognize database changes and delivers wrong result until restarted. SQL Plus is still reliable.
 
@@ -117,7 +117,10 @@ The interface API requires a set of information to handle things correctly: exec
 
 SOSL does not take care about the order, scripts are delivered for execution, this is within the responsibility of the API function provider. The basic SOSL system, if no other executor is used, provides only a simple order mechanic, where scripts are processed by order number. Same order number just means the scripts get executed in an undefined order.
 ### SQL Developer reports
-A small set of reports to check and control the server state, the run queue and the logs.
+A small set of reports to check and control the server state, the run queue and the logs. Users with role SOSL_USER should set the session to SOSL before using this user defined reports in SQL Developer. Just open [sosl_reports.xml](./sosl_templates/reports/sosl_reports.xml) under user defined reports as a report.
+
+    ALTER SESSION SET CURRENT_SCHEMA = SOSL;
+
 <img width="785" alt="image" src="https://github.com/user-attachments/assets/bc3503d0-1d21-4f91-b2ce-d9bf5c47c5d3">
 <img width="704" alt="image" src="https://github.com/user-attachments/assets/b69dc021-e460-407c-834c-77238dbe3988">
 <img width="983" alt="image" src="https://github.com/user-attachments/assets/e0dc985b-dee0-47f2-bbee-921efd1bec19">

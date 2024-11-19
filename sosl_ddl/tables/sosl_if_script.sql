@@ -56,3 +56,6 @@ ALTER TABLE sosl_if_script
   ON DELETE SET NULL
   ENABLE
 ;
+GRANT SELECT ON sosl_if_script TO sosl_reviewer;
+GRANT INSERT ON sosl_if_script TO sosl_executor;
+GRANT DELETE ON sosl_if_script TO sosl_admin;

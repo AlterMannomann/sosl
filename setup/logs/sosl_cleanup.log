@@ -1,4 +1,15 @@
 SQL> -- view objects
+SQL> @@../sosl_ddl/views/drop/drop_sosl_sperrorlog_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> REVOKE SELECT ON sosl_sperrorlog_v FROM sosl_user;
+
+Revoke succeeded.
+
+SQL> DROP VIEW sosl_sperrorlog_v;
+
+View dropped.
+
 SQL> @@../sosl_ddl/views/drop/drop_sosl_server_log_v.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.
@@ -184,6 +195,18 @@ SQL> -- table objects including associated table trigger
 SQL> @@../sosl_ddl/tables/drop/drop_sosl_if_script.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> REVOKE SELECT ON sosl_if_script FROM sosl_reviewer;
+
+Revoke succeeded.
+
+SQL> REVOKE INSERT ON sosl_if_script FROM sosl_executor;
+
+Revoke succeeded.
+
+SQL> REVOKE DELETE ON sosl_if_script FROM sosl_admin;
+
+Revoke succeeded.
+
 SQL> DROP TABLE sosl_if_script PURGE;
 
 Table dropped.
@@ -191,6 +214,14 @@ Table dropped.
 SQL> @@../sosl_ddl/tables/drop/drop_sosl_run_queue.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> REVOKE SELECT ON sosl_run_queue FROM sosl_reviewer;
+
+Revoke succeeded.
+
+SQL> REVOKE DELETE ON sosl_run_queue FROM sosl_admin;
+
+Revoke succeeded.
+
 SQL> DROP TABLE sosl_run_queue PURGE;
 
 Table dropped.
@@ -220,6 +251,10 @@ SQL> REVOKE SELECT ON sosl_server_log FROM sosl_reviewer;
 
 Revoke succeeded.
 
+SQL> REVOKE DELETE ON sosl_server_log FROM sosl_admin;
+
+Revoke succeeded.
+
 SQL> DROP TABLE sosl_server_log PURGE;
 
 Table dropped.
@@ -228,6 +263,10 @@ SQL> @@../sosl_ddl/tables/drop/drop_soslerrorlog.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE SELECT ON soslerrorlog FROM sosl_reviewer;
+
+Revoke succeeded.
+
+SQL> REVOKE DELETE ON soslerrorlog FROM sosl_admin;
 
 Revoke succeeded.
 
