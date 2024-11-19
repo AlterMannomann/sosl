@@ -221,6 +221,33 @@ AS
     RETURN sosl_constants.RUN_STATE_ERROR;
   END get_run_state_error;
 
+  FUNCTION get_server_run_mode
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  IS
+  BEGIN
+    RETURN sosl_constants.SERVER_RUN_MODE;
+  END get_server_run_mode;
+
+  FUNCTION get_server_pause_mode
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  IS
+  BEGIN
+    RETURN sosl_constants.SERVER_PAUSE_MODE;
+  END get_server_pause_mode;
+
+  FUNCTION get_server_stop_mode
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  IS
+  BEGIN
+    RETURN sosl_constants.SERVER_STOP_MODE;
+  END get_server_stop_mode;
+
   FUNCTION get_lf
     RETURN VARCHAR2
     DETERMINISTIC

@@ -72,3 +72,5 @@ ALTER TABLE sosl_run_queue
   REFERENCES sosl_executor_definition (executor_id)
   ON DELETE SET NULL
 ;
+GRANT SELECT ON sosl_run_queue TO sosl_reviewer;
+GRANT DELETE ON sosl_run_queue TO sosl_admin;

@@ -15,7 +15,8 @@ REM All path are Windows style notation using \ as terminator as some
 REM DOS commands cannot deal with unix style notation /.
 SET SOSL_OS=WINDOWS
 REM Get the full path of the run directory
-SET SOSL_RUNDIR=%CD%
+SET SOSL_RUNDIR=%~d0%~p0
+CD %SOSL_RUNDIR%
 REM Get the full path of the base git directory
 CD ..
 SET SOSL_GITDIR=%CD%
@@ -175,7 +176,7 @@ IF NOT %SOSL_EXITCODE%==0 (
 )
 
 :SHORT_LOOP
-REM Get local settings
+REM Get local settings and check running scripts. Overwrite RUNMODE if scripts still running.
 CALL sosl_read_local.cmd
 REM Check runmode and adjust wait time based on run mode
 IF %SOSL_RUNMODE%==STOP GOTO :SOSL_EXIT
@@ -184,6 +185,12 @@ CALL sosl_run_hours.cmd
 IF %CUR_RUNTIME_OK%==-1 (
   SET CUR_WAIT_TIME=%SOSL_PAUSE_WAIT%
   CALL sosl_log.cmd "Not within timeframe between %SOSL_START_JOBS% and %SOSL_STOP_JOBS%. Set wait time to %CUR_WAIT_TIME% seconds" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
+  CALL sosl_wait.cmd
+  GOTO :SHORT_LOOP
+)
+IF %SOSL_RUNMODE%==PAUSE (
+  SET CUR_WAIT_TIME=%SOSL_PAUSE_WAIT%
+  CALL sosl_log.cmd "Server set to wait. Set wait time to %CUR_WAIT_TIME% seconds" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
   CALL sosl_wait.cmd
   GOTO :SHORT_LOOP
 )

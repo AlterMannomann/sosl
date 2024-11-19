@@ -38,6 +38,10 @@ AS
   RUN_STATE_RUNNING     CONSTANT INTEGER  := 3;
   RUN_STATE_FINISHED    CONSTANT INTEGER  := 4;
   RUN_STATE_ERROR       CONSTANT INTEGER  := -1;
+  -- server run modes
+  SERVER_RUN_MODE       CONSTANT CHAR(3)  := 'RUN';
+  SERVER_PAUSE_MODE     CONSTANT CHAR(5)  := 'PAUSE';
+  SERVER_STOP_MODE      CONSTANT CHAR(4)  := 'STOP';
   -- formatting
   LF                    CONSTANT CHAR(1)  := CHR(10);
   CR                    CONSTANT CHAR(1)  := CHR(13);
@@ -166,6 +170,21 @@ AS
   ;
   FUNCTION get_run_state_error
     RETURN NUMBER
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  ;
+  FUNCTION get_server_run_mode
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  ;
+  FUNCTION get_server_pause_mode
+    RETURN VARCHAR2
+    DETERMINISTIC
+    PARALLEL_ENABLE
+  ;
+  FUNCTION get_server_stop_mode
+    RETURN VARCHAR2
     DETERMINISTIC
     PARALLEL_ENABLE
   ;

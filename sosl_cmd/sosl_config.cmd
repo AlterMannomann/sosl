@@ -18,13 +18,13 @@ REM security is important.
 SET SOSL_PATH_CFG=..\..\sosl_cfg\
 REM *****************************************************************************************************
 REM Log file extension to use.
-REM SET SOSL_EXT_LOG=log
+SET SOSL_EXT_LOG=log
 REM *****************************************************************************************************
 REM Default process lock file extension.
-REM SET SOSL_EXT_LOCK=lock
+SET SOSL_EXT_LOCK=lock
 REM *****************************************************************************************************
 REM Log filename for start and end of SOSL server CMD.
-REM SET SOSL_START_LOG=sosl_server
+SET SOSL_START_LOG=sosl_server
 REM *****************************************************************************************************
 REM Base log filename for single job runs. Will be extended by GUID.
-REM SET SOSL_BASE_LOG=sosl_job_
+SET SOSL_BASE_LOG=sosl_job_

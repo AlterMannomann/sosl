@@ -118,7 +118,7 @@ BEGIN
                               , 'Tried to change SOSL_SCHEMA in SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                               )
     ;
-    RAISE_APPLICATION_ERROR(-20014, '-20014 The SOSL_SCHEMA value ' || :OLD.config_value || ' cannot be changed.');
+    RAISE_APPLICATION_ERROR(-20014, 'The SOSL_SCHEMA value ' || :OLD.config_value || ' cannot be changed.');
   END IF;
   -- report value changes allowed
   sosl_log.log_column_change(:OLD.config_value, :NEW.config_value, :OLD.config_name, l_self_caller, FALSE);
@@ -166,6 +166,61 @@ BEGIN
       RAISE_APPLICATION_ERROR(-20011, 'The given config_value "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" could not be converted successfully to a number.');
     END IF;
   END IF;
+  -- check run mode
+  IF     :OLD.config_name       = 'SOSL_RUNMODE'
+     AND :OLD.config_value     != :NEW.config_value
+     AND :NEW.config_value NOT IN (sosl_constants.SERVER_RUN_MODE, sosl_constants.SERVER_PAUSE_MODE, sosl_constants.SERVER_STOP_MODE)
+  THEN
+      sosl_log.minimal_error_log( l_self_caller
+                                , l_self_log_category
+                                , '-20015 The given runmode "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" is not supported, only RUN, PAUSE or STOP accepted.'
+                                , 'Wrong type of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                )
+      ;
+    RAISE_APPLICATION_ERROR(-20015, 'The given runmode "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" is not supported, only RUN, PAUSE or STOP accepted.');
+  END IF;
+  -- check server state
+  IF     :OLD.config_name       = 'SOSL_SERVER_STATE'
+     AND :OLD.config_value     != :NEW.config_value
+     AND :NEW.config_value NOT IN ('ACTIVE', 'INACTIVE')
+  THEN
+      sosl_log.minimal_error_log( l_self_caller
+                                , l_self_log_category
+                                , '-20016 The given server state "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" is not supported, only ACTIVE or INACTIVE accepted.'
+                                , 'Wrong type of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                )
+      ;
+    RAISE_APPLICATION_ERROR(-20016, 'The given server state "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" is not supported, only ACTIVE or INACTIVE accepted.');
+  END IF;
+  -- check start and stop times
+  IF     :OLD.config_name      IN ('SOSL_START_JOBS', 'SOSL_STOP_JOBS')
+     AND :OLD.config_value     != :NEW.config_value
+  THEN
+    IF    SUBSTR(:NEW.config_value, 3, 1) != ':'
+       OR NOT REGEXP_LIKE(SUBSTR(:NEW.config_value, 1, 2), '^[0-9][0-9]')
+       OR NOT REGEXP_LIKE(SUBSTR(:NEW.config_value, 4, 5), '^[0-9][0-9]')
+    THEN
+      sosl_log.minimal_error_log( l_self_caller
+                                , l_self_log_category
+                                , '-20017 The given time frame "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" for start and stop times is not supported. Format is HH24:MI with leading zeros, e.g. 05:04 and must be a valid time.'
+                                , 'Wrong type of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                )
+      ;
+      RAISE_APPLICATION_ERROR(-20017, 'The given time frame "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" for start and stop times is not supported. Format is HH24:MI with leading zeros, e.g. 05:04 and must be a valid time.');
+    END IF;
+    -- check times
+    IF    TO_NUMBER(SUBSTR(:NEW.config_value, 1, 2)) > 23
+       OR TO_NUMBER(SUBSTR(:NEW.config_value, 4, 5)) > 59
+    THEN
+      sosl_log.minimal_error_log( l_self_caller
+                                , l_self_log_category
+                                , '-20017 The given time frame "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" for start and stop times is not supported. Format is HH24:MI with leading zeros, e.g. 05:04 and must be a valid time.'
+                                , 'Wrong type of config value for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
+                                )
+      ;
+      RAISE_APPLICATION_ERROR(-20017, 'The given time frame "' || NVL(:NEW.config_value, sosl_constants.GEN_NULL_TEXT) || '" for start and stop times is not supported. Format is HH24:MI with leading zeros, e.g. 05:04 and must be a valid time.');
+    END IF;
+  END IF;
 END;
 /
 CREATE OR REPLACE TRIGGER sosl_config_del_trg
@@ -195,7 +250,7 @@ BEGIN
   THEN
     sosl_log.minimal_error_log( 'sosl_config_del_trg'
                               , 'SOSL_CONFIG'
-                              , '-20015 The given system config_name "' || :OLD.config_name || '" cannot be deleted.'
+                              , '-20013 The given system config_name "' || :OLD.config_name || '" cannot be deleted.'
                               , 'Forbidden delete of config name for SOSL_CONFIG table issued by DB user: ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || ' OS user: ' || SYS_CONTEXT('USERENV', 'OS_USER')
                               )
     ;

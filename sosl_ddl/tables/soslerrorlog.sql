@@ -21,3 +21,4 @@ COMMENT ON COLUMN soslerrorlog.message IS 'ORA, PLA or SP2 error message. No fee
 COMMENT ON COLUMN soslerrorlog.statement IS 'The statement causing the error';
 -- Grants, inherited by others, no guest and user access on tables
 GRANT SELECT ON soslerrorlog TO sosl_reviewer;
+GRANT DELETE ON soslerrorlog TO sosl_admin;

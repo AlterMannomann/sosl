@@ -3,9 +3,9 @@
 -- load default values that can be configured in the database (mandatory)
 -- basic configuration
 INSERT INTO sosl_config
-  (config_name, config_value, config_type, config_description)
+  (config_name, config_value, config_type, config_max_length, config_description)
   VALUES
-  ('SOSL_RUNMODE', 'RUN', 'CHAR', 'Determines if the server should RUN, WAIT or STOP. Read by the SOSL server. RUN will cause the SOSL server, if started to run as long as it does not get a STOP signal from the database. Set it to STOP to stop the SOSL server. Set to WAIT if the server should not call any script apart the check for the run mode. Can be locally overwritten.')
+  ('SOSL_RUNMODE', 'RUN', 'CHAR', 5, 'Determines if the server should RUN, PAUSE or STOP. Read by the SOSL server. RUN will cause the SOSL server, if started to run as long as it does not get a STOP signal from the database. Set it to STOP to stop the SOSL server. Set to PAUSE if the server should not call any script apart the check for the run mode. Can be locally overwritten.')
 ;
 INSERT INTO sosl_config
   (config_name, config_value, config_type, config_description)

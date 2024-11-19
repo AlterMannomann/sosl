@@ -702,5 +702,19 @@ AS
       RETURN FALSE;
   END db_in_time;
 
+  FUNCTION cleanup_logs(p_older_than IN NUMBER DEFAULT 7)
+    RETURN NUMBER
+  IS
+  BEGIN
+    RETURN -1;
+  END cleanup_logs;
+
+  FUNCTION cleanup_queue(p_older_than IN NUMBER DEFAULT 7)
+    RETURN NUMBER
+  IS
+  BEGIN
+    RETURN -1;
+  END cleanup_queue;
+
 END;
 /
