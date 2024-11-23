@@ -1,16 +1,21 @@
-Drop user/schema SOSL including tablespace SOSL_TABLESPACE and datafile? Use Ctrl-C to stop the script in sqlplus, Enter to continue.
-Drop user/schema SOSL including tablespace SOSL_TABLESPACE and datafile? Use Ctrl-C to stop the script in sqlplus, Enter to continue.
+SOSL DB user name to drop (default is SOSL if no value is given): 
+SOSL table space name to drop (default is SOSL_TABLESPACE if no value is given): 
+Drop the tablespace SOSL_TABLESPACE: Y (yes) or N (no) (default is N): y
+Drop the SYS roles and views: Y (yes) or N (no) (default is N): y
+Drop user/schema SOSL? Drop tablespace set to y for SOSL_TABLESPACE Drop SYS roles and views set to y. Use Ctrl-C to stop the script in sqlplus, Enter to continue.
+Drop user/schema SOSL? Drop tablespace set to y for SOSL_TABLESPACE Drop SYS roles and views set to y. Use Ctrl-C to stop the script in sqlplus, Enter to continue.
 
-SQL> DROP USER sosl CASCADE;
-SQL> DROP TABLESPACE sosl_tablespace DROP QUOTA INCLUDING CONTENTS AND DATAFILES;
-SQL> DROP VIEW sosl_role_privs;
-SQL> DROP VIEW sosl_sessions;
-SQL> -- drop SOSL roles if they still exist dynamically
-SQL> SET ECHO OFF
-Executed: 11-NOV-24 07.54.18.297767 PM +00:00
-User SOSL dropped
-Tablespace SOSL_TABLESPACE and datafile dropped
-View SOSL_ROLE_PRIVS and SOSL_SESSIONS dropped
+Running under WINDOWS
+DROP USER SOSL CASCADE;
+DROP TABLESPACE SOSL_TABLESPACE DROP QUOTA INCLUDING CONTENTS AND DATAFILES;
+DROP VIEW SYS.sosl_role_privs;
+DROP VIEW SYS.sosl_sessions;
+No SOSL roles found
+Executed: 23-NOV-24 10.11.56.432020 PM +00:00
+User SOSL dropped or does not exist
+Tablespace SOSL_TABLESPACE dropped or does not exist
+View SYS.SOSL_ROLE_PRIVS dropped or does not exist
+View SYS.SOSL_SESSIONS dropped or does not exist
 by Adi
 using SYS
 on database FREEPDB1
