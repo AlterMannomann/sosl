@@ -16,7 +16,7 @@ ACCEPT SOSL_DROP_TS CHAR DEFAULT 'N' PROMPT 'Drop the tablespace &SOSL_TS.: Y (y
 ACCEPT SOSL_DROP_ROLES CHAR DEFAULT 'N' PROMPT 'Drop the SYS roles and views: Y (yes) or N (no) (default is N): '
 COLUMN SOSL_MSG NEW_VAL SOSL_MSG
 SET TERMOUT OFF
-SELECT 'Drop user/schema &SOSL_USER.? Drop tablespace set to &SOSL_DROP_TS. for &SOSL_TS. Drop SYS roles and views set to &SOSL_DROP_ROLES.. Use Ctrl-C to stop the script in sqlplus, Enter to continue.' AS SOSL_MSG
+SELECT 'Drop user/schema &SOSL_USER.? Drop tablespace set to &SOSL_DROP_TS. for &SOSL_TS.. Drop SYS roles and views set to &SOSL_DROP_ROLES.. Use Ctrl-C to stop the script in sqlplus, Enter to continue.' AS SOSL_MSG
   FROM dual;
 SET TERMOUT ON
 PAUSE &SOSL_MSG
@@ -79,47 +79,41 @@ BEGIN
   END IF;
   IF UPPER('&SOSL_DROP_ROLES') = 'Y'
   THEN
-    -- check if view exist
-    SELECT COUNT(*) INTO l_count FROM dba_objects WHERE object_name = 'SOSL_ROLE_PRIVS' AND owner = 'SYS' AND object_type = 'VIEW';
+    -- revoke grants if they exist
+    SELECT COUNT(*) INTO l_count FROM dba_tab_privs WHERE grantee = '&SOSL_USER' AND table_name = 'DBA_ROLE_PRIVS';
     IF l_count = 1
     THEN
-      -- check if the view is granted to other users
-      SELECT COUNT(*) INTO l_count FROM dba_tab_privs WHERE table_name = 'SOSL_ROLE_PRIVS' AND owner = 'SYS';
-      IF l_count = 0
-      THEN
-        l_statement := 'DROP VIEW SYS.sosl_role_privs';
-        DBMS_OUTPUT.PUT_LINE(l_statement || ';');
-        EXECUTE IMMEDIATE l_statement;
-      ELSE
-        DBMS_OUTPUT.PUT_LINE('View SYS.SOSL_ROLE_PRIVS is assigned to other users or does not exist, do nothing');
-      END IF;
+      l_statement := 'REVOKE SELECT ON dba_role_privs FROM &SOSL_USER';
+      DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+      EXECUTE IMMEDIATE l_statement;
     ELSE
-      DBMS_OUTPUT.PUT_LINE('View SYS.SOSL_ROLE_PRIVS does not exist');
+      DBMS_OUTPUT.PUT_LINE('SELECT grant on DBA_ROLE_PRIVS for &SOSL_USER. does not exist');
     END IF;
-    -- check if view exist
-    SELECT COUNT(*) INTO l_count FROM dba_objects WHERE object_name = 'SOSL_SESSIONS' AND owner = 'SYS' AND object_type = 'VIEW';
+    SELECT COUNT(*) INTO l_count FROM dba_tab_privs WHERE grantee = '&SOSL_USER' AND table_name = 'GV_$SESSION';
     IF l_count = 1
     THEN
-      -- check if the view is granted to other users
-      SELECT COUNT(*) INTO l_count FROM dba_tab_privs WHERE table_name = 'SOSL_SESSIONS' AND owner = 'SYS';
-      IF l_count = 0
-      THEN
-        l_statement := 'DROP VIEW SYS.sosl_sessions';
-        DBMS_OUTPUT.PUT_LINE(l_statement || ';');
-        EXECUTE IMMEDIATE l_statement;
-      ELSE
-        DBMS_OUTPUT.PUT_LINE('View SYS.SOSL_SESSIONS is assigned to other users or does not exist, do nothing');
-      END IF;
+      l_statement := 'REVOKE SELECT ON gv_$session FROM &SOSL_USER';
+      DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+      EXECUTE IMMEDIATE l_statement;
     ELSE
-      DBMS_OUTPUT.PUT_LINE('View SYS.SOSL_SESSIONS does not exist');
+      DBMS_OUTPUT.PUT_LINE('SELECT grant on GV$SESSION for &SOSL_USER. does not exist');
+    END IF;
+    SELECT COUNT(*) INTO l_count FROM dba_tab_privs WHERE grantee = '&SOSL_USER' AND table_name = 'GV_$SQL';
+    IF l_count = 1
+    THEN
+      l_statement := 'REVOKE SELECT ON gv_$sql FROM &SOSL_USER';
+      DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+      EXECUTE IMMEDIATE l_statement;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('SELECT grant on GV$SQL for &SOSL_USER. does not exist');
     END IF;
     -- check if the SOSL roles exist
     SELECT COUNT(*) INTO l_count FROM dba_roles WHERE role LIKE 'SOSL%';
     IF l_count > 0
     THEN
       -- check if other users have this role
-      SELECT COUNT(*) INTO l_count FROM dba_role_privs WHERE granted_role LIKE 'SOSL%' AND grantee NOT LIKE 'SOSL\_%' ESCAPE '\';
-      IF l_count = 1
+      SELECT COUNT(*) INTO l_count FROM dba_role_privs WHERE granted_role LIKE 'SOSL%' AND grantee != 'SYS' AND grantee NOT LIKE 'SOSL\_%' ESCAPE '\';
+      IF l_count = 0
       THEN
         FOR rec IN (SELECT 'DROP ROLE ' || role AS exec_cmd FROM dba_roles WHERE role LIKE 'SOSL%')
         LOOP
@@ -158,30 +152,27 @@ END;
      , rle AS
        (SELECT CASE
                  WHEN COUNT(*) = 0
-                 THEN 'View SYS.SOSL_ROLE_PRIVS dropped or does not exist'
-                 ELSE 'View SYS.SOSL_ROLE_PRIVS still in use by other users'
-               END AS role_view
-          FROM dba_objects
-         WHERE object_name = 'SOSL_ROLE_PRIVS'
-           AND object_type = 'VIEW'
-           AND owner       = 'SYS'
+                 THEN 'Grants on dba views revoked or do not exist'
+                 ELSE 'ERROR still dba view grants for &SOSL_USER. exist'
+               END AS dba_view_grants
+          FROM dba_tab_privs
+         WHERE grantee     = '&SOSL_USER'
+           AND table_name IN ('GV_$SESSION', 'GV_$SQL', 'DBA_ROLE_PRIVS')
        )
-     , ses AS
+     , srl AS
        (SELECT CASE
                  WHEN COUNT(*) = 0
-                 THEN 'View SYS.SOSL_SESSIONS dropped or does not exist'
-                 ELSE 'View SYS.SOSL_SESSIONS still in use by other users'
-               END AS session_view
-          FROM dba_objects
-         WHERE object_name = 'SOSL_SESSIONS'
-           AND object_type = 'VIEW'
-           AND owner       = 'SYS'
+                 THEN 'SOSL roles dropped or do not exist'
+                 ELSE 'SOSL roles still in use by other users'
+               END AS has_roles
+          FROM dba_roles
+         WHERE role LIKE 'SOSL%'
        )
 SELECT 'Executed: ' || TO_CHAR(SYSTIMESTAMP) || '&LINE_FEED' ||
-       usr.user_state || '&LINE_FEED' ||
-       tbs.tbs_state || '&LINE_FEED' ||
-       rle.role_view || '&LINE_FEED' ||
-       ses.session_view || '&LINE_FEED' ||
+       'Status USER: ' || usr.user_state || '&LINE_FEED' ||
+       'Status TABLESPACE: ' || tbs.tbs_state || '&LINE_FEED' ||
+       'Status DBA view grants: ' || rle.dba_view_grants || '&LINE_FEED' ||
+       'Status ROLES: ' || srl.has_roles || '&LINE_FEED' ||
        'by ' || SYS_CONTEXT('USERENV', 'OS_USER') || '&LINE_FEED' ||
        'using ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || '&LINE_FEED' ||
        'on database ' || SYS_CONTEXT('USERENV', 'DB_NAME') || '&LINE_FEED' ||
@@ -189,7 +180,7 @@ SELECT 'Executed: ' || TO_CHAR(SYSTIMESTAMP) || '&LINE_FEED' ||
   FROM usr
  CROSS JOIN tbs
  CROSS JOIN rle
- CROSS JOIN ses
+ CROSS JOIN srl
 ;
 SPOOL OFF
 -- uncomment in SQL Developer to keep the session, otherwise the session is closed

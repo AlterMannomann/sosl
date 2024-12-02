@@ -245,7 +245,7 @@ AS
     -- identify implicite roles first
       WITH rol AS
            (SELECT DISTINCT granted_role
-              FROM sosl_role_privs
+              FROM sosl_role_privs_v
              START WITH grantee = UPPER(p_db_user)
            CONNECT BY PRIOR granted_role = grantee
            )

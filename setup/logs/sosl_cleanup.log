@@ -1,3 +1,17 @@
+SQL> -- remove old sperrorlog entries from last install
+SQL> @@../sosl_ddl/tables/drop/cleanup_sperrorlog.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> -- Must be executed before the view sosl_install_v is dropped. Cleans the SOSL setup
+SQL> -- entries, if any.
+SQL> DELETE FROM sperrorlog WHERE username = (SELECT sosl_schema FROM sosl_install_v);
+
+4 rows deleted.
+
+SQL> COMMIT;
+
+Commit complete.
+
 SQL> -- view objects
 SQL> @@../sosl_ddl/views/drop/drop_sosl_sperrorlog_v.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
@@ -73,6 +87,61 @@ SQL> REVOKE SELECT ON sosl_config_v FROM sosl_user;
 Revoke succeeded.
 
 SQL> DROP VIEW sosl_config_v;
+
+View dropped.
+
+SQL> @@../sosl_ddl/views/drop/drop_sosl_sessions_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> REVOKE SELECT ON sosl_sessions_v FROM sosl_user;
+
+Revoke succeeded.
+
+SQL> DROP VIEW sosl_sessions_v;
+
+View dropped.
+
+SQL> @@../sosl_ddl/views/drop/drop_sosl_session_sql_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> REVOKE SELECT ON sosl_session_sql_v FROM sosl_user;
+
+Revoke succeeded.
+
+SQL> DROP VIEW sosl_session_sql_v;
+
+View dropped.
+
+SQL> @@../sosl_ddl/views/drop/drop_sosl_role_privs_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> REVOKE SELECT ON sosl_role_privs_v FROM sosl_user;
+
+Revoke succeeded.
+
+SQL> DROP VIEW sosl_role_privs_v;
+
+View dropped.
+
+SQL> @@../sosl_ddl/views/drop/drop_sosl_sessions_admin_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> REVOKE SELECT ON sosl_sessions_admin_v FROM sosl_admin;
+
+Revoke succeeded.
+
+SQL> DROP VIEW sosl_sessions_admin_v;
+
+View dropped.
+
+SQL> @@../sosl_ddl/views/drop/drop_sosl_session_sql_admin_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> REVOKE SELECT ON sosl_session_sql_admin_v FROM sosl_admin;
+
+Revoke succeeded.
+
+SQL> DROP VIEW sosl_session_sql_admin_v;
 
 View dropped.
 
@@ -285,39 +354,6 @@ Revoke succeeded.
 SQL> DROP TYPE sosl_payload;
 
 Type dropped.
-
-SQL> -- roles
-SQL> @@../sosl_ddl/roles/drop/drop_roles.sql
-SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
-SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> DROP ROLE sosl_admin;
-
-Role dropped.
-
-SQL> DROP ROLE sosl_executor;
-
-Role dropped.
-
-SQL> DROP ROLE sosl_reviewer;
-
-Role dropped.
-
-SQL> DROP ROLE sosl_user;
-
-Role dropped.
-
-SQL> DROP ROLE sosl_guest;
-
-Role dropped.
-
-SQL> -- synonyms
-SQL> DROP SYNONYM sosl_role_privs;
-
-Synonym dropped.
-
-SQL> DROP SYNONYM sosl_sessions;
-
-Synonym dropped.
 
 SQL> -- ==============UNINSTALL done==============
 SQL> @@../sosl_sql/util/log_silent.sql

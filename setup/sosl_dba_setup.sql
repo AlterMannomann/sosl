@@ -76,6 +76,89 @@ BEGIN
   ELSE
     DBMS_OUTPUT.PUT_LINE('Tablespace &SOSL_TS. already exists, do nothing');
   END IF;
+  -- SOSL roles
+  SELECT COUNT(*) INTO l_count FROM dba_roles WHERE role = 'SOSL_GUEST';
+  IF l_count = 0
+  THEN
+    l_statement := 'CREATE ROLE sosl_guest';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('Role SOSL_GUEST already exists, do nothing');
+  END IF;
+  SELECT COUNT(*) INTO l_count FROM dba_roles WHERE role = 'SOSL_USER';
+  IF l_count = 0
+  THEN
+    l_statement := 'CREATE ROLE sosl_user';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('Role SOSL_USER already exists, do nothing');
+  END IF;
+  SELECT COUNT(*) INTO l_count FROM dba_roles WHERE role = 'SOSL_REVIEWER';
+  IF l_count = 0
+  THEN
+    l_statement := 'CREATE ROLE sosl_reviewer';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('Role SOSL_REVIEWER already exists, do nothing');
+  END IF;
+  SELECT COUNT(*) INTO l_count FROM dba_roles WHERE role = 'SOSL_EXECUTOR';
+  IF l_count = 0
+  THEN
+    l_statement := 'CREATE ROLE sosl_executor';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('Role SOSL_EXECUTOR already exists, do nothing');
+  END IF;
+  SELECT COUNT(*) INTO l_count FROM dba_roles WHERE role = 'SOSL_ADMIN';
+  IF l_count = 0
+  THEN
+    l_statement := 'CREATE ROLE sosl_admin';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('Role SOSL_ADMIN already exists, do nothing');
+  END IF;
+  -- now grant hierarchical roles
+  SELECT COUNT(*) INTO l_count FROM dba_role_privs WHERE grantee = 'SOSL_USER' AND granted_role = 'SOSL_GUEST';
+  IF l_count = 0
+  THEN
+    l_statement := 'GRANT sosl_guest TO sosl_user';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('Role SOSL_GUEST already granted to SOSL_USER, do nothing');
+  END IF;
+  SELECT COUNT(*) INTO l_count FROM dba_role_privs WHERE grantee = 'SOSL_REVIEWER' AND granted_role = 'SOSL_USER';
+  IF l_count = 0
+  THEN
+    l_statement := 'GRANT sosl_user TO sosl_reviewer';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('Role SOSL_USER already granted to SOSL_REVIEWER, do nothing');
+  END IF;
+  SELECT COUNT(*) INTO l_count FROM dba_role_privs WHERE grantee = 'SOSL_EXECUTOR' AND granted_role = 'SOSL_REVIEWER';
+  IF l_count = 0
+  THEN
+    l_statement := 'GRANT sosl_reviewer TO sosl_executor';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('Role SOSL_REVIEWER already granted to SOSL_EXECUTOR, do nothing');
+  END IF;
+  SELECT COUNT(*) INTO l_count FROM dba_role_privs WHERE grantee = 'SOSL_ADMIN' AND granted_role = 'SOSL_EXECUTOR';
+  IF l_count = 0
+  THEN
+    l_statement := 'GRANT sosl_executor TO sosl_admin';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('Role SOSL_EXECUTOR already granted to SOSL_ADMIN, do nothing');
+  END IF;
   -- SOSL user
   SELECT COUNT(*) INTO l_count FROM dba_users WHERE username = '&SOSL_USER';
   IF l_count = 0
@@ -89,272 +172,66 @@ BEGIN
     l_statement := 'ALTER USER &SOSL_USER. QUOTA UNLIMITED ON &SOSL_TS.';
     DBMS_OUTPUT.PUT_LINE(l_statement || ';');
     EXECUTE IMMEDIATE l_statement;
+    -- basic grants
+    l_statement := 'GRANT CONNECT TO &SOSL_USER';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
+    l_statement := 'GRANT RESOURCE TO &SOSL_USER';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
+    l_statement := 'GRANT GATHER_SYSTEM_STATISTICS TO &SOSL_USER';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
+    l_statement := 'GRANT CREATE VIEW TO &SOSL_USER';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
+    l_statement := 'GRANT CREATE JOB TO &SOSL_USER';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
+    -- grant roles with admin option
+    l_statement := 'GRANT sosl_admin TO &SOSL_USER WITH ADMIN OPTION';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
+    l_statement := 'GRANT sosl_executor TO &SOSL_USER WITH ADMIN OPTION';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
+    l_statement := 'GRANT sosl_reviewer TO &SOSL_USER WITH ADMIN OPTION';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
+    l_statement := 'GRANT sosl_user TO &SOSL_USER WITH ADMIN OPTION';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
+    l_statement := 'GRANT sosl_guest TO &SOSL_USER WITH ADMIN OPTION';
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
     -- only if we create a new user, we create the static view
     l_statement := q'[CREATE OR REPLACE VIEW &SOSL_USER..sosl_install_v
 AS
-  SELECT ''&SOSL_USER''                     AS sosl_schema
-       , SYS_CONTEXT(''USERENV'', ''HOST'') AS sosl_machine
-       , ''&SOSL_TS''                       AS sosl_tablespace
-       , ''&SOSL_DBF''                      AS sosl_data_file
-       , ''&SOSL_CFG''                      AS sosl_config_file
-       , ''&SOSL_SRV''                      AS sosl_db_server
+  SELECT '&SOSL_USER' AS sosl_schema
+       , SYS_CONTEXT('USERENV', 'HOST') AS sosl_machine
+       , '&SOSL_TS' AS sosl_tablespace
+       , '&SOSL_DBF' AS sosl_data_file
+       , '&SOSL_CFG' AS sosl_config_file
+       , '&SOSL_SRV' AS sosl_db_connection
     FROM dual]'
     ;
+    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+    EXECUTE IMMEDIATE l_statement;
   ELSE
     DBMS_OUTPUT.PUT_LINE('User &SOSL_USER. already exists, do nothing');
   END IF;
-  -- views
-  SELECT COUNT(*) INTO l_count FROM dba_objects WHERE object_name = 'SOSL_ROLE_PRIVS' AND owner = 'SYS' AND object_type = 'VIEW';
-  IF l_count = 0
-  THEN
-    l_statement := 'CREATE OR REPLACE VIEW SYS.sosl_role_privs AS SELECT * FROM dba_role_privs WHERE granted_role LIKE ''SOSL%''';
-    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
-    EXECUTE IMMEDIATE l_statement;
-  ELSE
-    DBMS_OUTPUT.PUT_LINE('View SYS.SOSL_ROLE_PRIVS already exists, do nothing');
-  END IF;
-  SELECT COUNT(*) INTO l_count FROM dba_objects WHERE object_name = 'SOSL_SESSIONS' AND owner = 'SYS' AND object_type = 'VIEW';
-  IF l_count = 0
-  THEN
-    l_statement := q'[CREATE OR REPLACE VIEW SYS.sosl_sessions
-AS
-  SELECT gses.inst_id
-       , gses.saddr
-       , gses.sid
-       , gses.serial#
-       , gses.audsid
-       , gses.paddr
-       , gses.user#
-       , gses.username
-       , gses.command
-       , gses.ownerid
-       , gses.taddr
-       , gses.lockwait
-       , gses.status
-       , gses.server
-       , gses.schema#
-       , gses.schemaname
-       , gses.osuser
-       , gses.process
-       , gses.machine
-       , gses.port
-       , gses.terminal
-       , gses.program
-       , gses.type
-       , gses.sql_address
-       , gses.sql_hash_value
-       , gses.sql_id
-       , gses.sql_child_number
-       , gses.sql_exec_start
-       , gses.sql_exec_id
-       , gses.prev_sql_addr
-       , gses.prev_hash_value
-       , gses.prev_sql_id
-       , gses.prev_child_number
-       , gses.prev_exec_start
-       , gses.prev_exec_id
-       , gses.plsql_entry_object_id
-       , gses.plsql_entry_subprogram_id
-       , gses.plsql_object_id
-       , gses.plsql_subprogram_id
-       , gses.module
-       , gses.module_hash
-       , gses.action
-       , gses.action_hash
-       , gses.client_info
-       , gses.fixed_table_sequence
-       , gses.row_wait_obj#
-       , gses.row_wait_file#
-       , gses.row_wait_block#
-       , gses.row_wait_row#
-       , gses.top_level_call#
-       , gses.logon_time
-       , gses.last_call_et
-       , gses.pdml_enabled
-       , gses.failover_type
-       , gses.failover_method
-       , gses.failed_over
-       , gses.resource_consumer_group
-       , gses.pdml_status
-       , gses.pddl_status
-       , gses.pq_status
-       , gses.current_queue_duration
-       , gses.client_identifier
-       , gses.blocking_session_status
-       , gses.blocking_instance
-       , gses.blocking_session
-       , gses.final_blocking_session_status
-       , gses.final_blocking_instance
-       , gses.final_blocking_session
-       , gses.seq#
-       , gses.event#
-       , gses.event
-       , gses.p1text
-       , gses.p1
-       , gses.p1raw
-       , gses.p2text
-       , gses.p2
-       , gses.p2raw
-       , gses.p3text
-       , gses.p3
-       , gses.p3raw
-       , gses.wait_class_id
-       , gses.wait_class#
-       , gses.wait_class
-       , gses.wait_time
-       , gses.seconds_in_wait
-       , gses.state
-       , gses.wait_time_micro
-       , gses.time_remaining_micro
-       , gses.total_time_waited_micro
-       , gses.heur_time_waited_micro
-       , gses.time_since_last_wait_micro
-       , gses.service_name
-       , gses.sql_trace
-       , gses.sql_trace_waits
-       , gses.sql_trace_binds
-       , gses.sql_trace_plan_stats
-       , gses.session_edition_id
-       , gses.creator_addr
-       , gses.creator_serial#
-       , gses.ecid
-       , gses.sql_translation_profile_id
-       , gses.pga_tunable_mem
-       , gses.shard_ddl_status
-       , gses.con_id
-       , gses.external_name
-       , gses.plsql_debugger_connected
-       , gses.drain_status
-       , gses.drain_deadline
-       , gses.drain_origin
-       , gsql.sql_text
-       , gsql.sql_fulltext
-       , gsql.sharable_mem
-       , gsql.persistent_mem
-       , gsql.runtime_mem
-       , gsql.sorts
-       , gsql.loaded_versions
-       , gsql.open_versions
-       , gsql.users_opening
-       , gsql.fetches
-       , gsql.executions
-       , gsql.px_servers_executions
-       , gsql.end_of_fetch_count
-       , gsql.users_executing
-       , gsql.loads
-       , gsql.first_load_time
-       , gsql.invalidations
-       , gsql.parse_calls
-       , gsql.disk_reads
-       , gsql.direct_writes
-       , gsql.direct_reads
-       , gsql.buffer_gets
-       , gsql.application_wait_time
-       , gsql.concurrency_wait_time
-       , gsql.cluster_wait_time
-       , gsql.user_io_wait_time
-       , gsql.plsql_exec_time
-       , gsql.java_exec_time
-       , gsql.rows_processed
-       , gsql.command_type
-       , gsql.optimizer_mode
-       , gsql.optimizer_cost
-       , gsql.optimizer_env
-       , gsql.optimizer_env_hash_value
-       , gsql.parsing_user_id
-       , gsql.parsing_schema_id
-       , gsql.parsing_schema_name
-       , gsql.kept_versions
-       , gsql.address
-       , gsql.type_chk_heap
-       , gsql.hash_value
-       , gsql.old_hash_value
-       , gsql.plan_hash_value
-       , gsql.full_plan_hash_value
-       , gsql.child_number
-       , gsql.service
-       , gsql.service_hash
-       , gsql.module_hash AS module_hash_sql
-       , gsql.action_hash AS action_hash_sql
-       , gsql.serializable_aborts
-       , gsql.outline_category
-       , gsql.cpu_time
-       , gsql.elapsed_time
-       , gsql.outline_sid
-       , gsql.child_address
-       , gsql.sqltype
-       , gsql.remote
-       , gsql.object_status
-       , gsql.literal_hash_value
-       , gsql.last_load_time
-       , gsql.is_obsolete
-       , gsql.is_bind_sensitive
-       , gsql.is_bind_aware
-       , gsql.is_shareable
-       , gsql.child_latch
-       , gsql.sql_profile
-       , gsql.sql_patch
-       , gsql.sql_plan_baseline
-       , gsql.program_id
-       , gsql.program_line#
-       , gsql.exact_matching_signature
-       , gsql.force_matching_signature
-       , gsql.last_active_time
-       , gsql.bind_data
-       , gsql.typecheck_mem
-       , gsql.io_cell_offload_eligible_bytes
-       , gsql.io_interconnect_bytes
-       , gsql.physical_read_requests
-       , gsql.physical_read_bytes
-       , gsql.physical_write_requests
-       , gsql.physical_write_bytes
-       , gsql.optimized_phy_read_requests
-       , gsql.locked_total
-       , gsql.pinned_total
-       , gsql.io_cell_uncompressed_bytes
-       , gsql.io_cell_offload_returned_bytes
-       , gsql.is_reoptimizable
-       , gsql.is_resolved_adaptive_plan
-       , gsql.im_scans
-       , gsql.im_scan_bytes_uncompressed
-       , gsql.im_scan_bytes_inmemory
-       , gsql.ddl_no_invalidate
-       , gsql.is_rolling_invalid
-       , gsql.is_rolling_refresh_invalid
-       , gsql.result_cache
-       , gsql.sql_quarantine
-       , gsql.avoided_executions
-       , gsql.heap0_load_time
-       , gsql.heap6_load_time
-       , gsql.result_cache_executions
-       , gsql.result_cache_rejection_reason
-    FROM gv$session gses
-    LEFT OUTER JOIN gv$sql gsql
-      ON gses.sql_id  = gsql.sql_id
-     AND gses.inst_id = gsql.inst_id
-     AND gses.con_id  = gsql.con_id
-     AND gses.module  = gsql.module
-     AND gses.action  = gsql.action]'
-    ;
-    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
-    EXECUTE IMMEDIATE l_statement;
-  ELSE
-    DBMS_OUTPUT.PUT_LINE('View SYS.SOSL_SESSIONS already exists, do nothing');
-  END IF;
+  -- dba view grants
+  l_statement := 'GRANT SELECT ON dba_role_privs TO &SOSL_USER WITH GRANT OPTION';
+  DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+  EXECUTE IMMEDIATE l_statement;
+  l_statement := 'GRANT SELECT ON gv_$session TO &SOSL_USER WITH GRANT OPTION';
+  DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+  EXECUTE IMMEDIATE l_statement;
+  l_statement := 'GRANT SELECT ON gv_$sql TO &SOSL_USER WITH GRANT OPTION';
+  DBMS_OUTPUT.PUT_LINE(l_statement || ';');
+  EXECUTE IMMEDIATE l_statement;
 END;
 /
-SET FEEDBACK ON
--- set only echo on to display statement, but not password replacement
-SET ECHO ON
--- basic grants
-GRANT CONNECT TO &SOSL_USER;
-GRANT RESOURCE TO &SOSL_USER;
-GRANT GATHER_SYSTEM_STATISTICS TO &SOSL_USER;
-GRANT CREATE VIEW TO &SOSL_USER;
-GRANT CREATE JOB TO &SOSL_USER;
-GRANT CREATE ROLE TO &SOSL_USER;
-GRANT SELECT ON SYS.sosl_sessions TO &SOSL_USER;
-GRANT SELECT ON SYS.sosl_role_privs TO &SOSL_USER;
 SET ECHO OFF
 SET FEEDBACK OFF
 SELECT 'Creating &SOSL_LOGIN. with current values and @&SOSL_SRV. ...' AS info
@@ -382,7 +259,7 @@ SELECT 'Executed: ' || TO_CHAR(SYSTIMESTAMP) || '&LINE_FEED' ||
        'Created user &SOSL_USER. if not exists with unlimited quota on' || '&LINE_FEED' ||
        'tablespace &SOSL_TS., 100 MB, data file &SOSL_DBF.' || '&LINE_FEED' ||
        'Granted CREATE VIEW, CREATE JOB, CREATE ROLE, CONNECT, RESSOURCE, GATHER_SYSTEM_STATISTICS' || '&LINE_FEED' ||
-       'Granted SELECT for SYS.SOSL_SESSIONS and SYS.SOSL_ROLE_PRIVS' || '&LINE_FEED' ||
+       'Granted SELECT for DBA views GV$SESSIONL, GV$SQL and DBA_ROLE_PRIVS with GRANT option' || '&LINE_FEED' ||
        'Created installation view &SOSL_USER..SOSL_INSTALL_V' || '&LINE_FEED' ||
        'Created &SOSL_LOGIN. with current values and server/tnsname @&SOSL_SRV..' || '&LINE_FEED' ||
        'Check log for unexpected issues like user already exists' || '&LINE_FEED' ||

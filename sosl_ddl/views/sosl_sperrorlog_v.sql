@@ -2,14 +2,33 @@
 -- Not allowed to be used as AI training material without explicite permission.
 CREATE OR REPLACE VIEW sosl_sperrorlog_v
 AS
-  SELECT TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI:SS.FF9') AS exec_time
+  SELECT exec_time
        , username
        , script
        , identifier
        , message
        , statement
-       , timestamp AS exec_timestamp
-    FROM soslerrorlog
-   ORDER BY timestamp DESC
+       , exec_timestamp
+    FROM (SELECT TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI:SS.FF9') AS exec_time
+               , username
+               , script
+               , identifier
+               , message
+               , statement
+               , timestamp AS exec_timestamp
+            FROM soslerrorlog
+           UNION ALL
+             -- include setup log
+          SELECT TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI:SS.FF9') AS exec_time
+               , username
+               , script
+               , identifier
+               , message
+               , statement
+               , timestamp AS exec_timestamp
+            FROM sperrorlog
+           WHERE username = (SELECT sosl_schema FROM sosl_install_v)
+         )
+   ORDER BY exec_timestamp DESC
 ;
 GRANT SELECT ON sosl_sperrorlog_v TO sosl_user;

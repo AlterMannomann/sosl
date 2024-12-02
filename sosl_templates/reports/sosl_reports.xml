@@ -670,5 +670,180 @@ SELECT run_state
 			</query>
 		</display>
 	</display>
+	<display id="832f61f7-0193-1000-8001-c0a801800d26" type="" style="Table" enable="true">
+		<name><![CDATA[SOSL sessions]]></name>
+		<description><![CDATA[List the current sessions of SOSL and executors]]></description>
+		<tooltip><![CDATA[SOSL sessions]]></tooltip>
+		<drillclass><![CDATA[]]></drillclass>
+		<CustomValues>
+			<TYPE><![CDATA[horizontal]]></TYPE>
+		</CustomValues>
+		<query>
+			<sql><![CDATA[SELECT CASE
+         WHEN status = 'ACTIVE'
+          AND blocking_session_status IN ('NOT IN WAIT', 'NO HOLDER')
+         THEN sosl_constants.green
+         ELSE sosl_constants.yellow
+       END AS run_state  
+     , sid
+     , serial#
+     , status
+     , blocking_session_status
+     , wait_status
+     , short_sql
+     , sql_exec_start
+     , logon_time
+     , machine
+     , terminal
+     , module
+     , program
+     , event
+     , action
+     , schemaname
+     , username
+     , osuser
+     , sql_id
+     , inst_id
+     , con_id
+     , action_hash
+     , module_hash
+  FROM sosl_sessions_v
+ ORDER BY status]]></sql>
+		</query>
+		<display id="null" type="" style="Table" enable="true">
+			<name><![CDATA[SQL details]]></name>
+			<description><![CDATA[Details on SQL executed by the selected session.]]></description>
+			<tooltip><![CDATA[SQL details]]></tooltip>
+			<drillclass><![CDATA[]]></drillclass>
+			<CustomValues>
+				<TYPE><![CDATA[horizontal]]></TYPE>
+			</CustomValues>
+			<query>
+				<sql><![CDATA[SELECT *
+  FROM sosl_session_sql_v
+ WHERE sql_id             = :SQL_ID
+   AND inst_id            = :INST_ID
+   AND con_id             = :CON_ID
+   AND module_hash        = :MODULE_HASH
+   AND action_hash        = :ACTION_HASH
+   AND NVL(module, 'N/A') = NVL(:MODULE, 'N/A')
+   AND NVL(action, 'N/A') = NVL(:ACTION, 'N/A')]]></sql>
+				<binds>
+					<bind id="SQL_ID">
+						<prompt><![CDATA[SQL_ID]]></prompt>
+						<tooltip><![CDATA[SQL_ID]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+					<bind id="INST_ID">
+						<prompt><![CDATA[INST_ID]]></prompt>
+						<tooltip><![CDATA[INST_ID]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+					<bind id="CON_ID">
+						<prompt><![CDATA[CON_ID]]></prompt>
+						<tooltip><![CDATA[CON_ID]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+					<bind id="MODULE_HASH">
+						<prompt><![CDATA[MODULE_HASH]]></prompt>
+						<tooltip><![CDATA[MODULE_HASH]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+					<bind id="ACTION_HASH">
+						<prompt><![CDATA[ACTION_HASH]]></prompt>
+						<tooltip><![CDATA[ACTION_HASH]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+					<bind id="MODULE">
+						<prompt><![CDATA[MODULE]]></prompt>
+						<tooltip><![CDATA[MODULE]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+					<bind id="ACTION">
+						<prompt><![CDATA[ACTION]]></prompt>
+						<tooltip><![CDATA[ACTION]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+				</binds>
+			</query>
+		</display>
+		<display id="null" type="" style="Table" enable="true">
+			<name><![CDATA[Blocking details]]></name>
+			<description><![CDATA[]]></description>
+			<tooltip><![CDATA[]]></tooltip>
+			<drillclass><![CDATA[]]></drillclass>
+			<CustomValues>
+				<TYPE><![CDATA[horizontal]]></TYPE>
+			</CustomValues>
+			<query>
+				<sql><![CDATA[SELECT lockwait
+     , blocking_instance
+     , blocking_session
+     , final_blocking_session_status
+     , final_blocking_instance
+     , final_blocking_session
+  FROM sosl_sessions_v 
+ WHERE sid     = :SID
+   AND serial# = :SERIAL#]]></sql>
+				<binds>
+					<bind id="SID">
+						<prompt><![CDATA[SID]]></prompt>
+						<tooltip><![CDATA[SID]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+					<bind id="SERIAL#">
+						<prompt><![CDATA[SERIAL#]]></prompt>
+						<tooltip><![CDATA[SERIAL#]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+				</binds>
+			</query>
+		</display>
+		<display id="null" type="" style="Table" enable="true">
+			<name><![CDATA[Wait details]]></name>
+			<description><![CDATA[]]></description>
+			<tooltip><![CDATA[]]></tooltip>
+			<drillclass><![CDATA[]]></drillclass>
+			<CustomValues>
+				<TYPE><![CDATA[horizontal]]></TYPE>
+			</CustomValues>
+			<query>
+				<sql><![CDATA[SELECT wait_class_id
+     , wait_class#
+     , wait_class
+     , wait_time_micro
+     , time_remaining_micro
+     , total_time_waited_micro
+     , heur_time_waited_micro
+     , time_since_last_wait_micro
+  FROM sosl_sessions_v 
+ WHERE sid     = :SID
+   AND serial# = :SERIAL#]]></sql>
+				<binds>
+					<bind id="SID">
+						<prompt><![CDATA[SID]]></prompt>
+						<tooltip><![CDATA[SID]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+					<bind id="SERIAL#">
+						<prompt><![CDATA[SERIAL#]]></prompt>
+						<tooltip><![CDATA[SERIAL#]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+				</binds>
+			</query>
+		</display>
+	</display>
 </folder>
 </displays>

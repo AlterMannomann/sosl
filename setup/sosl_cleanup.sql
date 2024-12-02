@@ -12,6 +12,8 @@ SET ERRORLOGGING ON
 SET ERRORLOGGING ON IDENTIFIER &IDENT
 -- ==============UNINSTALL start==============
 SPOOL logs/sosl_cleanup.log
+-- remove old sperrorlog entries from last install
+@@../sosl_ddl/tables/drop/cleanup_sperrorlog.sql
 -- view objects
 @@../sosl_ddl/views/drop/drop_sosl_sperrorlog_v.sql
 @@../sosl_ddl/views/drop/drop_sosl_server_log_v.sql
@@ -20,6 +22,11 @@ SPOOL logs/sosl_cleanup.log
 @@../sosl_ddl/views/drop/drop_sosl_run_queue_v.sql
 @@../sosl_ddl/views/drop/drop_sosl_executors_v.sql
 @@../sosl_ddl/views/drop/drop_sosl_config_v.sql
+@@../sosl_ddl/views/drop/drop_sosl_sessions_v.sql
+@@../sosl_ddl/views/drop/drop_sosl_session_sql_v.sql
+@@../sosl_ddl/views/drop/drop_sosl_role_privs_v.sql
+@@../sosl_ddl/views/drop/drop_sosl_sessions_admin_v.sql
+@@../sosl_ddl/views/drop/drop_sosl_session_sql_admin_v.sql
 -- packages
 @@../sosl_ddl/packages/drop/drop_sosl_if_pkb.sql
 @@../sosl_ddl/packages/drop/drop_sosl_if_pks.sql
@@ -44,11 +51,6 @@ SPOOL logs/sosl_cleanup.log
 @@../sosl_ddl/tables/drop/drop_soslerrorlog.sql
 -- types
 @@../sosl_ddl/types/drop/drop_sosl_payload.sql
--- roles
-@@../sosl_ddl/roles/drop/drop_roles.sql
--- synonyms
-DROP SYNONYM sosl_role_privs;
-DROP SYNONYM sosl_sessions;
 -- ==============UNINSTALL done==============
 @@../sosl_sql/util/log_silent.sql
 -- check errors and display them, if so
