@@ -2,20 +2,25 @@ SOSL DB user name to drop (default is SOSL if no value is given):
 SOSL table space name to drop (default is SOSL_TABLESPACE if no value is given): 
 Drop the tablespace SOSL_TABLESPACE: Y (yes) or N (no) (default is N): y
 Drop the SYS roles and views: Y (yes) or N (no) (default is N): y
-Drop user/schema SOSL? Drop tablespace set to y for SOSL_TABLESPACE Drop SYS roles and views set to y. Use Ctrl-C to stop the script in sqlplus, Enter to continue.
-Drop user/schema SOSL? Drop tablespace set to y for SOSL_TABLESPACE Drop SYS roles and views set to y. Use Ctrl-C to stop the script in sqlplus, Enter to continue.
+Drop user/schema SOSL? Drop tablespace set to y for SOSL_TABLESPACE. Drop SYS roles and views set to y. Use Ctrl-C to stop the script in sqlplus, Enter to continue.
+Drop user/schema SOSL? Drop tablespace set to y for SOSL_TABLESPACE. Drop SYS roles and views set to y. Use Ctrl-C to stop the script in sqlplus, Enter to continue.
 
 Running under WINDOWS
 DROP USER SOSL CASCADE;
 DROP TABLESPACE SOSL_TABLESPACE DROP QUOTA INCLUDING CONTENTS AND DATAFILES;
-DROP VIEW SYS.sosl_role_privs;
-DROP VIEW SYS.sosl_sessions;
-No SOSL roles found
-Executed: 23-NOV-24 10.11.56.432020 PM +00:00
-User SOSL dropped or does not exist
-Tablespace SOSL_TABLESPACE dropped or does not exist
-View SYS.SOSL_ROLE_PRIVS dropped or does not exist
-View SYS.SOSL_SESSIONS dropped or does not exist
+SELECT grant on DBA_ROLE_PRIVS for SOSL does not exist
+SELECT grant on GV$SESSION for SOSL does not exist
+SELECT grant on GV$SQL for SOSL does not exist
+DROP ROLE SOSL_ADMIN;
+DROP ROLE SOSL_EXECUTOR;
+DROP ROLE SOSL_GUEST;
+DROP ROLE SOSL_REVIEWER;
+DROP ROLE SOSL_USER;
+Executed: 02-DEC-24 03.36.58.409911 PM +00:00
+Status USER: User SOSL dropped or does not exist
+Status TABLESPACE: Tablespace SOSL_TABLESPACE dropped or does not exist
+Status DBA view grants: Grants on dba views revoked or do not exist
+Status ROLES: SOSL roles dropped or do not exist
 by Adi
 using SYS
 on database FREEPDB1

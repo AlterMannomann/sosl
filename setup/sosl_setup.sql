@@ -12,11 +12,6 @@ SET ERRORLOGGING ON
 SET ERRORLOGGING ON IDENTIFIER &IDENT
 -- ==============INSTALL start==============
 SPOOL logs/sosl_setup.log
--- create schema synonyms for sys views
-CREATE SYNONYM sosl_role_privs FOR sys.sosl_role_privs;
-CREATE SYNONYM sosl_sessions FOR sys.sosl_sessions;
--- roles
-@@../sosl_ddl/roles/create_roles.sql
 -- types
 @@../sosl_ddl/types/sosl_payload.sql
 -- SQLPlus error logging table
@@ -29,6 +24,12 @@ CREATE SYNONYM sosl_sessions FOR sys.sosl_sessions;
 @@../sosl_ddl/tables/sosl_run_queue.sql
 -- internal interface objects using the API
 @@../sosl_ddl/tables/sosl_if_script.sql
+-- create the views for the granted SYS views used in package SOSL_UTIL
+@@../sosl_ddl/views/sosl_role_privs_v.sql
+@@../sosl_ddl/views/sosl_sessions_v.sql
+@@../sosl_ddl/views/sosl_sessions_admin_v.sql
+@@../sosl_ddl/views/sosl_session_sql_v.sql
+@@../sosl_ddl/views/sosl_session_sql_admin_v.sql
 -- package with no dependency on SOSL objects
 @@../sosl_ddl/packages/sosl_constants.pks
 @@../sosl_ddl/packages/sosl_constants.pkb

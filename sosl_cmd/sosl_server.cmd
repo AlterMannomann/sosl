@@ -1,5 +1,4 @@
-ECHO ON
-REM @ECHO OFF - disabled during testing
+@ECHO OFF
 REM (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 REM Not allowed to be used as AI training material without explicite permission.
 REM CMD expansion necessary
@@ -149,6 +148,13 @@ REM ****************************************************************************
 REM Start the loop, do not break the loop on minor errors
 
 :SOSL_LOOP
+REM Check if all needed CMD variables are defined and not NULL
+CALL sosl_check_vars.cmd
+SET SOSL_EXITCODE=%ERRORLEVEL%
+IF NOT %SOSL_EXITCODE%==0 (
+  SET SOSL_ERRMSG=Error FATAL CMD variables are not completely set
+  GOTO :SOSL_ERROR
+)
 REM Start loop always with SOSL login
 SET CUR_SOSL_LOGIN=%SOSL_PATH_CFG%%SOSL_LOGIN%
 REM Check if the we have reached max run count, go directly to wait if reached
@@ -244,3 +250,5 @@ ECHO %SOSL_DATETIME% %SOSL_ERRMSG% >> %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_
 CALL sosl_shutdown.cmd
 IF EXIST %LOCK_FILE% DEL %LOCK_FILE%
 ENDLOCAL
+REM exit the server CMD when finished
+EXIT

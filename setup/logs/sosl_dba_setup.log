@@ -1,0 +1,59 @@
+DB user name for SOSL (default is SOSL if no value is given): 
+Mandatory db password for SOSL: 
+Table space name for SOSL (default is SOSL_TABLESPACE if no value is given): 
+Table space data file name for SOSL (default is sosl.dbf if no value is given): 
+Path and filename for the SOSL schema login (default ../sosl_templates/sosl_login.cfg): 
+SOSL db server or tnsname (default is SOSLINSTANCE if no value is given): 
+Create user/schema SOSL with a password of length 4? The tablespace SOSL_TABLESPACE with 100M, data sosl.dbf will be created. Use Ctrl-C to stop the script in sqlplus, Enter to continue.
+Create user/schema SOSL with a password of length 4? The tablespace SOSL_TABLESPACE with 100M, data sosl.dbf will be created. Use Ctrl-C to stop the script in sqlplus, Enter to continue.
+
+Running under WINDOWS
+../sosl_templates/sosl_login.cfg              Create login config OK
+CREATE TABLESPACE SOSL_TABLESPACE DATAFILE 'sosl.dbf' SIZE 100M AUTOEXTEND ON;
+CREATE ROLE sosl_guest;
+CREATE ROLE sosl_user;
+CREATE ROLE sosl_reviewer;
+CREATE ROLE sosl_executor;
+CREATE ROLE sosl_admin;
+GRANT sosl_guest TO sosl_user;
+GRANT sosl_user TO sosl_reviewer;
+GRANT sosl_reviewer TO sosl_executor;
+GRANT sosl_executor TO sosl_admin;
+User SOSL created with defined password
+ALTER USER SOSL DEFAULT TABLESPACE SOSL_TABLESPACE ACCOUNT UNLOCK;
+ALTER USER SOSL QUOTA UNLIMITED ON SOSL_TABLESPACE;
+GRANT CONNECT TO SOSL;
+GRANT RESOURCE TO SOSL;
+GRANT GATHER_SYSTEM_STATISTICS TO SOSL;
+GRANT CREATE VIEW TO SOSL;
+GRANT CREATE JOB TO SOSL;
+GRANT sosl_admin TO SOSL WITH ADMIN OPTION;
+GRANT sosl_executor TO SOSL WITH ADMIN OPTION;
+GRANT sosl_reviewer TO SOSL WITH ADMIN OPTION;
+GRANT sosl_user TO SOSL WITH ADMIN OPTION;
+GRANT sosl_guest TO SOSL WITH ADMIN OPTION;
+CREATE OR REPLACE VIEW SOSL.sosl_install_v
+AS
+  SELECT 'SOSL' AS sosl_schema
+       , SYS_CONTEXT('USERENV', 'HOST') AS sosl_machine
+       , 'SOSL_TABLESPACE' AS sosl_tablespace
+       , 'sosl.dbf' AS sosl_data_file
+       , '../sosl_templates/sosl_login.cfg' AS sosl_config_file
+       , 'SOSLINSTANCE' AS sosl_db_connection
+    FROM dual;
+GRANT SELECT ON dba_role_privs TO SOSL WITH GRANT OPTION;
+GRANT SELECT ON gv_$session TO SOSL WITH GRANT OPTION;
+GRANT SELECT ON gv_$sql TO SOSL WITH GRANT OPTION;
+Creating ../sosl_templates/sosl_login.cfg with current values and @SOSLINSTANCE ...
+Executed: 02-DEC-24 03.37.34.495012 PM +00:00
+Created user SOSL if not exists with unlimited quota on
+tablespace SOSL_TABLESPACE, 100 MB, data file sosl.dbf
+Granted CREATE VIEW, CREATE JOB, CREATE ROLE, CONNECT, RESSOURCE, GATHER_SYSTEM_STATISTICS
+Granted SELECT for DBA views GV$SESSIONL, GV$SQL and DBA_ROLE_PRIVS with GRANT option
+Created installation view SOSL.SOSL_INSTALL_V
+Created ../sosl_templates/sosl_login.cfg with current values and server/tnsname @SOSLINSTANCE.
+Check log for unexpected issues like user already exists
+by Adi
+using SYS
+on database FREEPDB1
+from terminal ALIEN_M18

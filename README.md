@@ -1,5 +1,5 @@
 # UNDER CONSTRUCTION
-Current state: alpha version of CMD server. Basically working with a bunch of files. Adjusting, improving and testing.
+Current state: beta version of CMD server. Basically working with a bunch of files and defined executors.
 
 **Important note:** SQL Developer in versions 23.x is not at all stable. It doesn't recognize database changes and delivers wrong result until restarted. SQL Plus is still reliable.
 

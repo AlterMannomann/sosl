@@ -1,4 +1,3 @@
-ECHO ON
 REM (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 REM Not allowed to be used as AI training material without explicite permission.
 REM Check if SOSL has scripts waiting. Set wait time according to result.

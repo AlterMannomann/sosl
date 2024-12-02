@@ -1,54 +1,3 @@
-SQL> -- create schema synonyms for sys views
-SQL> CREATE SYNONYM sosl_role_privs FOR sys.sosl_role_privs;
-
-Synonym created.
-
-SQL> CREATE SYNONYM sosl_sessions FOR sys.sosl_sessions;
-
-Synonym created.
-
-SQL> -- roles
-SQL> @@../sosl_ddl/roles/create_roles.sql
-SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
-SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> -- create sosl roles
-SQL> CREATE ROLE sosl_admin;
-
-Role created.
-
-SQL> CREATE ROLE sosl_executor;
-
-Role created.
-
-SQL> CREATE ROLE sosl_reviewer;
-
-Role created.
-
-SQL> CREATE ROLE sosl_user;
-
-Role created.
-
-SQL> CREATE ROLE sosl_guest;
-
-Role created.
-
-SQL> -- hierarchical grants
-SQL> GRANT sosl_guest TO sosl_user;
-
-Grant succeeded.
-
-SQL> GRANT sosl_user TO sosl_reviewer;
-
-Grant succeeded.
-
-SQL> GRANT sosl_reviewer TO sosl_executor;
-
-Grant succeeded.
-
-SQL> GRANT sosl_executor TO sosl_admin;
-
-Grant succeeded.
-
 SQL> -- types
 SQL> @@../sosl_ddl/types/sosl_payload.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
@@ -827,6 +776,399 @@ SQL> GRANT INSERT ON sosl_if_script TO sosl_executor;
 Grant succeeded.
 
 SQL> GRANT DELETE ON sosl_if_script TO sosl_admin;
+
+Grant succeeded.
+
+SQL> -- create the views for the granted SYS views used in package SOSL_UTIL
+SQL> @@../sosl_ddl/views/sosl_role_privs_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> CREATE OR REPLACE VIEW sosl_role_privs_v
+  2  AS
+  3    SELECT grantee
+  4  	    , granted_role
+  5  	    , admin_option
+  6  	    , delegate_option
+  7  	    , default_role
+  8  	    , common
+  9  	    , inherited
+ 10  	 FROM dba_role_privs
+ 11  	      -- exclude SYS if not function owner
+ 12  	WHERE (   grantee  != 'SYS'
+ 13  	       OR 'SYS'    IN (SELECT function_owner FROM sosl_executor_definition WHERE executor_active = 1 AND executor_reviewed = 1)
+ 14  	      )
+ 15  	      -- limit to SOSL roles, schema and function owners
+ 16  	  AND (   grantee LIKE 'SOSL\_%' ESCAPE '\'
+ 17  	       OR grantee    = (SELECT sosl_schema FROM sosl_install_v)
+ 18  	       OR grantee   IN (SELECT function_owner FROM sosl_executor_definition WHERE executor_active = 1 AND executor_reviewed = 1)
+ 19  	      )
+ 20  	ORDER BY grantee
+ 21  ;
+
+View created.
+
+SQL> GRANT SELECT ON sosl_role_privs_v TO sosl_user;
+
+Grant succeeded.
+
+SQL> @@../sosl_ddl/views/sosl_sessions_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> -- short version of GV$SESSION for SOSL user, machine/terminal and function owners
+SQL> -- including a basic join on GV$SQL
+SQL> CREATE OR REPLACE VIEW sosl_sessions_v
+  2  AS
+  3    SELECT gsn.schemaname
+  4  	    , gsn.username
+  5  	    , gsn.osuser
+  6  	    , gsn.logon_time
+  7  	    , gsn.sid
+  8  	    , gsn.serial#
+  9  	    , gsn.status
+ 10  	    , gsn.blocking_session_status
+ 11  	    , gsn.state AS wait_status
+ 12  	    , CASE
+ 13  		WHEN gsq.sql_text IS NOT NULL
+ 14  		       -- reduce formatting space chars
+ 15  		THEN SUBSTR(REGEXP_REPLACE(gsq.sql_text, '\s{2,}', ' '), 1, 80) || '...'
+ 16  		ELSE NULL
+ 17  	      END AS short_sql
+ 18  	    , gsn.sql_exec_start
+ 19  	    , gsn.event
+ 20  	    , gsn.machine
+ 21  	    , gsn.module
+ 22  	    , gsn.action
+ 23  	    , gsn.terminal
+ 24  	    , gsn.program
+ 25  	    , gsn.server
+ 26  	    , gsn.wait_time
+ 27  	    , gsn.seconds_in_wait
+ 28  	    , gsn.process
+ 29  	    , gsn.sql_id
+ 30  	    , gsn.inst_id
+ 31  	    , gsn.con_id
+ 32  	    , gsn.action_hash
+ 33  	    , gsn.module_hash
+ 34  	    , gsn.lockwait
+ 35  	    , gsn.blocking_instance
+ 36  	    , gsn.blocking_session
+ 37  	    , gsn.final_blocking_session_status
+ 38  	    , gsn.final_blocking_instance
+ 39  	    , gsn.final_blocking_session
+ 40  	    , gsn.wait_class_id
+ 41  	    , gsn.wait_class#
+ 42  	    , gsn.wait_class
+ 43  	    , gsn.wait_time_micro
+ 44  	    , gsn.time_remaining_micro
+ 45  	    , gsn.total_time_waited_micro
+ 46  	    , gsn.heur_time_waited_micro
+ 47  	    , gsn.time_since_last_wait_micro
+ 48  	 FROM gv$session gsn
+ 49  	 LEFT OUTER JOIN gv$sql gsq
+ 50  	   ON gsn.sql_id	     = gsq.sql_id
+ 51  	  AND gsn.inst_id	     = gsq.inst_id
+ 52  	  AND gsn.con_id	     = gsq.con_id
+ 53  	  AND gsn.module_hash	     = gsq.module_hash
+ 54  	  AND gsn.action_hash	     = gsq.action_hash
+ 55  	  AND NVL(gsn.module, 'N/A') = NVL(gsq.module, 'N/A')
+ 56  	  AND NVL(gsn.action, 'N/A') = NVL(gsq.action, 'N/A')
+ 57  	WHERE gsn.username IS NOT NULL -- exclude oracle system
+ 58  	  AND (   gsn.username		= (SELECT sosl_schema FROM sosl_install_v)
+ 59  	       OR gsn.schemaname	= (SELECT sosl_schema FROM sosl_install_v)
+ 60  	       OR UPPER(gsn.terminal)	= (SELECT UPPER(sosl_machine) FROM sosl_install_v)
+ 61  	       OR gsn.username	       IN (SELECT function_owner FROM sosl_executor_definition WHERE executor_active = 1 AND executor_reviewed = 1)
+ 62  	       OR gsn.schemaname       IN (SELECT function_owner FROM sosl_executor_definition WHERE executor_active = 1 AND executor_reviewed = 1)
+ 63  	       OR UPPER(gsn.machine) LIKE (SELECT '%' || UPPER(sosl_machine) || '%' FROM sosl_install_v)
+ 64  	      )
+ 65  ;
+
+View created.
+
+SQL> GRANT SELECT ON sosl_sessions_v TO sosl_user;
+
+Grant succeeded.
+
+SQL> @@../sosl_ddl/views/sosl_sessions_admin_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> -- Admin content providing full GV$SESSION content
+SQL> CREATE OR REPLACE VIEW sosl_sessions_admin_v
+  2  AS
+  3    SELECT inst_id
+  4  	    , saddr
+  5  	    , sid
+  6  	    , serial#
+  7  	    , audsid
+  8  	    , paddr
+  9  	    , user#
+ 10  	    , username
+ 11  	    , command
+ 12  	    , ownerid
+ 13  	    , taddr
+ 14  	    , lockwait
+ 15  	    , status
+ 16  	    , server
+ 17  	    , schema#
+ 18  	    , schemaname
+ 19  	    , osuser
+ 20  	    , process
+ 21  	    , machine
+ 22  	    , port
+ 23  	    , terminal
+ 24  	    , program
+ 25  	    , type
+ 26  	    , sql_address
+ 27  	    , sql_hash_value
+ 28  	    , sql_id
+ 29  	    , sql_child_number
+ 30  	    , sql_exec_start
+ 31  	    , sql_exec_id
+ 32  	    , prev_sql_addr
+ 33  	    , prev_hash_value
+ 34  	    , prev_sql_id
+ 35  	    , prev_child_number
+ 36  	    , prev_exec_start
+ 37  	    , prev_exec_id
+ 38  	    , plsql_entry_object_id
+ 39  	    , plsql_entry_subprogram_id
+ 40  	    , plsql_object_id
+ 41  	    , plsql_subprogram_id
+ 42  	    , module
+ 43  	    , module_hash
+ 44  	    , action
+ 45  	    , action_hash
+ 46  	    , client_info
+ 47  	    , fixed_table_sequence
+ 48  	    , row_wait_obj#
+ 49  	    , row_wait_file#
+ 50  	    , row_wait_block#
+ 51  	    , row_wait_row#
+ 52  	    , top_level_call#
+ 53  	    , logon_time
+ 54  	    , last_call_et
+ 55  	    , pdml_enabled
+ 56  	    , failover_type
+ 57  	    , failover_method
+ 58  	    , failed_over
+ 59  	    , resource_consumer_group
+ 60  	    , pdml_status
+ 61  	    , pddl_status
+ 62  	    , pq_status
+ 63  	    , current_queue_duration
+ 64  	    , client_identifier
+ 65  	    , blocking_session_status
+ 66  	    , blocking_instance
+ 67  	    , blocking_session
+ 68  	    , final_blocking_session_status
+ 69  	    , final_blocking_instance
+ 70  	    , final_blocking_session
+ 71  	    , seq#
+ 72  	    , event#
+ 73  	    , event
+ 74  	    , p1text
+ 75  	    , p1
+ 76  	    , p1raw
+ 77  	    , p2text
+ 78  	    , p2
+ 79  	    , p2raw
+ 80  	    , p3text
+ 81  	    , p3
+ 82  	    , p3raw
+ 83  	    , wait_class_id
+ 84  	    , wait_class#
+ 85  	    , wait_class
+ 86  	    , wait_time
+ 87  	    , seconds_in_wait
+ 88  	    , state
+ 89  	    , wait_time_micro
+ 90  	    , time_remaining_micro
+ 91  	    , total_time_waited_micro
+ 92  	    , heur_time_waited_micro
+ 93  	    , time_since_last_wait_micro
+ 94  	    , service_name
+ 95  	    , sql_trace
+ 96  	    , sql_trace_waits
+ 97  	    , sql_trace_binds
+ 98  	    , sql_trace_plan_stats
+ 99  	    , session_edition_id
+100  	    , creator_addr
+101  	    , creator_serial#
+102  	    , ecid
+103  	    , sql_translation_profile_id
+104  	    , pga_tunable_mem
+105  	    , shard_ddl_status
+106  	    , con_id
+107  	    , external_name
+108  	    , plsql_debugger_connected
+109  	    , drain_status
+110  	    , drain_deadline
+111  	    , drain_origin
+112  	 FROM gv$session gses
+113  ;
+
+View created.
+
+SQL> GRANT SELECT ON sosl_sessions_admin_v TO sosl_admin;
+
+Grant succeeded.
+
+SQL> @@../sosl_ddl/views/sosl_session_sql_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> -- Short version of GV$SQL
+SQL> CREATE OR REPLACE VIEW sosl_session_sql_v
+  2  AS
+  3    SELECT sql_id
+  4  	    , last_active_time
+  5  	    , object_status
+  6  	    , optimizer_mode
+  7  	    , rows_processed
+  8  	    , SUBSTR(REGEXP_REPLACE(sql_text, '\s{2,}', ' '), 1, 80) || '...' AS short_sql
+  9  	    , parsing_schema_name
+ 10  	    , service
+ 11  	    , child_number
+ 12  	    , optimizer_cost
+ 13  	    , cpu_time
+ 14  	    , elapsed_time
+ 15  	    , locked_total
+ 16  	    , pinned_total
+ 17  	    , physical_read_bytes
+ 18  	    , physical_write_bytes
+ 19  	    , inst_id
+ 20  	    , con_id
+ 21  	    , module
+ 22  	    , action
+ 23  	    , module_hash
+ 24  	    , action_hash
+ 25  	    , sql_text
+ 26  	    , sql_fulltext
+ 27  	 FROM gv$sql
+ 28  ;
+
+View created.
+
+SQL> GRANT SELECT ON sosl_session_sql_v TO sosl_user;
+
+Grant succeeded.
+
+SQL> @@../sosl_ddl/views/sosl_session_sql_admin_v.sql
+SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> -- Admin content providing full GV$SQL content
+SQL> CREATE OR REPLACE VIEW sosl_session_sql_admin_v
+  2  AS
+  3    SELECT inst_id
+  4  	    , sql_text
+  5  	    , sql_fulltext
+  6  	    , sql_id
+  7  	    , sharable_mem
+  8  	    , persistent_mem
+  9  	    , runtime_mem
+ 10  	    , sorts
+ 11  	    , loaded_versions
+ 12  	    , open_versions
+ 13  	    , users_opening
+ 14  	    , fetches
+ 15  	    , executions
+ 16  	    , px_servers_executions
+ 17  	    , end_of_fetch_count
+ 18  	    , users_executing
+ 19  	    , loads
+ 20  	    , first_load_time
+ 21  	    , invalidations
+ 22  	    , parse_calls
+ 23  	    , disk_reads
+ 24  	    , direct_writes
+ 25  	    , direct_reads
+ 26  	    , buffer_gets
+ 27  	    , application_wait_time
+ 28  	    , concurrency_wait_time
+ 29  	    , cluster_wait_time
+ 30  	    , user_io_wait_time
+ 31  	    , plsql_exec_time
+ 32  	    , java_exec_time
+ 33  	    , rows_processed
+ 34  	    , command_type
+ 35  	    , optimizer_mode
+ 36  	    , optimizer_cost
+ 37  	    , optimizer_env
+ 38  	    , optimizer_env_hash_value
+ 39  	    , parsing_user_id
+ 40  	    , parsing_schema_id
+ 41  	    , parsing_schema_name
+ 42  	    , kept_versions
+ 43  	    , address
+ 44  	    , type_chk_heap
+ 45  	    , hash_value
+ 46  	    , old_hash_value
+ 47  	    , plan_hash_value
+ 48  	    , full_plan_hash_value
+ 49  	    , child_number
+ 50  	    , service
+ 51  	    , service_hash
+ 52  	    , module
+ 53  	    , module_hash
+ 54  	    , action
+ 55  	    , action_hash
+ 56  	    , serializable_aborts
+ 57  	    , outline_category
+ 58  	    , cpu_time
+ 59  	    , elapsed_time
+ 60  	    , outline_sid
+ 61  	    , child_address
+ 62  	    , sqltype
+ 63  	    , remote
+ 64  	    , object_status
+ 65  	    , literal_hash_value
+ 66  	    , last_load_time
+ 67  	    , is_obsolete
+ 68  	    , is_bind_sensitive
+ 69  	    , is_bind_aware
+ 70  	    , is_shareable
+ 71  	    , child_latch
+ 72  	    , sql_profile
+ 73  	    , sql_patch
+ 74  	    , sql_plan_baseline
+ 75  	    , program_id
+ 76  	    , program_line#
+ 77  	    , exact_matching_signature
+ 78  	    , force_matching_signature
+ 79  	    , last_active_time
+ 80  	    , bind_data
+ 81  	    , typecheck_mem
+ 82  	    , io_cell_offload_eligible_bytes
+ 83  	    , io_interconnect_bytes
+ 84  	    , physical_read_requests
+ 85  	    , physical_read_bytes
+ 86  	    , physical_write_requests
+ 87  	    , physical_write_bytes
+ 88  	    , optimized_phy_read_requests
+ 89  	    , locked_total
+ 90  	    , pinned_total
+ 91  	    , io_cell_uncompressed_bytes
+ 92  	    , io_cell_offload_returned_bytes
+ 93  	    , con_id
+ 94  	    , is_reoptimizable
+ 95  	    , is_resolved_adaptive_plan
+ 96  	    , im_scans
+ 97  	    , im_scan_bytes_uncompressed
+ 98  	    , im_scan_bytes_inmemory
+ 99  	    , ddl_no_invalidate
+100  	    , is_rolling_invalid
+101  	    , is_rolling_refresh_invalid
+102  	    , result_cache
+103  	    , sql_quarantine
+104  	    , avoided_executions
+105  	    , heap0_load_time
+106  	    , heap6_load_time
+107  	    , result_cache_executions
+108  	    , result_cache_rejection_reason
+109  	 FROM gv$sql
+110  ;
+
+View created.
+
+SQL> GRANT SELECT ON sosl_session_sql_admin_v TO sosl_admin;
 
 Grant succeeded.
 
@@ -3382,7 +3724,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_util
 243  	 -- identify implicite roles first
 244  	   WITH rol AS
 245  		(SELECT DISTINCT granted_role
-246  		   FROM sosl_role_privs
+246  		   FROM sosl_role_privs_v
 247  		  START WITH grantee = UPPER(p_db_user)
 248  		CONNECT BY PRIOR granted_role = grantee
 249  		)
@@ -8859,16 +9201,35 @@ SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> CREATE OR REPLACE VIEW sosl_sperrorlog_v
   2  AS
-  3    SELECT TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI:SS.FF9') AS exec_time
+  3    SELECT exec_time
   4  	    , username
   5  	    , script
   6  	    , identifier
   7  	    , message
   8  	    , statement
-  9  	    , timestamp AS exec_timestamp
- 10  	 FROM soslerrorlog
- 11  	ORDER BY timestamp DESC
- 12  ;
+  9  	    , exec_timestamp
+ 10  	 FROM (SELECT TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI:SS.FF9') AS exec_time
+ 11  		    , username
+ 12  		    , script
+ 13  		    , identifier
+ 14  		    , message
+ 15  		    , statement
+ 16  		    , timestamp AS exec_timestamp
+ 17  		 FROM soslerrorlog
+ 18  		UNION ALL
+ 19  		  -- include setup log
+ 20  	       SELECT TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI:SS.FF9') AS exec_time
+ 21  		    , username
+ 22  		    , script
+ 23  		    , identifier
+ 24  		    , message
+ 25  		    , statement
+ 26  		    , timestamp AS exec_timestamp
+ 27  		 FROM sperrorlog
+ 28  		WHERE username = (SELECT sosl_schema FROM sosl_install_v)
+ 29  	      )
+ 30  	ORDER BY exec_timestamp DESC
+ 31  ;
 
 View created.
 
