@@ -1,5 +1,5 @@
 # UNDER CONSTRUCTION
-Current state: beta version of CMD server. Basically working with a bunch of files and defined executors.
+Current state: beta version of CMD and shell server. Basically working with a bunch of files and defined executors. Path format is important depending on the system SOSL is running. For Windows \ notation is mandatory, for bash /. Shell version tested with git bash on Windows.
 
 **Important note:** SQL Developer in versions 23.x is not at all stable. It doesn't recognize database changes and delivers wrong result until restarted. SQL Plus is still reliable.
 

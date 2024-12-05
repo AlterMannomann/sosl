@@ -19,7 +19,7 @@ SET SESSION_TMP_FILE=%SOSL_PATH_TMP%%SESSION_GUID%_execute.tmp
 SET SESSION_IDENTIFIER=%SESSION_GUID%_execute
 REM Build a run lock file
 SET SESSION_LOCK=%SOSL_PATH_TMP%%SESSION_GUID%_run.%SOSL_EXT_LOCK%
-ECHO Script %SESSION_SCRIPT% execution with guid %SESSION_GUID% > %SESSION_LOCK%
+ECHO Script run id %SESSION_RUN_ID% execution with guid %SESSION_GUID% > %SESSION_LOCK%
 REM Get a valid date - do not use function to not interfere with the server
 FOR /f %%a IN ('WMIC OS GET LocalDateTime ^| FIND "."') DO (
   SET DTS=%%a

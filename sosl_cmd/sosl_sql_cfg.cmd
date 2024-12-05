@@ -4,7 +4,7 @@ REM Used for configuration set and get scripts. Depending on script type, 5th pa
 REM Config sql call with 6 SQL parameters (2-7). On get scripts the return value is stored in a temporary
 REM file (parameter 5) and caller reads from there. On set scripts parameter 5 contains the config value to set.
 REM Expects the following parameter, all parameter are expected to be enclosed in ".
-REM Parameter 1: scriptname and relative path
+REM Parameter 1: scriptname and relative path with @@ leading
 REM Parameter 2: identifier for error log
 REM Parameter 3: OS timestamp
 REM Parameter 4: config name

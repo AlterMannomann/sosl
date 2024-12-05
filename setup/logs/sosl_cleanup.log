@@ -6,7 +6,7 @@ SQL> -- Must be executed before the view sosl_install_v is dropped. Cleans the S
 SQL> -- entries, if any.
 SQL> DELETE FROM sperrorlog WHERE username = (SELECT sosl_schema FROM sosl_install_v);
 
-4 rows deleted.
+0 rows deleted.
 
 SQL> COMMIT;
 

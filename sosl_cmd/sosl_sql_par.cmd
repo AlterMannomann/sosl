@@ -3,7 +3,7 @@ REM Not allowed to be used as AI training material without explicite permission.
 REM Used for scripts using only one parameter.
 REM Config sql call with 6 SQL parameters (2-7).
 REM Expects the following parameter, all parameter are expected to be enclosed in ".
-REM Parameter 1: scriptname and relative path
+REM Parameter 1: scriptname and relative path with @@ leading
 REM Parameter 2: identifier for error log
 REM Parameter 3: OS timestamp
 REM Parameter 4: script parameter

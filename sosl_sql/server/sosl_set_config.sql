@@ -9,7 +9,7 @@
 -- return: EXITCODE 0 on success, -1 on errors
 SET ECHO OFF
 -- define logging details, calling util relative to run directory
-@@..\sosl_sql\util\log_silent.sql
+@@../sosl_sql/util/log_silent.sql
 SET ERRORLOGGING ON TABLE soslerrorlog IDENTIFIER &1
 CLEAR COLUMNS
 COLUMN SET_SUCCESS NEW_VAL SET_SUCCESS
