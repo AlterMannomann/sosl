@@ -186,7 +186,16 @@ SELECT wait_short.wait_seconds_having_jobs
                 ELSE sosl_constants.yellow
               END  
        END AS status       
-  FROM sosl_run_stats_total_v]]></sql>
+  FROM sosl_run_stats_total_v
+ UNION ALL
+SELECT 'Available'
+     , sosl_api.has_scripts AS script_count
+     , CASE 
+         WHEN sosl_api.has_scripts = 0
+         THEN sosl_constants.green
+         ELSE sosl_constants.yellow
+       END AS status
+  FROM dual]]></sql>
 			</query>
 		</display>
 	</display>
@@ -234,7 +243,7 @@ SELECT wait_short.wait_seconds_having_jobs
      , executor_id
   FROM sosl_run_queue_v]]></sql>
 		</query>
-		<display id="" type="" style="Table" enable="true">
+		<display id="null" type="" style="Table" enable="true">
 			<name><![CDATA[Executor details]]></name>
 			<description><![CDATA[]]></description>
 			<tooltip><![CDATA[]]></tooltip>
@@ -256,7 +265,7 @@ SELECT wait_short.wait_seconds_having_jobs
 				</binds>
 			</query>
 		</display>
-		<display id="" type="" style="Table" enable="true">
+		<display id="null" type="" style="Table" enable="true">
 			<name><![CDATA[Executor statistics]]></name>
 			<description><![CDATA[]]></description>
 			<tooltip><![CDATA[]]></tooltip>
@@ -288,10 +297,31 @@ SELECT wait_short.wait_seconds_having_jobs
        END AS status
   FROM sosl_run_stats_by_executor_v
  WHERE executor_id = :EXECUTOR_ID]]></sql>
+			</query>
+		</display>
+		<display id="null" type="" style="Table" enable="true">
+			<name><![CDATA[Error details]]></name>
+			<description><![CDATA[]]></description>
+			<tooltip><![CDATA[]]></tooltip>
+			<drillclass><![CDATA[]]></drillclass>
+			<CustomValues>
+				<TYPE><![CDATA[horizontal]]></TYPE>
+			</CustomValues>
+			<query>
+				<sql><![CDATA[SELECT log_type AS run_state
+     , message
+  FROM sosl_server_log_v    
+ WHERE run_id   = :RUN_ID
+   AND log_type = sosl_constants.get_log_error_type
+ UNION ALL
+SELECT 'ERROR' AS run_state 
+     , TO_CHAR(SUBSTR(message, 1, 4000)) AS message
+  FROM sosl_sperrorlog_v 
+ WHERE identifier IN (SELECT sosl_identifier FROM sosl_server_log_v WHERE run_id = :RUN_ID)]]></sql>
 				<binds>
-					<bind id="EXECUTOR_ID">
-						<prompt><![CDATA[EXECUTOR_ID]]></prompt>
-						<tooltip><![CDATA[EXECUTOR_ID]]></tooltip>
+					<bind id="RUN_ID">
+						<prompt><![CDATA[RUN_ID]]></prompt>
+						<tooltip><![CDATA[RUN_ID]]></tooltip>
 						<value><![CDATA[NULL_VALUE]]></value>
 						<bracket><![CDATA[null]]></bracket>
 					</bind>
@@ -708,9 +738,9 @@ SELECT run_state
      , action_hash
      , module_hash
   FROM sosl_sessions_v
- ORDER BY status]]></sql>
+ ORDER BY machine, terminal, status]]></sql>
 		</query>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[SQL details]]></name>
 			<description><![CDATA[Details on SQL executed by the selected session.]]></description>
 			<tooltip><![CDATA[SQL details]]></tooltip>
@@ -721,13 +751,7 @@ SELECT run_state
 			<query>
 				<sql><![CDATA[SELECT *
   FROM sosl_session_sql_v
- WHERE sql_id             = :SQL_ID
-   AND inst_id            = :INST_ID
-   AND con_id             = :CON_ID
-   AND module_hash        = :MODULE_HASH
-   AND action_hash        = :ACTION_HASH
-   AND NVL(module, 'N/A') = NVL(:MODULE, 'N/A')
-   AND NVL(action, 'N/A') = NVL(:ACTION, 'N/A')]]></sql>
+ WHERE sql_id             = :SQL_ID]]></sql>
 				<binds>
 					<bind id="SQL_ID">
 						<prompt><![CDATA[SQL_ID]]></prompt>
@@ -735,46 +759,10 @@ SELECT run_state
 						<value><![CDATA[NULL_VALUE]]></value>
 						<bracket><![CDATA[null]]></bracket>
 					</bind>
-					<bind id="INST_ID">
-						<prompt><![CDATA[INST_ID]]></prompt>
-						<tooltip><![CDATA[INST_ID]]></tooltip>
-						<value><![CDATA[NULL_VALUE]]></value>
-						<bracket><![CDATA[null]]></bracket>
-					</bind>
-					<bind id="CON_ID">
-						<prompt><![CDATA[CON_ID]]></prompt>
-						<tooltip><![CDATA[CON_ID]]></tooltip>
-						<value><![CDATA[NULL_VALUE]]></value>
-						<bracket><![CDATA[null]]></bracket>
-					</bind>
-					<bind id="MODULE_HASH">
-						<prompt><![CDATA[MODULE_HASH]]></prompt>
-						<tooltip><![CDATA[MODULE_HASH]]></tooltip>
-						<value><![CDATA[NULL_VALUE]]></value>
-						<bracket><![CDATA[null]]></bracket>
-					</bind>
-					<bind id="ACTION_HASH">
-						<prompt><![CDATA[ACTION_HASH]]></prompt>
-						<tooltip><![CDATA[ACTION_HASH]]></tooltip>
-						<value><![CDATA[NULL_VALUE]]></value>
-						<bracket><![CDATA[null]]></bracket>
-					</bind>
-					<bind id="MODULE">
-						<prompt><![CDATA[MODULE]]></prompt>
-						<tooltip><![CDATA[MODULE]]></tooltip>
-						<value><![CDATA[NULL_VALUE]]></value>
-						<bracket><![CDATA[null]]></bracket>
-					</bind>
-					<bind id="ACTION">
-						<prompt><![CDATA[ACTION]]></prompt>
-						<tooltip><![CDATA[ACTION]]></tooltip>
-						<value><![CDATA[NULL_VALUE]]></value>
-						<bracket><![CDATA[null]]></bracket>
-					</bind>
 				</binds>
 			</query>
 		</display>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[Blocking details]]></name>
 			<description><![CDATA[]]></description>
 			<tooltip><![CDATA[]]></tooltip>
@@ -792,23 +780,9 @@ SELECT run_state
   FROM sosl_sessions_v 
  WHERE sid     = :SID
    AND serial# = :SERIAL#]]></sql>
-				<binds>
-					<bind id="SID">
-						<prompt><![CDATA[SID]]></prompt>
-						<tooltip><![CDATA[SID]]></tooltip>
-						<value><![CDATA[NULL_VALUE]]></value>
-						<bracket><![CDATA[null]]></bracket>
-					</bind>
-					<bind id="SERIAL#">
-						<prompt><![CDATA[SERIAL#]]></prompt>
-						<tooltip><![CDATA[SERIAL#]]></tooltip>
-						<value><![CDATA[NULL_VALUE]]></value>
-						<bracket><![CDATA[null]]></bracket>
-					</bind>
-				</binds>
 			</query>
 		</display>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[Wait details]]></name>
 			<description><![CDATA[]]></description>
 			<tooltip><![CDATA[]]></tooltip>
@@ -828,20 +802,6 @@ SELECT run_state
   FROM sosl_sessions_v 
  WHERE sid     = :SID
    AND serial# = :SERIAL#]]></sql>
-				<binds>
-					<bind id="SID">
-						<prompt><![CDATA[SID]]></prompt>
-						<tooltip><![CDATA[SID]]></tooltip>
-						<value><![CDATA[NULL_VALUE]]></value>
-						<bracket><![CDATA[null]]></bracket>
-					</bind>
-					<bind id="SERIAL#">
-						<prompt><![CDATA[SERIAL#]]></prompt>
-						<tooltip><![CDATA[SERIAL#]]></tooltip>
-						<value><![CDATA[NULL_VALUE]]></value>
-						<bracket><![CDATA[null]]></bracket>
-					</bind>
-				</binds>
 			</query>
 		</display>
 	</display>

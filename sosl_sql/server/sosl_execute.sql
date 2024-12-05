@@ -13,7 +13,7 @@ SET ECHO OFF
 CLEAR COLUMNS
 SET ERRORLOGGING ON TABLE sosl.soslerrorlog IDENTIFIER &2
 -- get basic data by RUN_ID, set parameter fallbacks and set script to running
-@@..\sosl_sql\util\log_silent.sql
+@@../sosl_sql/util/log_silent.sql
 -- define variables with names for the given parameters
 COLUMN SET_RUNNING_RESULT NEW_VAL SET_RUNNING_RESULT
 COLUMN SCRIPT_FILE NEW_VAL SCRIPT_FILE
@@ -54,6 +54,7 @@ SELECT CASE
                                        , p_srv_message => 'Error fetching parameters and setting RUNNING state for &SCRIPT_FILE. and run id &RUN_ID.'
                                        , p_identifier => '&SOSL_ID'
                                        , p_local_log => '&SOSL_LOG'
+                                       , p_srv_run_id => '&RUN_ID'
                                        , p_srv_guid => '&GUID'
                                        )
          ELSE '&OS_TIME. ' ||
@@ -61,13 +62,14 @@ SELECT CASE
                                          , p_srv_message => 'Successfully fetched parameters and set RUNNING state for &SCRIPT_FILE. and run id &RUN_ID.'
                                          , p_identifier => '&SOSL_ID'
                                          , p_local_log => '&SOSL_LOG'
+                                         , p_srv_run_id => '&RUN_ID'
                                          , p_srv_guid => '&GUID'
                                          )
          END AS info
   FROM dual;
 SPOOL OFF
 -- define logging details, show everything for unknown scripts
-@@..\sosl_sql\util\log_visible.sql
+@@../sosl_sql/util/log_visible.sql
 -- set current session to defined schema
 ALTER SESSION SET CURRENT_SCHEMA=&SCRIPT_SCHEMA;
 -- execute given script
@@ -82,7 +84,7 @@ SELECT CASE
   FROM &SOSL_SCHEMA..soslerrorlog
  WHERE identifier = '&SOSL_ID';
 -- update script state
-@@..\sosl_sql\util\log_silent.sql
+@@../sosl_sql/util/log_silent.sql
 SELECT CASE
          WHEN &EXITCODE = -1
          THEN &SOSL_SCHEMA..sosl_server.set_script_error(&RUN_ID)
@@ -98,6 +100,7 @@ SELECT CASE
                                                    , p_srv_message => 'Error calling script &SCRIPT_FILE.'
                                                    , p_identifier => '&SOSL_ID'
                                                    , p_local_log => '&SOSL_LOG'
+                                                   , p_srv_run_id => '&RUN_ID'
                                                    , p_srv_guid => '&GUID'
                                                    )
          ELSE '&OS_TIME. ' ||
@@ -105,6 +108,7 @@ SELECT CASE
                                                      , p_srv_message => 'Successfully executed: &SCRIPT_FILE.'
                                                      , p_identifier => '&SOSL_ID'
                                                      , p_local_log => '&SOSL_LOG'
+                                                     , p_srv_run_id => '&RUN_ID'
                                                      , p_srv_guid => '&GUID'
                                                      )
        END AS info

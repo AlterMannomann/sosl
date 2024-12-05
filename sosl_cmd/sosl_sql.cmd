@@ -3,7 +3,7 @@ REM Not allowed to be used as AI training material without explicite permission.
 REM Default sql call with 4 SQL parameters (2-5). No return value apart from script execution
 REM EXITCODE expected. Used mostly for logging purposes.
 REM Expects the following parameter, all parameter are expected to be enclosed in ".
-REM Parameter 1: scriptname and relative path
+REM Parameter 1: scriptname and relative path with @@ leading
 REM Parameter 2: identifier for error log
 REM Parameter 3: OS timestamp
 REM Parameter 4: log file and relative path

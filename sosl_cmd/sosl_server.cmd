@@ -52,6 +52,10 @@ IF NOT %SOSL_EXITCODE%==0 (
 REM Create log and tmp directories if they do not exist, ignore config directory, user responsibility
 MKDIR %SOSL_PATH_LOG% 2>NUL
 MKDIR %SOSL_PATH_TMP% 2>NUL
+REM Set lock file name
+SET LOCK_FILE=%SOSL_PATH_TMP%sosl_server.%SOSL_EXT_LOCK%
+REM If lock file exists, do not start the server
+IF EXIST %LOCK_FILE% EXIT
 REM *****************************************************************************************************
 REM Define variables fetched from database
 REM The maximum of parallel started scripts. After this amount if scripts is started, next scripts are
@@ -121,8 +125,6 @@ REM Variable for storing exit codes from ERRORLEVEL.
 SET SOSL_EXITCODE=-1
 REM Variable to store the current count of running processes.
 SET SOSL_RUNCOUNT=0
-REM Set lock file name
-SET LOCK_FILE=%SOSL_PATH_TMP%sosl_server.%SOSL_EXT_LOCK%
 REM Create lock file. Contains the run mode at start. Can be overwritten locally to stop
 REM the CMD server with stop_sosl_locally.cmd. Pause mode can only be set by database table SOSL_CONFIG.
 ECHO %SOSL_RUNMODE% > %LOCK_FILE%
