@@ -30,7 +30,7 @@ function sosl_prepare_guid () {
   rnd5=$(xxd -l 6 -ps -u /dev/urandom)
   echo $rnd1-$rnd2-$rnd3-$rnd4-$rnd5
 }
-# delete a file if it exists, parameter file name with realtive or full path
+# delete a file if it exists, parameter file name with relative or full path
 function sosl_del_file () {
   if [[ -n $1 && -f $1 ]]; then
     rm $1
@@ -121,6 +121,15 @@ function sosl_sql_par () {
 function sosl_sql_execute () {
   (cat $1 && echo && echo $2 \"$3\" \"$4\" \"$5\" \"$6\" \"$7\" \"$8\") | sqlplus
 }
+# gets a guid, shutdown on errors
+function sosl_guid () {
+  sosl_prepare_guid
+  sosl_exitcode=$?
+  if [ $sosl_exitcode -ne 0 ]; then
+    sosl_errmsg='Error executing sosl_prepare_guid error code: '$sosl_exitcode
+    sosl_error
+  fi
+}
 # try to shut down server correct, inform database
 function sosl_shutdown () {
   sosl_guid=$(sosl_guid)
@@ -154,15 +163,6 @@ function sosl_error () {
   else
     sosl_show_log "Running scripts detected, maybe scripts are hanging if database is not available"
     sosl_show_log "Check scripts running and shutdown the server manually if appropriate"
-  fi
-}
-# gets a guid, shutdown on errors
-function sosl_guid () {
-  sosl_prepare_guid
-  sosl_exitcode=$?
-  if [ $sosl_exitcode -ne 0 ]; then
-    sosl_errmsg='Error executing sosl_prepare_guid error code: '$sosl_exitcode
-    sosl_error
   fi
 }
 # check global variables needed for the SOSL server and shuts down server on error
@@ -286,17 +286,14 @@ function sosl_run_hours () {
   # check basics
   if [[ $sosl_start_jobs == $sosl_stop_jobs ]]; then
     sosl_errmsg="Error start jobs ($sosl_start_jobs) is not allowed to be equal to stop jobs ($sosl_stop_jobs)"
-    sosl_error_log
     sosl_error
   fi
   if [[ $sosl_start_jobs == "-1" ]]; then
     sosl_errmsg="Error start jobs ($sosl_start_jobs) is invalid"
-    sosl_error_log
     sosl_error
   fi
   if [[ $sosl_stop_jobs == "-1" ]]; then
     sosl_errmsg="Error stop jobs ($sosl_stop_jobs) is invalid"
-    sosl_error_log
     sosl_error
   fi
   local_time=$(get_time)
@@ -327,18 +324,15 @@ function sosl_has_scripts () {
   sosl_exitcode=$?
   if [[ $sosl_exitcode -ne 0 ]]; then
     sosl_errmsg='Error executing sosl_sql_tmp with sosl_has_scripts.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_error
   fi
   cur_has_scripts=$(cat $tmp_file)
   if [[ -z $cur_has_scripts ]]; then
     sosl_errmsg='Error retrieving a valid value from database. Fix database issue before running the server'
-    sosl_error_log
     sosl_error
   fi
   if [[ $cur_has_scripts -lt 0 ]]; then
     sosl_errmsg="Error retrieving invalid value $cur_has_scripts from database. Fix database issue before running the server"
-    sosl_error_log
     sosl_error
   fi
   if [[ $cur_has_scripts -eq 0 ]]; then
@@ -436,7 +430,6 @@ function sosl_get_next_script () {
   sosl_exitcode=$?
   if [[ $sosl_exitcode -ne 0 ]]; then
     sosl_errmsg='Error executing sosl_sql_tmp with sosl_get_next_run_id.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_error
   fi
   local_run_id=$(cat $tmp_file_run)
@@ -447,7 +440,6 @@ function sosl_get_next_script () {
   sosl_exitcode=$?
   if [[ $sosl_exitcode -ne 0 ]]; then
     sosl_errmsg='Error executing sosl_sql_par with sosl_get_cfg.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_error
   fi
   local_cfg=$(cat $tmp_file_cfg)
@@ -468,7 +460,6 @@ function sosl_loop_config () {
   sosl_exitcode=$?
   if [ $sosl_exitcode -ne 0 ]; then
     sosl_errmsg='Error executing sosl_sql_cfg with sosl_get_config.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_del_file "$tmp_file"
     sosl_error
   fi
@@ -480,7 +471,6 @@ function sosl_loop_config () {
   sosl_exitcode=$?
   if [ $sosl_exitcode -ne 0 ]; then
     sosl_errmsg='Error executing sosl_sql_cfg with sosl_get_config.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_del_file "$tmp_file"
     sosl_error
   fi
@@ -492,7 +482,6 @@ function sosl_loop_config () {
   sosl_exitcode=$?
   if [ $sosl_exitcode -ne 0 ]; then
     sosl_errmsg='Error executing sosl_sql_cfg with sosl_get_config.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_del_file "$tmp_file"
     sosl_error
   fi
@@ -504,7 +493,6 @@ function sosl_loop_config () {
   sosl_exitcode=$?
   if [ $sosl_exitcode -ne 0 ]; then
     sosl_errmsg='Error executing sosl_sql_cfg with sosl_get_config.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_del_file "$tmp_file"
     sosl_error
   fi
@@ -516,7 +504,6 @@ function sosl_loop_config () {
   sosl_exitcode=$?
   if [ $sosl_exitcode -ne 0 ]; then
     sosl_errmsg='Error executing sosl_sql_cfg with sosl_get_config.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_del_file "$tmp_file"
     sosl_error
   fi
@@ -528,7 +515,6 @@ function sosl_loop_config () {
   sosl_exitcode=$?
   if [ $sosl_exitcode -ne 0 ]; then
     sosl_errmsg='Error executing sosl_sql_cfg with sosl_get_config.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_del_file "$tmp_file"
     sosl_error
   fi
@@ -540,7 +526,6 @@ function sosl_loop_config () {
   sosl_exitcode=$?
   if [ $sosl_exitcode -ne 0 ]; then
     sosl_errmsg='Error executing sosl_sql_cfg with sosl_get_config.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_del_file "$tmp_file"
     sosl_error
   fi
@@ -561,7 +546,6 @@ function sosl_config_db () {
   sosl_exitcode=$?
   if [ $sosl_exitcode -ne 0 ]; then
     sosl_errmsg='Error executing sosl_sql_cfg with sosl_set_config.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_error
   fi
   # Set SOSL_PATH_CFG
@@ -571,7 +555,6 @@ function sosl_config_db () {
   sosl_exitcode=$?
   if [ $sosl_exitcode -ne 0 ]; then
     sosl_errmsg='Error executing sosl_sql_cfg with sosl_set_config.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_error
   fi
   # Set SOSL_PATH_TMP
@@ -581,7 +564,6 @@ function sosl_config_db () {
   sosl_exitcode=$?
   if [ $sosl_exitcode -ne 0 ]; then
     sosl_errmsg='Error executing sosl_sql_cfg with sosl_set_config.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_error
   fi
   # Set SOSL_PATH_LOG
@@ -591,7 +573,6 @@ function sosl_config_db () {
   sosl_exitcode=$?
   if [ $sosl_exitcode -ne 0 ]; then
     sosl_errmsg='Error executing sosl_sql_cfg with sosl_set_config.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_error
   fi
   # Set SOSL_EXT_LOG
@@ -601,7 +582,6 @@ function sosl_config_db () {
   sosl_exitcode=$?
   if [ $sosl_exitcode -ne 0 ]; then
     sosl_errmsg='Error executing sosl_sql_cfg with sosl_set_config.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_error
   fi
   # Set SOSL_EXT_LOCK
@@ -611,7 +591,6 @@ function sosl_config_db () {
   sosl_exitcode=$?
   if [ $sosl_exitcode -ne 0 ]; then
     sosl_errmsg='Error executing sosl_sql_cfg with sosl_set_config.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_error
   fi
   # Set SOSL_START_LOG
@@ -621,7 +600,6 @@ function sosl_config_db () {
   sosl_exitcode=$?
   if [ $sosl_exitcode -ne 0 ]; then
     sosl_errmsg='Error executing sosl_sql_cfg with sosl_set_config.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_error
   fi
   # Set SOSL_BASE_LOG
@@ -631,7 +609,6 @@ function sosl_config_db () {
   sosl_exitcode=$?
   if [ $sosl_exitcode -ne 0 ]; then
     sosl_errmsg='Error executing sosl_sql_cfg with sosl_set_config.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_error
   fi
   # Fetch loop configuration
@@ -643,7 +620,6 @@ function sosl_config_db () {
   sosl_exitcode=$?
   if [ $sosl_exitcode -ne 0 ]; then
     sosl_errmsg='Error executing sosl_sql_cfg with sosl_get_config.sql error code: '$sosl_exitcode
-    sosl_error_log
     sosl_del_file "$tmp_file"
     sosl_error
   fi
@@ -651,5 +627,3 @@ function sosl_config_db () {
   # delete the temp file
   sosl_del_file "$tmp_file"
 }
-# send all output to dev nul
-# echo X &>/dev/null

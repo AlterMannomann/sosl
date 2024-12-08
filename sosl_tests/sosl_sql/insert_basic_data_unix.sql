@@ -3,6 +3,13 @@
 
 -- default executor
 CLEAR COLUMNS
+COLUMN IDENT NEW_VAL IDENT
+SELECT 'sosl_testdata' || TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS') AS IDENT
+  FROM dual;
+-- error logging to default SPERRORLOG, first entry only to guarantee that SPERRORLOG is created
+SET ERRORLOGGING ON
+-- try again with identifier
+SET ERRORLOGGING ON IDENTIFIER &IDENT
 COLUMN NEW_EXECUTOR_ID NEW_VAL NEW_EXECUTOR_ID
 SELECT sosl_api.create_executor( 'SOSL'
                                  , 'sosl'
@@ -49,3 +56,26 @@ SELECT sosl_api.add_script('../sosl_tests/sosl_sql/sosl_test_error.sql', &NEW_EX
 -- add some scripts after the error
 SELECT sosl_api.add_script('../sosl_tests/sosl_sql/sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 6, 1) FROM dual;
 SELECT sosl_api.add_script('../sosl_tests/sosl_sql/sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 6, 1) FROM dual;
+SET ECHO OFF
+SET VERIFY OFF
+SET FEEDBACK OFF
+SET HEADING OFF
+-- check errors and display them, if so
+COLUMN EXITCODE NEW_VAL EXITCODE
+SELECT CASE
+         WHEN COUNT(*) = 0
+         THEN 'SUCCESS - no errors found during install of test data'
+         ELSE 'ERROR - test data install script has errors'
+       END AS info
+     , CASE
+         WHEN COUNT(*) = 0
+         THEN 0
+         ELSE -1
+       END AS EXITCODE
+  FROM sperrorlog
+ WHERE identifier = '&IDENT'
+;
+SELECT TO_CHAR(SUBSTR(message, 1, 2000)) AS error_messages
+  FROM sperrorlog
+ WHERE identifier = '&IDENT'
+;
