@@ -6,7 +6,7 @@ Stopped working on Powershell, not stable enough, problems with pipe to sqlplus 
 **Important note:** SQL Developer in versions 23.x is not at all stable. It doesn't recognize database changes and delivers wrong result until restarted. SQL Plus is still reliable.
 
 # SOSL - Simple Oracle Script Loader
-This is a very simple solution for loading and executing scripts from anywhere that has an Oracle Client and sqlplus installed. It will come in the flavors CMD, PowerShell and Bash.
+This is a very simple solution for loading and executing scripts from anywhere that has an Oracle Client and sqlplus installed. It will come in the flavors CMD and Bash.
 Basic components are database packages and OS script files. Basically an OS script acts as a server and loops over a list of files, that is given by package functions and configuration tables.
 ## What it is not
 This project is **not** a click here and there, fire and forget application.
@@ -123,9 +123,20 @@ A small set of reports to check and control the server state, the run queue and 
 
     ALTER SESSION SET CURRENT_SCHEMA = SOSL;
 
-<img width="785" alt="image" src="https://github.com/user-attachments/assets/bc3503d0-1d21-4f91-b2ce-d9bf5c47c5d3">
-<img width="704" alt="image" src="https://github.com/user-attachments/assets/b69dc021-e460-407c-834c-77238dbe3988">
-<img width="983" alt="image" src="https://github.com/user-attachments/assets/e0dc985b-dee0-47f2-bbee-921efd1bec19">
+#### SOSL server report
+![SoslServer](https://github.com/user-attachments/assets/8789a361-edc0-4748-a74d-5838f92b22ee)
+![SoslServerError](https://github.com/user-attachments/assets/e1390d6b-3f09-4691-8f92-f29ec5878f00)
+#### SOSL run queue report
+![SoslRunQueue](https://github.com/user-attachments/assets/177d9ccb-6e4e-4b51-9594-3e354e6e1535)
+#### SOSL logs report
+![SoslLogs](https://github.com/user-attachments/assets/e266bd76-9a1d-4455-9eb1-dda2aa1c5455)
+![SoslLogsError](https://github.com/user-attachments/assets/ef6ad3d3-35e7-4c9f-addd-c2b360814415)
+![SoslLogsErrorDetails](https://github.com/user-attachments/assets/175c2171-51a2-4e5e-99ca-7765303b7876)
+#### SOSL executors report
+![SoslExecutors](https://github.com/user-attachments/assets/cbc155ca-4811-471a-b42e-4e2abfa3ea93)
+![SoslExecutorsError](https://github.com/user-attachments/assets/8819454c-553c-4f5f-836b-3586bfad298c)
+#### SOSL sessions report
+![SoslSessions](https://github.com/user-attachments/assets/950da49d-e1c3-4002-b2e3-4dd18d78c5b6)
 
 ## Security
 First, it is difficult to obtain a minimum of security as Oracle, on the command line, requires username and password unless you are an authenticated system user like oracle on the db server, where you can login with slash (/) or a wallet is configured.
