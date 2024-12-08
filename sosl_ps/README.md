@@ -1,4 +1,6 @@
-This folder contains the PowerShell script components of the Simple Oracle Script Loader.
+**No further development, NOT WORKING**
+This folder contains the PowerShell script components of the Simple Oracle Script Loader. No further development, too buggy with Powershell 5.1.
+Pipes and job execution do not work as expected. Does not execute the scripts, only sets them to started. Whatever path notation is used (Unix, Windows).
 
 &copy; 2024 Michael Lindenau licensed via [GNU Affero General Public License](https://www.gnu.org/licenses/agpl-3.0.txt)
 # AI restriction and training exclusion

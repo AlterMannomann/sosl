@@ -1,7 +1,8 @@
 #! /bin/bash
 # (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
 # Not allowed to be used as AI training material without explicite permission.
-# Bash script must be called in this directory to make relative paths work.
+# Bash script must be executed in this directory to make relative paths work. On execution will try
+# to switch to this directory.
 # Basically define variable defaults on highest level to be accessible for all called bash scripts
 # you may change this variables using sosl_config.sh or database, **NO NEED TO TOUCH THIS FILE**.
 # *****************************************************************************************************
@@ -17,9 +18,9 @@ cd ..
 sosl_gitdir=$(pwd)
 cd $sosl_rundir
 # *****************************************************************************************************
-# Variables that can be manipulated by sosl_config.cmd or loaded from database.
+# Variables that can be manipulated by sosl_config.sh.
 # Default fallback path to configuration files of SOSL using defined repository structure for startup
-# until parameters are loaded. SHOULD be configured in sosl_config.cmd or the database.
+# until parameters are loaded. SHOULD be configured in sosl_config.sh.
 sosl_path_cfg=../sosl_templates/
 # Default fallback path to temporary files of SOSL using defined repository structure for startup until
 # parameters are loaded.
@@ -56,6 +57,8 @@ fi
 # Create log and tmp directories if they do not exist, ignore config directory, user responsibility
 if ! [ -d "$sosl_path_log" ]; then mkdir $sosl_path_log; fi
 if ! [ -d "$sosl_path_tmp" ]; then mkdir $sosl_path_tmp; fi
+# Create a server start entry
+sosl_show_log "SOSL bash server started"
 # Set lock file name
 lock_file=$sosl_path_tmp'sosl_server.'$sosl_ext_lock
 # If lock file exists, do not start the server
@@ -130,7 +133,6 @@ sosl_log "LOCK file created: $lock_file"
 sosl_log "Current GUID for session start: $sosl_guid, repository directory $sosl_gitdir"
 # *****************************************************************************************************
 # Start the loop, do not break the loop on minor errors
-# for (( ; ; ));
 while [ 0 ]
 do
   if [ $sosl_runmode == "STOP" ]; then sosl_shutdown; fi
@@ -145,6 +147,7 @@ do
     # wait until runcount less, do not log the waits
     sosl_wait 0
   else
+    sosl_log "Running scripts: $sosl_runcount"
     # check the situation
     # fetch a guid for the start process
     sosl_guid=$(sosl_guid)

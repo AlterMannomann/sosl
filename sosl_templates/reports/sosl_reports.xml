@@ -243,7 +243,7 @@ SELECT 'Available'
      , executor_id
   FROM sosl_run_queue_v]]></sql>
 		</query>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[Executor details]]></name>
 			<description><![CDATA[]]></description>
 			<tooltip><![CDATA[]]></tooltip>
@@ -255,17 +255,9 @@ SELECT 'Available'
 				<sql><![CDATA[SELECT *
   FROM sosl_executors_v
  WHERE executor_id = :EXECUTOR_ID]]></sql>
-				<binds>
-					<bind id="EXECUTOR_ID">
-						<prompt><![CDATA[EXECUTOR_ID]]></prompt>
-						<tooltip><![CDATA[EXECUTOR_ID]]></tooltip>
-						<value><![CDATA[NULL_VALUE]]></value>
-						<bracket><![CDATA[null]]></bracket>
-					</bind>
-				</binds>
 			</query>
 		</display>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[Executor statistics]]></name>
 			<description><![CDATA[]]></description>
 			<tooltip><![CDATA[]]></tooltip>
@@ -299,7 +291,7 @@ SELECT 'Available'
  WHERE executor_id = :EXECUTOR_ID]]></sql>
 			</query>
 		</display>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[Error details]]></name>
 			<description><![CDATA[]]></description>
 			<tooltip><![CDATA[]]></tooltip>
@@ -318,14 +310,6 @@ SELECT 'ERROR' AS run_state
      , TO_CHAR(SUBSTR(message, 1, 4000)) AS message
   FROM sosl_sperrorlog_v 
  WHERE identifier IN (SELECT sosl_identifier FROM sosl_server_log_v WHERE run_id = :RUN_ID)]]></sql>
-				<binds>
-					<bind id="RUN_ID">
-						<prompt><![CDATA[RUN_ID]]></prompt>
-						<tooltip><![CDATA[RUN_ID]]></tooltip>
-						<value><![CDATA[NULL_VALUE]]></value>
-						<bracket><![CDATA[null]]></bracket>
-					</bind>
-				</binds>
 			</query>
 		</display>
 	</display>

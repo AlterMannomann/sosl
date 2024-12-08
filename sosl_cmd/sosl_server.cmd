@@ -3,8 +3,9 @@ REM (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0
 REM Not allowed to be used as AI training material without explicite permission.
 REM CMD expansion necessary
 SETLOCAL ENABLEEXTENSIONS
-REM CMD must be called in this directory to make relative paths work. You may use START /D or task
-REM scheduler to set the correct path the CMD is running in.
+REM CMD must be executed in this directory to make relative paths work. On execution will try
+REM to switch to this directory. You may use START /D or task scheduler to set the correct path
+REM the CMD is running in.
 REM Basically define variable defaults on highest level to be accessible for all called CMD files
 REM you may change this variables using sosl_config.cmd or database, **NO NEED TO TOUCH THIS FILE**.
 REM *****************************************************************************************************
@@ -21,9 +22,9 @@ CD ..
 SET SOSL_GITDIR=%CD%
 CD %SOSL_RUNDIR%
 REM *****************************************************************************************************
-REM Variables that can be manipulated by sosl_config.cmd or loaded from database.
+REM Variables that can be manipulated by sosl_config.cmd.
 REM Default fallback path to configuration files of SOSL using defined repository structure for startup
-REM until parameters are loaded. SHOULD be configured in sosl_config.cmd or the database.
+REM until parameters are loaded. SHOULD be configured in sosl_config.cmd.
 SET SOSL_PATH_CFG=..\sosl_templates\
 REM Default fallback path to temporary files of SOSL using defined repository structure for startup until
 REM parameters are loaded.
@@ -52,10 +53,18 @@ IF NOT %SOSL_EXITCODE%==0 (
 REM Create log and tmp directories if they do not exist, ignore config directory, user responsibility
 MKDIR %SOSL_PATH_LOG% 2>NUL
 MKDIR %SOSL_PATH_TMP% 2>NUL
+REM Variable to hold timestamp for logging, can be fetched by calling sosl_timestamp.cmd.
+SET SOSL_DATETIME=undefined
+REM Create first log entry
+CALL sosl_log.cmd "SOSL CMD server started" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
+ECHO SOSL CMD server started
 REM Set lock file name
 SET LOCK_FILE=%SOSL_PATH_TMP%sosl_server.%SOSL_EXT_LOCK%
 REM If lock file exists, do not start the server
-IF EXIST %LOCK_FILE% EXIT
+IF EXIST %LOCK_FILE% (
+  ECHO %SOSL_DATETIME% Error lock file %LOCK_FILE% already exist. Second instance not allowed  >> %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
+  EXIT
+)
 REM *****************************************************************************************************
 REM Define variables fetched from database
 REM The maximum of parallel started scripts. After this amount if scripts is started, next scripts are
@@ -117,8 +126,6 @@ IF NOT %SOSL_EXITCODE%==0 (
 )
 REM *****************************************************************************************************
 REM Variables used in the script and loaded by called CMDs.
-REM Variable to hold timestamp for logging, can be fetched by calling sosl_timestamp.cmd.
-SET SOSL_DATETIME=undefined
 REM Variable to store current error information.
 SET SOSL_ERRMSG=undefined
 REM Variable for storing exit codes from ERRORLEVEL.
@@ -130,22 +137,9 @@ REM the CMD server with stop_sosl_locally.cmd. Pause mode can only be set by dat
 ECHO %SOSL_RUNMODE% > %LOCK_FILE%
 REM *****************************************************************************************************
 REM Create log entries
-CALL sosl_timestamp.cmd
-SET SOSL_EXITCODE=%ERRORLEVEL%
-IF NOT %SOSL_EXITCODE%==0 (
-  SET SOSL_ERRMSG=Error executing sosl_timestamp.cmd
-  GOTO :SOSL_ERROR
-)
-ECHO %SOSL_DATETIME% SOSL configuration loaded, running on %SOSL_OS% >> %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
-ECHO %SOSL_DATETIME% LOCK file created: %LOCK_FILE% >> %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
-
-CALL sosl_timestamp.cmd
-SET SOSL_EXITCODE=%ERRORLEVEL%
-IF NOT %SOSL_EXITCODE%==0 (
-  SET SOSL_ERRMSG=Error executing sosl_timestamp.cmd
-  GOTO :SOSL_ERROR
-)
-ECHO %SOSL_DATETIME% Current GUID for session start: %SOSL_GUID%, repository directory %SOSL_GITDIR%  >> %SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%
+CALL sosl_log.cmd "SOSL configuration loaded, running on %SOSL_OS%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
+CALL sosl_log.cmd "LOCK file created: %LOCK_FILE%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
+CALL sosl_log.cmd "Current GUID for session start: %SOSL_GUID%, repository directory %SOSL_GITDIR%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
 REM *****************************************************************************************************
 REM Start the loop, do not break the loop on minor errors
 
@@ -164,6 +158,7 @@ REM Takes the last value set for max parallel and wait time, will not fetch new 
 REM unless the run count falls under max parallel
 CALL sosl_get_run_count.cmd
 IF %SOSL_RUNCOUNT% GEQ %SOSL_MAX_PARALLEL% GOTO :SOSL_WAIT
+CALL sosl_log.cmd "Running scripts: %SOSL_RUNCOUNT%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
 REM Fetch current parameters for each loop
 REM fetch a guid for the start process
 CALL sosl_guid.cmd
