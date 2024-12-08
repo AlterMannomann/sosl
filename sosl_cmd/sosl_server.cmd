@@ -157,8 +157,8 @@ REM Check if the we have reached max run count, go directly to wait if reached
 REM Takes the last value set for max parallel and wait time, will not fetch new values from database
 REM unless the run count falls under max parallel
 CALL sosl_get_run_count.cmd
-CALL sosl_log.cmd "Running scripts: %SOSL_RUNCOUNT%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
 IF %SOSL_RUNCOUNT% GEQ %SOSL_MAX_PARALLEL% GOTO :SOSL_WAIT
+CALL sosl_log.cmd "Running scripts: %SOSL_RUNCOUNT%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
 REM Fetch current parameters for each loop
 REM fetch a guid for the start process
 CALL sosl_guid.cmd

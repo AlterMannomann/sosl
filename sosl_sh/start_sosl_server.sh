@@ -22,4 +22,6 @@ else
     jobs
   fi
 fi
+echo "List running sqlplus sessions if any"
+ps | grep sqlplus
 cd $local_cur_dir

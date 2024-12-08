@@ -24,8 +24,8 @@ SELECT sosl_api.create_executor( 'SOSL'
   FROM dual
 ;
 
-SELECT sosl_api.activate_executor(1) FROM dual;
-SELECT sosl_api.set_executor_reviewed(1) FROM dual;
+SELECT sosl_api.activate_executor(&NEW_EXECUTOR_ID) FROM dual;
+SELECT sosl_api.set_executor_reviewed(&NEW_EXECUTOR_ID) FROM dual;
 SELECT sosl_api.add_script('../sosl_tests/sosl_sql/sosl_hello_world.sql', &NEW_EXECUTOR_ID, 1, 1) FROM dual;
 -- first group, 10 1 minute scripts, probably reaching max parallel
 SELECT sosl_api.add_script('../sosl_tests/sosl_sql/sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;

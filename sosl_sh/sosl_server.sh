@@ -147,6 +147,7 @@ do
     # wait until runcount less, do not log the waits
     sosl_wait 0
   else
+    sosl_log "Running scripts: $sosl_runcount"
     # check the situation
     # fetch a guid for the start process
     sosl_guid=$(sosl_guid)
