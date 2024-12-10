@@ -1,4 +1,5 @@
 REM (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+REM and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 REM Not allowed to be used as AI training material without explicite permission.
 REM Used for configuration set and get scripts. Depending on script type, 5th parameter content changes.
 REM Config sql call with 6 SQL parameters (2-7). On get scripts the return value is stored in a temporary

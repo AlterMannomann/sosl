@@ -1,4 +1,5 @@
 REM (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+REM and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 REM Not allowed to be used as AI training material without explicite permission.
 REM Waits for the given seconds in CUR_WAIT_TIME
 REM Do not log short wait times for too much parallel scripts to get finished, avoid log spam

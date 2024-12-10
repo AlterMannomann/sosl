@@ -1,4 +1,5 @@
 REM (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+REM and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 REM Not allowed to be used as AI training material without explicite permission.
 FOR /f %%a IN ('WMIC OS GET LocalDateTime ^| FIND "."') DO (
   SET DTS=%%a

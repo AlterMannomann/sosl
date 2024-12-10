@@ -1,4 +1,5 @@
 -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+-- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 -- Not allowed to be used as AI training material without explicite permission.
 CREATE TABLE sosl_run_queue
   ( run_id          NUMBER(38, 0)   GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)

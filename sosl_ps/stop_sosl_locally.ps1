@@ -1,4 +1,5 @@
 # (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+# and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 # Not allowed to be used as AI training material without explicite permission.
 # Stops the server by identifying and overwriting the LOCK file content
 # Get the full path of the script directory and make sure we are in this directory

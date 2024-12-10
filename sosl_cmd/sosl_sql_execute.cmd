@@ -1,4 +1,5 @@
 REM (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+REM and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 REM Not allowed to be used as AI training material without explicite permission.
 REM Used for executing waiting scripts from SOSL. Depends on definition of SESSION_LOGIN as done by sosl_execute_script.cmd.
 REM Expects the following parameter, all parameter are expected to be enclosed in ".

@@ -1,4 +1,5 @@
 -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+-- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 -- Not allowed to be used as AI training material without explicite permission.
 -- Basic util package not using data objects of the Simple Oracle Script Loader, apart from sosl_sys and logging.
 CREATE OR REPLACE PACKAGE sosl_util

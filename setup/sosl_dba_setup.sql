@@ -1,4 +1,5 @@
 -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+-- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 -- Not allowed to be used as AI training material without explicite permission.
 -- SOSL create script to handle multiple SOSL users. Creates a specific SOSL schema in your database with own definitions.
 -- Tested with SQLPlus and SQL Developer. Script must be called/opened from the git directory where this script resides.
@@ -183,9 +184,6 @@ BEGIN
     DBMS_OUTPUT.PUT_LINE(l_statement || ';');
     EXECUTE IMMEDIATE l_statement;
     l_statement := 'GRANT CREATE VIEW TO &SOSL_USER';
-    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
-    EXECUTE IMMEDIATE l_statement;
-    l_statement := 'GRANT CREATE JOB TO &SOSL_USER';
     DBMS_OUTPUT.PUT_LINE(l_statement || ';');
     EXECUTE IMMEDIATE l_statement;
     -- grant roles with admin option
