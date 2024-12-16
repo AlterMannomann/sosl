@@ -62,8 +62,8 @@ AS
   * Sets an existing configuration value for a given and existing case sensitive configuration name. Invalid
   * config names get logged. Invalid config values for SOSL_RUNMODE and SOSL_SERVER_STATE are ignored and will
   * not change the config value. Errors get logged.
-  * SOSL_RUNMODE values: RUN, WAIT, STOP
-  * SOSL_SERVER_STATE values: ACTIVE, INACTIVE, PAUSE
+  * SOSL_RUNMODE values: RUN, PAUSE, STOP
+  * SOSL_SERVER_STATE values: ACTIVE, INACTIVE
   *
   * @param p_config_name The valid config name of the configuration item.
   * @param p_config_value The value to assign to the configuration item.
@@ -102,7 +102,7 @@ AS
   /* FUNCTION SOSL_SERVER.SET_RUNMODE
   * A shortcut function using sosl_server.set_config for SOSL_RUNMODE. Errors get logged.
   *
-  * @param p_server_state A valid run mode: RUN, WAIT, STOP.
+  * @param p_server_state A valid run mode: RUN, PAUSE, STOP.
   *
   * @return Exit code, either 0 = successful or -1 on error.
   */
@@ -405,5 +405,3 @@ AS
 
 END;
 /
--- grants
-GRANT EXECUTE ON sosl_server TO sosl_executor;

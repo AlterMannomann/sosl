@@ -9,6 +9,9 @@
 local_cur_dir=$(pwd)
 local_sosl_rundir=$(dirname $(realpath -s "$0"))
 cd $local_sosl_rundir
+# Fetch configured values
+. sosl_config.sh
+local_log="$sosl_path_log$sosl_start_log.$sosl_ext_log"
 # check parameter
 if [ -z $1 ]; then
   /bin/bash sosl_server.sh

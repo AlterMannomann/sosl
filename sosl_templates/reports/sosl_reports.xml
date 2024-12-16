@@ -86,7 +86,7 @@ SELECT srv_schema.sosl_schema
  CROSS JOIN srv_time_to
  CROSS JOIN srv_schema]]></sql>
 		</query>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[SOSL run configuration]]></name>
 			<description><![CDATA[The basic condiguration of SOSL that can be set using the database.]]></description>
 			<tooltip><![CDATA[SOSL configuration]]></tooltip>
@@ -126,7 +126,7 @@ SELECT wait_short.wait_seconds_having_jobs
  CROSS JOIN max_parall]]></sql>
 			</query>
 		</display>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[SOSL server paths]]></name>
 			<description><![CDATA[The defined paths the SOSL server uses.]]></description>
 			<tooltip><![CDATA[SOSL server paths]]></tooltip>
@@ -143,7 +143,7 @@ SELECT wait_short.wait_seconds_having_jobs
  ORDER BY config_name]]></sql>
 			</query>
 		</display>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[SOSL defaults]]></name>
 			<description><![CDATA[Local defined defaults the SOSL server currently uses.]]></description>
 			<tooltip><![CDATA[SOSL defaults]]></tooltip>
@@ -166,7 +166,7 @@ SELECT wait_short.wait_seconds_having_jobs
  ORDER BY config_name]]></sql>
 			</query>
 		</display>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[SOSL statistics]]></name>
 			<description><![CDATA[Displays the total runs and run states.]]></description>
 			<tooltip><![CDATA[SOSL statistics]]></tooltip>
@@ -258,7 +258,7 @@ SELECT 'Available'
      , executor_id
   FROM sosl_run_queue_v]]></sql>
 		</query>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[Executor details]]></name>
 			<description><![CDATA[]]></description>
 			<tooltip><![CDATA[]]></tooltip>
@@ -270,9 +270,17 @@ SELECT 'Available'
 				<sql><![CDATA[SELECT *
   FROM sosl_executors_v
  WHERE executor_id = :EXECUTOR_ID]]></sql>
+				<binds>
+					<bind id="EXECUTOR_ID">
+						<prompt><![CDATA[EXECUTOR_ID]]></prompt>
+						<tooltip><![CDATA[EXECUTOR_ID]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+				</binds>
 			</query>
 		</display>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[Executor statistics]]></name>
 			<description><![CDATA[]]></description>
 			<tooltip><![CDATA[]]></tooltip>
@@ -306,7 +314,7 @@ SELECT 'Available'
  WHERE executor_id = :EXECUTOR_ID]]></sql>
 			</query>
 		</display>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[Error details]]></name>
 			<description><![CDATA[]]></description>
 			<tooltip><![CDATA[]]></tooltip>
@@ -370,7 +378,7 @@ SELECT 'ERROR' AS run_state
      , exec_timestamp
   FROM sosl_server_log_v]]></sql>
 		</query>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[Errors today]]></name>
 			<description><![CDATA[Lists only todays errors in the SOSL server log]]></description>
 			<tooltip><![CDATA[Errors today]]></tooltip>
@@ -410,7 +418,7 @@ SELECT 'ERROR' AS run_state
    AND TRUNC(exec_timestamp) = TRUNC(SYSDATE)]]></sql>
 			</query>
 		</display>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[Warnings today]]></name>
 			<description><![CDATA[Lists only todays warnings in the SOSL server log]]></description>
 			<tooltip><![CDATA[Warnings today]]></tooltip>
@@ -450,7 +458,7 @@ SELECT 'ERROR' AS run_state
    AND TRUNC(exec_timestamp) = TRUNC(SYSDATE)]]></sql>
 			</query>
 		</display>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[Errors all]]></name>
 			<description><![CDATA[Lists all errors in the SOSL server log]]></description>
 			<tooltip><![CDATA[Errors all]]></tooltip>
@@ -489,7 +497,7 @@ SELECT 'ERROR' AS run_state
  WHERE log_type IN (sosl_constants.get_log_error_type, sosl_constants.get_log_fatal_type)]]></sql>
 			</query>
 		</display>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[Warnings all]]></name>
 			<description><![CDATA[Lists all warnings in the SOSL server log]]></description>
 			<tooltip><![CDATA[Warnings all]]></tooltip>
@@ -528,7 +536,7 @@ SELECT 'ERROR' AS run_state
  WHERE log_type = sosl_constants.get_log_warning_type]]></sql>
 			</query>
 		</display>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[Error details]]></name>
 			<description><![CDATA[Error details if any from SOSLERRORLOG]]></description>
 			<tooltip><![CDATA[Error details]]></tooltip>
@@ -578,7 +586,7 @@ SELECT 'ERROR' AS run_state
      , updated_by_os
   FROM sosl_executors_v]]></sql>
 		</query>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[Jobs today]]></name>
 			<description><![CDATA[]]></description>
 			<tooltip><![CDATA[]]></tooltip>
@@ -623,9 +631,17 @@ SELECT 'ERROR' AS run_state
   FROM sosl_run_queue_v
  WHERE executor_id                                               = :EXECUTOR_ID
    AND TRUNC(TO_TIMESTAMP(created, 'YYYY-MM-DD HH24:MI:SS.FF9')) = TRUNC(SYSDATE)]]></sql>
+				<binds>
+					<bind id="EXECUTOR_ID">
+						<prompt><![CDATA[EXECUTOR_ID]]></prompt>
+						<tooltip><![CDATA[EXECUTOR_ID]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+				</binds>
 			</query>
 		</display>
-		<display id="null" type="" style="Table" enable="true">
+		<display id="" type="" style="Table" enable="true">
 			<name><![CDATA[Run states today]]></name>
 			<description><![CDATA[Run states statistics for current day]]></description>
 			<tooltip><![CDATA[Run states today]]></tooltip>
@@ -682,6 +698,14 @@ SELECT run_state
        END AS status
   FROM details
  WHERE executor_id = :EXECUTOR_ID]]></sql>
+				<binds>
+					<bind id="EXECUTOR_ID">
+						<prompt><![CDATA[EXECUTOR_ID]]></prompt>
+						<tooltip><![CDATA[EXECUTOR_ID]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+				</binds>
 			</query>
 		</display>
 	</display>
@@ -705,13 +729,15 @@ SELECT run_state
          THEN sosl_constants.green
          ELSE sosl_constants.yellow
        END AS run_state  
+     , username
+     , osuser
      , sid
      , serial#
      , status
-     , blocking_session_status
-     , wait_status
      , short_sql
      , sql_exec_start
+     , blocking_session_status
+     , wait_status
      , logon_time
      , machine
      , terminal
@@ -720,8 +746,6 @@ SELECT run_state
      , event
      , action
      , schemaname
-     , username
-     , osuser
      , sql_id
      , inst_id
      , con_id
@@ -742,6 +766,14 @@ SELECT run_state
 				<sql><![CDATA[SELECT *
   FROM sosl_session_sql_v
  WHERE sql_id             = :SQL_ID]]></sql>
+				<binds>
+					<bind id="SQL_ID">
+						<prompt><![CDATA[SQL_ID]]></prompt>
+						<tooltip><![CDATA[SQL_ID]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+				</binds>
 			</query>
 		</display>
 		<display id="null" type="" style="Table" enable="true">

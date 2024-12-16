@@ -26,36 +26,36 @@ SELECT sosl_api.create_executor( 'SOSL'
 
 SELECT sosl_api.activate_executor(&NEW_EXECUTOR_ID) FROM dual;
 SELECT sosl_api.set_executor_reviewed(&NEW_EXECUTOR_ID) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_hello_world.sql', &NEW_EXECUTOR_ID, 1, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_hello_world.sql', &NEW_EXECUTOR_ID, 1, 1) FROM dual;
 -- first group, 10 1 minute scripts, probably reaching max parallel
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 2, 1) FROM dual;
 -- second group, 10 10 minute scripts, should reach max parallel
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 3, 1) FROM dual;
 -- test the 1 hour script
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_1hour.sql', &NEW_EXECUTOR_ID, 4, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_1hour.sql', &NEW_EXECUTOR_ID, 4, 1) FROM dual;
 -- test the error script
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_error.sql', &NEW_EXECUTOR_ID, 5, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_error.sql', &NEW_EXECUTOR_ID, 5, 1) FROM dual;
 -- add some scripts after the error
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 6, 1) FROM dual;
-SELECT sosl_api.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 6, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 6, 1) FROM dual;
+SELECT sosl_if.add_script('..\sosl_tests\sosl_sql\sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 6, 1) FROM dual;
 SET ECHO OFF
 SET VERIFY OFF
 SET FEEDBACK OFF

@@ -169,10 +169,11 @@ AS
   ;
 
   /* PROCEDURE SOSL_LOG.EXCEPTION_LOG
-  * Prepared and standardize logging for unhandled exceptions with reduced parameters. This procedure will not deal with extra exceptions.
-  * It will try to log the exception and then return to the caller without raising any new exceptions or logging them. It is designed
-  * for relative stability in case of exceptions. Will do a simple NVL check on parameters, nothing more before formatting and submitting
-  * the log entry. Will set log type to SOSL_CONSTANTS.LOG_FATAL_TYPE.
+  * Prepared and standardize logging for unhandled exceptions with reduced parameters. It will try to log the exception
+  * and then return to the caller. Will do a simple NVL check on parameters, nothing more before formatting and submitting
+  * the log entry. Will set log type to SOSL_CONSTANTS.LOG_FATAL_TYPE. Will raise any exception. If logging fails the
+  * database is most likely in an unknown state. Exceptions at this point must break the application to stop running until
+  * database is working correctly again.
   *
   * @param p_caller The full name of function, procedure or package that has caused the unhandled exception. Case sensitive.
   * @param p_category The log category for the function, procedure or package. Case sensitive.
@@ -342,5 +343,3 @@ AS
 
 END;
 /
--- grants
-GRANT EXECUTE ON sosl_log TO sosl_executor;

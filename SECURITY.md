@@ -1,4 +1,10 @@
 # Security
+- [Basic thoughts](#basic-thoughts)
+- [Roles](#roles)
+- [Disclaimer](#disclaimer)
+- [AI disclosure](#ai-restriction-and-training-exclusion)
+- [Back to main](README.md)
+## Basic thoughts
 First, it is difficult to obtain a minimum of security as Oracle, on the command line, requires username and password unless you are an authenticated system user like oracle on the db server, where you can login with slash (/) or a wallet is configured.
 
 If you want to use wallets the SOSL server is limited to the OS user under which it runs. Thus, whenever you connect with / you will get the wallet of the OS user. You may mitigate this by running different instances with different OS users and wallets. This will put more workload on the server used.
@@ -45,3 +51,14 @@ On database level several cascading roles are available: SOSL_ADMIN, SOSL_EXECUT
 The application manages necessary role grants for configured function owners. Only reviewed executors will get the role SOSL_EXECUTOR granted, otherwise this role, if it exists for an invalid executor, gets revoked. Roles higher or equal to SOSL_USER can use the SQL Developer reports.
 
 Grant any privilege needed to the role SOSL_EXECUTOR instead of granting it directly to SOSL schema. You should not grant SOSL objects to SOSL roles. Grant a SOSL role to database users according to their tasks. For database users that differ from the function owner, it is quite enough to grant the SOSL_USER role. The roles SOSL_EXECUTOR and SOSL_ADMIN should be used very limited. For creating a new executor you need at least SOSL_EXECUTOR rights. It is recommended that you use the function owner, granted SOSL_EXECUTOR role, to create the executor. Or you define a database user with SOSL_EXECUTOR role that creates the executors.
+## Disclaimer
+Use this software at your own risk. No liabilities or warranties are given, no support is guaranteed. Any result of executing this software is under the responsibility of the legal entity using this software. For details see license.
+
+&copy; 2024 Michael Lindenau licensed via [GNU Affero General Public License](https://www.gnu.org/licenses/agpl-3.0.txt) and [Generic AI Disclosure License](https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1)
+
+# AI restriction and training exclusion
+**This content is intended ONLY for the HUMAN community NOT for any technical crawlers or AI training input.**
+
+As currently no tools or tags exist to effectively exclude AI from using this content, the author and creator **forbids hereby the usage of this content for AI training purposes**. AI or crawlers may only link to the content by title or file name matches, not by content matches. Human beings, which includes companies represented by human beings, have all the rights disclaimed by [GNU Affero General Public License](https://www.gnu.org/licenses/agpl-3.0.txt) apart from using it for any AI training.
+
+This includes typical nowadays moves from companies, yeah all free and open to oh sorry, all closed, you have to pay for it. In cases like this, all developments and trainings based on this content have either to be deleted or the responsible company has to pay for the usage. See [Generic AI Disclosure License](https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1).

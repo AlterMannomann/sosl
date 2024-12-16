@@ -543,10 +543,8 @@ AS
             , p_full_message => l_message
             )
     ;
-  EXCEPTION
-    WHEN OTHERS THEN
-      -- no extra trouble if already in exception state
-      NULL;
+  -- no exception handler, if logging fails the database is in an unknown state
+  -- exceptions will be raised as is
   END exception_log;
 
   PROCEDURE minimal_log( p_caller     IN VARCHAR2

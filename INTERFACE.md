@@ -1,5 +1,11 @@
 # Interface
 The basic interface consist of mainly views and packages where access is managed by the SOSL role granted. You may define to whom to grant the interface using the available roles. Executors must have at least the SOSL_EXECUTOR role granted. You must use a defined function owner for every defined executor. If you don't define a script schema, the scripts executed are running under the privileges and schema of the login config file used.
+
+- [API](#api)
+- [Scripts](#scripts)
+- [Disclaimer](#disclaimer)
+- [AI disclosure](#ai-restriction-and-training-exclusion)
+- [Back to main](README.md)
 ## API
 To use this application, interfaces exist, that must be configured in SOSL_EXECUTOR_DEFINITION. Only one set of API can be generated per executor. Executors may share the same function owner and function. In this case the interface API functions must handle by themselves the internal script states for the different executors running.
 
@@ -48,3 +54,14 @@ This is just an option to enable and disable mail on demand. You might as well i
 The interface API requires a set of information to handle things correctly: executor id, external script id as VARCHAR2 and the script filename including relative or absolute path. The SOSL type SOSL_PAYLOAD offers the possibility to transfer this information within one object and is the required output for getting the next script. All other interface API functions should return NUMBER.
 
 SOSL does not take care about the order, scripts are delivered for execution, this is within the responsibility of the API function provider. The basic SOSL system, if no other executor is used, provides only a simple order mechanic, where scripts are processed by order number. Same order number just means the scripts get executed in an undefined order.
+## Disclaimer
+Use this software at your own risk. No liabilities or warranties are given, no support is guaranteed. Any result of executing this software is under the responsibility of the legal entity using this software. For details see license.
+
+&copy; 2024 Michael Lindenau licensed via [GNU Affero General Public License](https://www.gnu.org/licenses/agpl-3.0.txt) and [Generic AI Disclosure License](https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1)
+
+# AI restriction and training exclusion
+**This content is intended ONLY for the HUMAN community NOT for any technical crawlers or AI training input.**
+
+As currently no tools or tags exist to effectively exclude AI from using this content, the author and creator **forbids hereby the usage of this content for AI training purposes**. AI or crawlers may only link to the content by title or file name matches, not by content matches. Human beings, which includes companies represented by human beings, have all the rights disclaimed by [GNU Affero General Public License](https://www.gnu.org/licenses/agpl-3.0.txt) apart from using it for any AI training.
+
+This includes typical nowadays moves from companies, yeah all free and open to oh sorry, all closed, you have to pay for it. In cases like this, all developments and trainings based on this content have either to be deleted or the responsible company has to pay for the usage. See [Generic AI Disclosure License](https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1).

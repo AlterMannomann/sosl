@@ -8,7 +8,19 @@ Stopped working on Powershell, not stable enough, problems with pipe to sqlplus 
 # SOSL - Simple Oracle Script Loader
 This is a very simple solution for loading and executing scripts from anywhere that has an Oracle Client and sqlplus installed. It will come in the flavors CMD and Bash.
 Basic components are database packages and OS script files. Basically an OS script acts as a server and loops over a list of files, that is given by package functions and configuration tables.
-## What it is not
+
+- [What it is NOT](#what-it-is-not)
+- [What it is](#what-it-is)
+- [Requirements](#requirements)
+- [Limits](#limits)
+- [SQL Developer reports (minimal GUI)](#sql-developer-reports-minimal-gui)
+- [Installation](#installation)
+- [Design](#design)
+- [Interface](#interface)
+- [Security](#security)
+- [Disclaimer](#disclaimer)
+- [AI disclosure](#ai-restriction-and-training-exclusion)
+## What it is NOT
 This project is **not** a click here and there, fire and forget application.
 
 - You will have to setup your environment and server or need a working connection to a server with SQLPlus from your machine.

@@ -16,35 +16,39 @@ WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 WHENEVER OSERROR EXIT FAILURE ROLLBACK
 CLEAR COLUMNS
 SPOOL logs/sosl_dba_setup.log
-ACCEPT SOSL_USER CHAR DEFAULT 'SOSL' PROMPT 'DB user name for SOSL (default is SOSL if no value is given): '
-ACCEPT SOSL_PASS CHAR PROMPT 'Mandatory db password for &SOSL_USER.: ' HIDE
-ACCEPT SOSL_TS CHAR DEFAULT 'SOSL_TABLESPACE' PROMPT 'Table space name for SOSL (default is SOSL_TABLESPACE if no value is given): '
-ACCEPT SOSL_DBF CHAR DEFAULT 'sosl.dbf' PROMPT 'Table space data file name for SOSL (default is sosl.dbf if no value is given): '
-ACCEPT SOSL_CFG CHAR DEFAULT '../sosl_templates/sosl_login.cfg' PROMPT 'Path and filename for the SOSL schema login (default ../sosl_templates/sosl_login.cfg): '
-ACCEPT SOSL_SRV CHAR DEFAULT 'SOSLINSTANCE' PROMPT 'SOSL db server or tnsname (default is SOSLINSTANCE if no value is given): '
-COLUMN SOSL_MSG NEW_VAL SOSL_MSG
-SET TERMOUT OFF
-SELECT 'Create user/schema &SOSL_USER. with a password of length ' || LENGTH('&SOSL_PASS') || '? The tablespace &SOSL_TS. with 100M, data &SOSL_DBF. will be created. Use Ctrl-C to stop the script in sqlplus, Enter to continue.' AS SOSL_MSG
-  FROM dual;
-SET TERMOUT ON
-PAUSE &SOSL_MSG
 -- define LINE_FEED by identified system
-SET ECHO OFF
 COLUMN LINE_FEED NEW_VAL LINE_FEED
 SELECT CASE
          WHEN INSTR(process, ':') > 0
          THEN 'Running under WINDOWS'
          ELSE 'Running under UNIX'
        END AS os_info
-     , CASE
-         WHEN INSTR(process, ':') > 0
-         THEN CHR(13) || CHR(10)
-         ELSE CHR(10)
-       END AS LINE_FEED
+     , CHR(10) AS LINE_FEED
   FROM v$session
  WHERE sid    = SYS_CONTEXT('USERENV', 'SID')
    AND ROWNUM = 1
 ;
+ACCEPT SOSL_USER CHAR DEFAULT 'SOSL' PROMPT 'DB user name for SOSL (default is SOSL if no value is given): '
+ACCEPT SOSL_PASS CHAR PROMPT 'Mandatory db password for &SOSL_USER.: ' HIDE
+ACCEPT SOSL_TS CHAR DEFAULT 'SOSL_TABLESPACE' PROMPT 'Table space name for SOSL (default is SOSL_TABLESPACE if no value is given): '
+ACCEPT SOSL_DBF CHAR DEFAULT 'sosl.dbf' PROMPT 'Table space data file name for SOSL (default is sosl.dbf if no value is given): '
+ACCEPT SOSL_CFG CHAR DEFAULT '../sosl_templates/sosl_login.cfg' PROMPT 'Path and filename for the SOSL schema login (default ../sosl_templates/sosl_login.cfg): '
+ACCEPT SOSL_SRV CHAR DEFAULT 'SOSLINSTANCE' PROMPT 'SOSL db server or tnsname (default is SOSLINSTANCE if no value is given): '
+SPOOL OFF
+SET TERMOUT OFF
+COLUMN SOSL_MSG NEW_VAL SOSL_MSG
+SELECT '==== SOSL DBA setup ====' || '&LINE_FEED' ||
+       'Create user/schema &SOSL_USER. with a password of length ' || LENGTH('&SOSL_PASS') || '? ' || '&LINE_FEED' ||
+       '  Tablespace &SOSL_TS., if not exists, will be created' || '&LINE_FEED' ||
+       '  with 100M and data file &SOSL_DBF..' || '&LINE_FEED' ||
+       '  Instance name: &SOSL_SRV' || '&LINE_FEED' ||
+       'Not allowed to be used as AI training material without explicite permission.' || CHR(10) ||
+       'Use Ctrl-C to stop the script in sqlplus, Enter to continue.' AS SOSL_MSG
+  FROM dual;
+SET TERMOUT ON
+SPOOL logs/sosl_dba_setup.log APPEND
+PAUSE &SOSL_MSG
+SELECT 'Started ...' AS info FROM dual;
 COLUMN SOSL_LOGIN NEW_VAL SOSL_LOGIN
 SELECT CASE
          WHEN COUNT(*) = 0
@@ -57,18 +61,15 @@ SELECT CASE
          ELSE 'ERROR User exists, overwrite of login config is not allowed'
        END AS info
   FROM dba_users
- WHERE username = '&SOSL_USER'
+ WHERE username = UPPER('&SOSL_USER')
 ;
 -- do most of the things dynamically, as we may have more than one SOSL user
-SET ECHO OFF
-SET FEEDBACK OFF
-SET SERVEROUTPUT ON SIZE UNLIMITED
 DECLARE
   l_statement VARCHAR2(32000);
   l_count     NUMBER;
 BEGIN
   -- tablespace
-  SELECT COUNT(*) INTO l_count FROM dba_tablespaces WHERE tablespace_name = '&SOSL_TS';
+  SELECT COUNT(*) INTO l_count FROM dba_tablespaces WHERE tablespace_name = UPPER('&SOSL_TS');
   IF l_count = 0
   THEN
     l_statement := 'CREATE TABLESPACE &SOSL_TS. DATAFILE ''&SOSL_DBF'' SIZE 100M AUTOEXTEND ON';
@@ -78,15 +79,6 @@ BEGIN
     DBMS_OUTPUT.PUT_LINE('Tablespace &SOSL_TS. already exists, do nothing');
   END IF;
   -- SOSL roles
-  SELECT COUNT(*) INTO l_count FROM dba_roles WHERE role = 'SOSL_GUEST';
-  IF l_count = 0
-  THEN
-    l_statement := 'CREATE ROLE sosl_guest';
-    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
-    EXECUTE IMMEDIATE l_statement;
-  ELSE
-    DBMS_OUTPUT.PUT_LINE('Role SOSL_GUEST already exists, do nothing');
-  END IF;
   SELECT COUNT(*) INTO l_count FROM dba_roles WHERE role = 'SOSL_USER';
   IF l_count = 0
   THEN
@@ -124,15 +116,6 @@ BEGIN
     DBMS_OUTPUT.PUT_LINE('Role SOSL_ADMIN already exists, do nothing');
   END IF;
   -- now grant hierarchical roles
-  SELECT COUNT(*) INTO l_count FROM dba_role_privs WHERE grantee = 'SOSL_USER' AND granted_role = 'SOSL_GUEST';
-  IF l_count = 0
-  THEN
-    l_statement := 'GRANT sosl_guest TO sosl_user';
-    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
-    EXECUTE IMMEDIATE l_statement;
-  ELSE
-    DBMS_OUTPUT.PUT_LINE('Role SOSL_GUEST already granted to SOSL_USER, do nothing');
-  END IF;
   SELECT COUNT(*) INTO l_count FROM dba_role_privs WHERE grantee = 'SOSL_REVIEWER' AND granted_role = 'SOSL_USER';
   IF l_count = 0
   THEN
@@ -199,9 +182,6 @@ BEGIN
     l_statement := 'GRANT sosl_user TO &SOSL_USER WITH ADMIN OPTION';
     DBMS_OUTPUT.PUT_LINE(l_statement || ';');
     EXECUTE IMMEDIATE l_statement;
-    l_statement := 'GRANT sosl_guest TO &SOSL_USER WITH ADMIN OPTION';
-    DBMS_OUTPUT.PUT_LINE(l_statement || ';');
-    EXECUTE IMMEDIATE l_statement;
     -- only if we create a new user, we create the static view
     l_statement := q'[CREATE OR REPLACE VIEW &SOSL_USER..sosl_install_v
 AS
@@ -253,18 +233,85 @@ SELECT '&SOSL_USER./&SOSL_PASS.@&SOSL_SRV.&LINE_FEED.' ||
 SPOOL OFF
 SET TERMOUT ON
 SPOOL logs/sosl_dba_setup.log APPEND
-SELECT 'Executed: ' || TO_CHAR(SYSTIMESTAMP) || '&LINE_FEED' ||
-       'Created user &SOSL_USER. if not exists with unlimited quota on' || '&LINE_FEED' ||
-       'tablespace &SOSL_TS., 100 MB, data file &SOSL_DBF.' || '&LINE_FEED' ||
-       'Granted CREATE VIEW, CREATE JOB, CREATE ROLE, CONNECT, RESSOURCE, GATHER_SYSTEM_STATISTICS' || '&LINE_FEED' ||
-       'Granted SELECT for DBA views GV$SESSIONL, GV$SQL and DBA_ROLE_PRIVS with GRANT option' || '&LINE_FEED' ||
-       'Created installation view &SOSL_USER..SOSL_INSTALL_V' || '&LINE_FEED' ||
+  WITH usr AS
+       (SELECT CASE
+                 WHEN COUNT(*) = 0
+                 THEN 'ERROR &SOSL_USER. does not exist'
+                 ELSE '&SOSL_USER. exists'
+               END AS user_state
+          FROM dba_users
+         WHERE username = UPPER('&SOSL_USER')
+       )
+     , tbs AS
+       (SELECT CASE
+                 WHEN cnt_datafiles > 0
+                  AND has_datafile > 0
+                 THEN '&SOSL_TS. with &SOSL_DBF. exists'
+                 WHEN cnt_datafiles > 0
+                  AND has_datafile  = 0
+                 THEN '&SOSL_TS. exists'
+                 ELSE 'ERROR &SOSL_TS. does not exist'
+               END AS tbs_state
+          FROM (SELECT COUNT(*) AS cnt_datafiles
+                     , COUNT(CASE WHEN UPPER(file_name) LIKE UPPER('%&SOSL_DBF.') THEN 1 ELSE 0 END) AS has_datafile
+                     , SUM(bytes)/1024/1024 AS tablespace_size
+                  FROM dba_data_files
+                 WHERE tablespace_name = UPPER('&SOSL_TS')
+               )
+       )
+     , rle AS
+       (SELECT CASE
+                 WHEN COUNT(*) = 3
+                 THEN 'GV$SESSION, GV$SQL and DBA_ROLE_PRIVS granted with ADMIN option'
+                 ELSE 'ERROR granting sys views, found ' || COUNT(*) || ' grants'
+               END AS dba_view_grants
+          FROM dba_tab_privs
+         WHERE grantee     = UPPER('&SOSL_USER')
+           AND table_name IN ('GV_$SESSION', 'GV_$SQL', 'DBA_ROLE_PRIVS')
+       )
+     , gra AS
+       (SELECT CASE
+                 WHEN SUM(cnt_grants) = 4
+                 THEN 'CREATE VIEW, CONNECT, RESSOURCE, GATHER_SYSTEM_STATISTICS granted'
+                 ELSE 'Missing sys grants, found ' || SUM(cnt_grants) || ' grants'
+               END AS sys_grants
+          FROM (SELECT COUNT(*) AS cnt_grants FROM dba_sys_privs WHERE grantee = UPPER('&SOSL_USER')
+                 UNION ALL
+                SELECT COUNT(*) AS cnt_grants FROM dba_role_privs WHERE grantee = UPPER('&SOSL_USER') AND granted_role NOT LIKE 'SOSL\_%' ESCAPE '\'
+               )
+       )
+     , srl AS
+       (SELECT CASE
+                 WHEN COUNT(*) = 4
+                 THEN 'SOSL_USER, SOSL_REVIEWER, SOSL_EXECUTOR, SOSL_ADMIN granted'
+                 ELSE 'ERROR SOSL roles missing, found ' || COUNT(*) || ' roles'
+               END AS has_roles
+          FROM dba_role_privs
+         WHERE grantee       = UPPER('&SOSL_USER')
+           AND granted_role IN ('SOSL_USER', 'SOSL_REVIEWER', 'SOSL_EXECUTOR', 'SOSL_ADMIN')
+           AND admin_option  = 'YES'
+       )
+SELECT '==== SOSL DBA setup ====' || '&LINE_FEED' ||
+       'Executed: ' || TO_CHAR(SYSTIMESTAMP) || '&LINE_FEED' ||
+       'Status USER: ' || usr.user_state || '&LINE_FEED' ||
+       'Status TABLESPACE: ' || tbs.tbs_state || '&LINE_FEED' ||
+       'Status SYS GRANTS: ' || gra.sys_grants || '&LINE_FEED' ||
+       'Status SYS VIEWS: ' || rle.dba_view_grants || '&LINE_FEED' ||
+       'Status ROLES: ' || srl.has_roles || '&LINE_FEED' ||
        'Created &SOSL_LOGIN. with current values and server/tnsname @&SOSL_SRV..' || '&LINE_FEED' ||
        'Check log for unexpected issues like user already exists' || '&LINE_FEED' ||
        'by ' || SYS_CONTEXT('USERENV', 'OS_USER') || '&LINE_FEED' ||
        'using ' || SYS_CONTEXT('USERENV', 'SESSION_USER') || '&LINE_FEED' ||
        'on database ' || SYS_CONTEXT('USERENV', 'DB_NAME') || '&LINE_FEED' ||
        'from terminal ' || SYS_CONTEXT('USERENV', 'TERMINAL') AS info
+  FROM usr
+ CROSS JOIN tbs
+ CROSS JOIN rle
+ CROSS JOIN srl
+ CROSS JOIN gra
+;
+SELECT '(C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1' || '&LINE_FEED' ||
+       'Not allowed to be used as AI training material without explicite permission.' AS disclaimer
   FROM dual;
 SPOOL OFF
 -- uncomment in SQL Developer to keep the session, otherwise the session is closed

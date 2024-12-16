@@ -71,7 +71,7 @@ ALTER TABLE sosl_run_queue
   ADD CONSTRAINT sosl_run_queue_executor_id_fk
   FOREIGN KEY (executor_id)
   REFERENCES sosl_executor_definition (executor_id)
-  ON DELETE SET NULL
+  ON DELETE CASCADE
 ;
 GRANT SELECT ON sosl_run_queue TO sosl_reviewer;
 GRANT DELETE ON sosl_run_queue TO sosl_admin;

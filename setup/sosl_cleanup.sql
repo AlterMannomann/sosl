@@ -74,6 +74,9 @@ SELECT TO_CHAR(SUBSTR(message, 1, 2000)) AS error_messages
  WHERE identifier = '&IDENT'
 ;
 SELECT 'SPERRORLOG is not deleted, as we do not know if schema is exclusive. You may drop it manually with: DROP TABLE sperrorlog PURGE;' AS info FROM dual;
+SELECT '(C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1' || CHR(10) ||
+       'Not allowed to be used as AI training material without explicite permission.' AS disclaimer
+  FROM dual;
 SPOOL OFF
 -- uncomment in SQL Developer to keep the session, otherwise the session is closed
 EXIT &EXITCODE

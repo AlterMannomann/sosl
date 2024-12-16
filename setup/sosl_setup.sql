@@ -53,9 +53,6 @@ SPOOL logs/sosl_setup.log
 @@../sosl_ddl/trigger/sosl_if_script_trg.sql
 -- load basic config data
 @@sosl_config_defaults.sql
--- internal interface definition for simple script execution
-@@../sosl_ddl/packages/sosl_if.pks
-@@../sosl_ddl/packages/sosl_if.pkb
 -- api package
 @@../sosl_ddl/packages/sosl_api.pks
 @@../sosl_ddl/packages/sosl_api.pkb
@@ -67,6 +64,10 @@ SPOOL logs/sosl_setup.log
 @@../sosl_ddl/views/sosl_run_stats_total_v.sql
 @@../sosl_ddl/views/sosl_server_log_v.sql
 @@../sosl_ddl/views/sosl_sperrorlog_v.sql
+-- internal interface definition for simple script execution
+-- always the last object, as it simulates an external interface package
+@@../sosl_ddl/packages/sosl_if.pks
+@@../sosl_ddl/packages/sosl_if.pkb
 -- ==============INSTALL done==============
 @@../sosl_sql/util/log_silent.sql
 -- check errors and display them, if so
@@ -88,6 +89,9 @@ SELECT TO_CHAR(SUBSTR(message, 1, 2000)) AS error_messages
   FROM sperrorlog
  WHERE identifier = '&IDENT'
 ;
+SELECT '(C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1' || CHR(10) ||
+       'Not allowed to be used as AI training material without explicite permission.' AS disclaimer
+  FROM dual;
 SPOOL OFF
 -- uncomment in SQL Developer to keep the session, otherwise the session is closed
 EXIT &EXITCODE

@@ -116,14 +116,14 @@ AS
         -- make commands uppercase
         l_config_value := UPPER(l_config_value);
         IF     p_config_name      = 'SOSL_RUNMODE'
-           AND l_config_value NOT IN ('RUN', 'WAIT', 'STOP')
+           AND l_config_value NOT IN (sosl_constants.SERVER_RUN_MODE, sosl_constants.SERVER_PAUSE_MODE, sosl_constants.SERVER_STOP_MODE)
         THEN
           -- log the error and do not change the config value
           sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Invalid run mode: ' || l_config_value || '. Configuration not changed');
           l_set_value := FALSE;
         END IF;
         IF      p_config_name = 'SOSL_SERVER_STATE'
-           AND  l_config_value NOT IN ('ACTIVE', 'INACTIVE', 'PAUSE')
+           AND  l_config_value NOT IN ('ACTIVE', 'INACTIVE')
         THEN
           -- log the error and do not change the config value
           sosl_log.minimal_error_log(l_self_caller, l_self_log_category, 'Invalid server state: ' || l_config_value || '. Configuration not changed');

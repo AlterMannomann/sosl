@@ -343,6 +343,12 @@ function sosl_has_scripts () {
   fi
   sosl_del_file "$tmp_file"
 }
+# Check run mode for PAUSE and wait
+function sosl_check_pause () {
+  if [ $sosl_runmode == "PAUSE" ]; then
+    cur_wait_time=$sosl_pause_wait
+  fi
+}
 # execute a script by run id, should be run as an independent process adding & at the end of the call
 # Expects the following parameter.
 # Parameter 1: login config filename including relative or absolute path used for login
