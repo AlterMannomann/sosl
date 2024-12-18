@@ -56,6 +56,12 @@ SELECT sosl_if.add_script('../sosl_tests/sosl_sql/sosl_test_error.sql', &NEW_EXE
 -- add some scripts after the error
 SELECT sosl_if.add_script('../sosl_tests/sosl_sql/sosl_test_1minute.sql', &NEW_EXECUTOR_ID, 6, 1) FROM dual;
 SELECT sosl_if.add_script('../sosl_tests/sosl_sql/sosl_test_10minutes.sql', &NEW_EXECUTOR_ID, 6, 1) FROM dual;
+-- set server pause wait to a small value for testing
+SELECT sosl_api.set_pause_wait(300) FROM dual;
+-- set time frame for testing, means at any time
+SELECT sosl_api.set_timeframe('00:00', '23:59') FROM dual;
+-- ensure server is in run mode
+SELECT sosl_api.set_runmode('RUN') FROM dual;
 SET ECHO OFF
 SET VERIFY OFF
 SET FEEDBACK OFF

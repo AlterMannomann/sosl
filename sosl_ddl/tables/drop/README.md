@@ -1,4 +1,4 @@
-# SOSL table drop scripts
+# Drop scripts
 This folder contains the drop scripts for the objects in the upper folder.
 
 ## Disclaimer

@@ -7545,7 +7545,7 @@ SQL> INSERT INTO sosl_config
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_max_length, config_description)
   3    VALUES
-  4    ('SOSL_START_JOBS', '08:00', 5, 'Defines the hour:minutes (24 hour format with leading zeros) where SOSL should start running scripts. If set to -1 this parameter is ignored and SOSL server runs until stopped. Otherwise the server will not start to request scripts before this hour. Either both hours are given for start and stop or -1 on one value deactivates the time frame.')
+  4    ('SOSL_START_JOBS', '07:55', 5, 'Defines the hour:minutes (24 hour format with leading zeros) where SOSL should start running scripts. If set to -1 this parameter is ignored and SOSL server runs until stopped. Otherwise the server will not start to request scripts before this hour. Either both hours are given for start and stop or -1 on one value deactivates the time frame.')
   5  ;
 
 1 row created.
@@ -7553,7 +7553,7 @@ SQL> INSERT INTO sosl_config
 SQL> INSERT INTO sosl_config
   2    (config_name, config_value, config_max_length, config_description)
   3    VALUES
-  4    ('SOSL_STOP_JOBS', '18:05', 5, 'Defines the hour:minutes (24 hour format with leading zeros) where SOSL should stop running scripts. If set to -1 this parameter is ignored and SOSL server runs until stopped. Otherwise the server will stop to request scripts after this hour. Either both hours are given for start and stop or -1 on one value deactivates the time frame.')
+  4    ('SOSL_STOP_JOBS', '18:00', 5, 'Defines the hour:minutes (24 hour format with leading zeros) where SOSL should stop running scripts. If set to -1 this parameter is ignored and SOSL server runs until stopped. Otherwise the server will stop to request scripts after this hour. Either both hours are given for start and stop or -1 on one value deactivates the time frame.')
   5  ;
 
 1 row created.
@@ -7813,7 +7813,7 @@ SQL> CREATE OR REPLACE PACKAGE sosl_api
 163    ;
 164  
 165    /** Function SOSL_API.SET_TIMEFRAME
-166    * REQUIRES role SOSL_EXECUTOR or higher.
+166    * REQUIRES role SOSL_ADMIN.
 167    * Set the timeframe where the server is allowed to connect to the database. If the server detects that it is
 168    * running out of the given timeframe it will not connect to the database and using the wait time defined for
 169    * SOSL_PAUSE_WAIT. Take care on setting this times that pause wait time is not too long and leads to overlaps
@@ -7843,140 +7843,194 @@ SQL> CREATE OR REPLACE PACKAGE sosl_api
 193  	 RETURN VARCHAR2
 194    ;
 195  
-196    /** Function SOSL_API.ACTIVATE_EXECUTOR
-197    * REQUIRES role SOSL_EXECUTOR or higher.
-198    * Sets the executor, identified by the given id, to active.
+196    /** Function SOSL_API.SET_MAX_PARALLEL
+197    * REQUIRES role SOSL_ADMIN.
+198    * Sets the maximum of parallel script runs for the SOSL server.
 199    *
-200    * @param p_executor_id The executor id to activate.
+200    * @param p_max_parallel The maximum amount of parallel script runs from SOSL server. Default is 8.
 201    *
 202    * @return A success or error text message.
 203    */
-204    FUNCTION activate_executor(p_executor_id IN NUMBER)
+204    FUNCTION set_max_parallel(p_max_parallel IN NUMBER DEFAULT 8)
 205  	 RETURN VARCHAR2
 206    ;
 207  
-208    /** Function SOSL_API.DEACTIVATE_EXECUTOR
-209    * REQUIRES role SOSL_EXECUTOR or higher.
-210    * Sets the executor, identified by the given id, to deactivated.
-211    *
-212    * @param p_executor_id The executor id to activate.
+208    /** Function SOSL_API.SET_DEFAULT_WAIT
+209    * REQUIRES role SOSL_ADMIN.
+210    * Sets the wait time in seconds for the default situation, where scripts are available
+211    * and should be executed. Keep this value small, but give other applications on the SOSL
+212    * server also time to execute.
 213    *
-214    * @return A success or error text message.
-215    */
-216    FUNCTION deactivate_executor(p_executor_id IN NUMBER)
-217  	 RETURN VARCHAR2
-218    ;
-219  
-220    --======================================= Interface for executor functions =======================================--
-221    -- The following functions are only for interface implementations related to SOSL. All start with IF_.
-222    -- Any unauthorized usage from users not having the SOSL_EXECUTOR role will be logged and will have no effect.
-223    -- Wrapper functions for internal SOSL functionality.
-224  
-225    /* FUNCTION SOSL_API.IF_EXCEPTION_LOG
-226    * Wrapper for SOSL_LOG.EXCEPTION_LOG. For details see sosl_api.pks.
-227    * If logging fails the database is most likely in an unknown state. Exceptions at this point must break the application
-228    * to stop running until database is working correctly again. NEVER try to catch and surpress this exceptions, let the
-229    * application fail in this case (probably after cleanup if you use an own wrapper).
-230    *
-231    * @param p_caller The full name of function, procedure or package that has caused the unhandled exception. Case sensitive.
-232    * @param p_category The log category for the function, procedure or package. Case sensitive.
-233    * @param p_sqlerrmsg The full error message, usually SQLERRM. Limited to VARCHAR2 limit 32767 chars.
-234    */
-235    PROCEDURE if_exception_log( p_caller	IN VARCHAR2
-236  				 , p_category	IN VARCHAR2
-237  				 , p_sqlerrmsg	IN VARCHAR2
-238  				 )
-239    ;
-240  
-241    /* PROCEDURE SOSL_API.IF_GENERIC_LOG
-242    * Wrapper for SOSL_LOG.MINIMAL_LOG. See sosl_log.pks. Any invalid log type will cause the log type set
-243    * to SOSL_CONSTANTS.LOG_WARNING_TYPE.
-244    *
-245    * @param p_caller The full name of function, procedure or package that should be logged. Case sensitive.
-246    * @param p_category The log category for the function, procedure or package. Case sensitive.
-247    * @param p_log_type The log type for the logging as defined in SOSL_CONSTANTS.LOG_... constants.
-248    * @param p_short_msg The short success message, preferably smaller than 4000 chars. Will be formatted using p_caller.
-249    * @param p_full_msg The complete success message, with details. Will not be formatted but may contain parts of p_short_msg, if message is longer than 4000 chars.
-250    */
-251    PROCEDURE if_generic_log( p_caller     IN VARCHAR2
-252  			       , p_category   IN VARCHAR2
-253  			       , p_log_type   IN VARCHAR2
-254  			       , p_short_msg  IN VARCHAR2
-255  			       , p_full_msg   IN CLOB	  DEFAULT NULL
-256  			       )
-257    ;
-258    PROCEDURE if_generic_log( p_caller     IN VARCHAR2
-259  			       , p_category   IN VARCHAR2
-260  			       , p_log_type   IN VARCHAR2
-261  			       , p_short_msg  IN VARCHAR2
-262  			       , p_full_msg   IN VARCHAR2
-263  			       )
-264    ;
-265  
-266    /* FUNCTION SOSL_API.IF_DISPLAY_LOG
-267    * Allows to output of the log message (limited to 4000 char) to write in SQL statements.
-268    * Can be used in executor scripts for error and success messages that get logged and are
-269    * displayed in the spool file of the executor script.
-270    *
-271    * @param p_caller The full name of function, procedure or package that should be logged. Case sensitive.
-272    * @param p_category The log category for the function, procedure or package. Case sensitive.
-273    * @param p_log_type The log type for the logging as defined in SOSL_CONSTANTS.LOG_... constants.
-274    * @param p_short_msg The short success message, will be limited to 4000 chars on return. Will be formatted using p_caller.
-275    *
-276    * @return The first 4000 char of p_short_msg.
-277    */
-278    FUNCTION if_display_log( p_caller     IN VARCHAR2
-279  			      , p_category   IN VARCHAR2
-280  			      , p_log_type   IN VARCHAR2
-281  			      , p_short_msg  IN VARCHAR2
-282  			      )
-283  	 RETURN VARCHAR2
-284    ;
-285  
-286    /* FUNCTION SOSL_API.IF_GET_PAYLOAD
-287    * Wrapper for SOSL_SERVER.GET_PAYLOAD. Builds a SOSL_PAYLOAD object from the given run id.
-288    *
-289    * @param p_run_id The run id to get the SOSL_PAYLOAD object for.
-290    *
-291    * @return On success a valid SOSL_PAYLOAD object or NULL on errors.
-292    */
-293    FUNCTION if_get_payload(p_run_id IN NUMBER)
-294  	 RETURN SOSL_PAYLOAD
-295    ;
-296  
-297    /* FUNCTION SOSL_API.IF_HAS_RUN_ID
-298    * Wrapper for SOSL_SERVER.HAS_RUN_ID. Checks if a given run id exists. Errors get logged.
-299    *
-300    * @param p_run_id The run id to verify.
-301    *
-302    * @return TRUE if run id exists otherwise FALSE.
-303    */
-304    FUNCTION if_has_run_id(p_run_id IN NUMBER)
-305  	 RETURN BOOLEAN
-306    ;
-307  
-308    /* FUNCTION SOSL_API.IF_DUMMY_MAIL
-309    * Wrapper for SOSL_SERVER.DUMMY_MAIL. This is a testing function that will NOT send any mail.
-310    * It will log the mail message created in SOSL_SERVER_LOG using
-311    * the field full_message, so output can be controlled.
-312    *
-313    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
-314    * @param p_recipients The semicolon separated list of mail recipient addresses.
-315    * @param p_subject A preferablly short subject for the mail.
-316    * @param p_message The correctly formatted mail message.
-317    *
-318    * @return Will return TRUE on success or FALSE on errors.
-319    */
-320    FUNCTION if_dummy_mail( p_sender      IN VARCHAR2
-321  			     , p_recipients  IN VARCHAR2
-322  			     , p_subject     IN VARCHAR2
-323  			     , p_message     IN VARCHAR2
-324  			     )
-325  	 RETURN BOOLEAN
-326    ;
-327  
-328  END;
-329  /
+214    * @param p_default_seconds The default wait time between script runs of the SOSL server. Default is 1.
+215    *
+216    * @return A success or error text message.
+217    */
+218    FUNCTION set_default_wait(p_default_seconds IN NUMBER DEFAULT 1)
+219  	 RETURN VARCHAR2
+220    ;
+221  
+222    /** Function SOSL_API.SET_NOJOB_WAIT
+223    * REQUIRES role SOSL_ADMIN.
+224    * Sets the wait time in seconds for the no job situation, where no scripts are available
+225    * to be executed. New scripts available may be delayed for this wait time, if getting available
+226    * directly after a new wait started.
+227    *
+228    * @param p_nojob_seconds The default wait time if no scripts are available to execute. Default is 120, two minutes.
+229    *
+230    * @return A success or error text message.
+231    */
+232    FUNCTION set_nojob_wait(p_nojob_seconds IN NUMBER DEFAULT 120)
+233  	 RETURN VARCHAR2
+234    ;
+235  
+236    /** Function SOSL_API.SET_PAUSE_WAIT
+237    * REQUIRES role SOSL_ADMIN.
+238    * Sets the wait time in seconds if the server run mode is set to PAUSE or the time frame defined for the SOSL server
+239    * does not match current time. If the server is switched to PAUSE while running, it will enter PAUSE mode after all
+240    * current running scripts have finished.
+241    *
+242    * @param p_pause_seconds The default wait time for SOSL server PAUSE mode. Default is 3600, one hour.
+243    *
+244    * @return A success or error text message.
+245    */
+246    FUNCTION set_pause_wait(p_pause_seconds IN NUMBER DEFAULT 3600)
+247  	 RETURN VARCHAR2
+248    ;
+249  
+250    /** Function SOSL_API.ACTIVATE_EXECUTOR
+251    * REQUIRES role SOSL_EXECUTOR or higher.
+252    * Sets the executor, identified by the given id, to active.
+253    *
+254    * @param p_executor_id The executor id to activate.
+255    *
+256    * @return A success or error text message.
+257    */
+258    FUNCTION activate_executor(p_executor_id IN NUMBER)
+259  	 RETURN VARCHAR2
+260    ;
+261  
+262    /** Function SOSL_API.DEACTIVATE_EXECUTOR
+263    * REQUIRES role SOSL_EXECUTOR or higher.
+264    * Sets the executor, identified by the given id, to deactivated.
+265    *
+266    * @param p_executor_id The executor id to activate.
+267    *
+268    * @return A success or error text message.
+269    */
+270    FUNCTION deactivate_executor(p_executor_id IN NUMBER)
+271  	 RETURN VARCHAR2
+272    ;
+273  
+274    --======================================= Interface for executor functions =======================================--
+275    -- The following functions are only for interface implementations related to SOSL. All start with IF_.
+276    -- Any unauthorized usage from users not having the SOSL_EXECUTOR role will be logged and will have no effect.
+277    -- Wrapper functions for internal SOSL functionality.
+278  
+279    /* FUNCTION SOSL_API.IF_EXCEPTION_LOG
+280    * Wrapper for SOSL_LOG.EXCEPTION_LOG. For details see sosl_api.pks.
+281    * If logging fails the database is most likely in an unknown state. Exceptions at this point must break the application
+282    * to stop running until database is working correctly again. NEVER try to catch and surpress this exceptions, let the
+283    * application fail in this case (probably after cleanup if you use an own wrapper).
+284    *
+285    * @param p_caller The full name of function, procedure or package that has caused the unhandled exception. Case sensitive.
+286    * @param p_category The log category for the function, procedure or package. Case sensitive.
+287    * @param p_sqlerrmsg The full error message, usually SQLERRM. Limited to VARCHAR2 limit 32767 chars.
+288    */
+289    PROCEDURE if_exception_log( p_caller	IN VARCHAR2
+290  				 , p_category	IN VARCHAR2
+291  				 , p_sqlerrmsg	IN VARCHAR2
+292  				 )
+293    ;
+294  
+295    /* PROCEDURE SOSL_API.IF_GENERIC_LOG
+296    * Wrapper for SOSL_LOG.MINIMAL_LOG. See sosl_log.pks. Any invalid log type will cause the log type set
+297    * to SOSL_CONSTANTS.LOG_WARNING_TYPE.
+298    *
+299    * @param p_caller The full name of function, procedure or package that should be logged. Case sensitive.
+300    * @param p_category The log category for the function, procedure or package. Case sensitive.
+301    * @param p_log_type The log type for the logging as defined in SOSL_CONSTANTS.LOG_... constants.
+302    * @param p_short_msg The short success message, preferably smaller than 4000 chars. Will be formatted using p_caller.
+303    * @param p_full_msg The complete success message, with details. Will not be formatted but may contain parts of p_short_msg, if message is longer than 4000 chars.
+304    */
+305    PROCEDURE if_generic_log( p_caller     IN VARCHAR2
+306  			       , p_category   IN VARCHAR2
+307  			       , p_log_type   IN VARCHAR2
+308  			       , p_short_msg  IN VARCHAR2
+309  			       , p_full_msg   IN CLOB	  DEFAULT NULL
+310  			       )
+311    ;
+312    PROCEDURE if_generic_log( p_caller     IN VARCHAR2
+313  			       , p_category   IN VARCHAR2
+314  			       , p_log_type   IN VARCHAR2
+315  			       , p_short_msg  IN VARCHAR2
+316  			       , p_full_msg   IN VARCHAR2
+317  			       )
+318    ;
+319  
+320    /* FUNCTION SOSL_API.IF_DISPLAY_LOG
+321    * Allows to output of the log message (limited to 4000 char) to write in SQL statements.
+322    * Can be used in executor scripts for error and success messages that get logged and are
+323    * displayed in the spool file of the executor script.
+324    *
+325    * @param p_caller The full name of function, procedure or package that should be logged. Case sensitive.
+326    * @param p_category The log category for the function, procedure or package. Case sensitive.
+327    * @param p_log_type The log type for the logging as defined in SOSL_CONSTANTS.LOG_... constants.
+328    * @param p_short_msg The short success message, will be limited to 4000 chars on return. Will be formatted using p_caller.
+329    *
+330    * @return The first 4000 char of p_short_msg.
+331    */
+332    FUNCTION if_display_log( p_caller     IN VARCHAR2
+333  			      , p_category   IN VARCHAR2
+334  			      , p_log_type   IN VARCHAR2
+335  			      , p_short_msg  IN VARCHAR2
+336  			      )
+337  	 RETURN VARCHAR2
+338    ;
+339  
+340    /* FUNCTION SOSL_API.IF_GET_PAYLOAD
+341    * Wrapper for SOSL_SERVER.GET_PAYLOAD. Builds a SOSL_PAYLOAD object from the given run id.
+342    *
+343    * @param p_run_id The run id to get the SOSL_PAYLOAD object for.
+344    *
+345    * @return On success a valid SOSL_PAYLOAD object or NULL on errors.
+346    */
+347    FUNCTION if_get_payload(p_run_id IN NUMBER)
+348  	 RETURN SOSL_PAYLOAD
+349    ;
+350  
+351    /* FUNCTION SOSL_API.IF_HAS_RUN_ID
+352    * Wrapper for SOSL_SERVER.HAS_RUN_ID. Checks if a given run id exists. Errors get logged.
+353    *
+354    * @param p_run_id The run id to verify.
+355    *
+356    * @return TRUE if run id exists otherwise FALSE.
+357    */
+358    FUNCTION if_has_run_id(p_run_id IN NUMBER)
+359  	 RETURN BOOLEAN
+360    ;
+361  
+362    /* FUNCTION SOSL_API.IF_DUMMY_MAIL
+363    * Wrapper for SOSL_SERVER.DUMMY_MAIL. This is a testing function that will NOT send any mail.
+364    * It will log the mail message created in SOSL_SERVER_LOG using
+365    * the field full_message, so output can be controlled.
+366    *
+367    * @param p_sender The valid mail sender address, e.g. mail.user@some.org.
+368    * @param p_recipients The semicolon separated list of mail recipient addresses.
+369    * @param p_subject A preferablly short subject for the mail.
+370    * @param p_message The correctly formatted mail message.
+371    *
+372    * @return Will return TRUE on success or FALSE on errors.
+373    */
+374    FUNCTION if_dummy_mail( p_sender      IN VARCHAR2
+375  			     , p_recipients  IN VARCHAR2
+376  			     , p_subject     IN VARCHAR2
+377  			     , p_message     IN VARCHAR2
+378  			     )
+379  	 RETURN BOOLEAN
+380    ;
+381  
+382  END;
+383  /
 
 Package created.
 
@@ -8067,7 +8121,7 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
  77  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.set_timeframe';
  78    BEGIN
  79  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
- 80  	 IF sosl_util.has_role(l_user, 'SOSL_EXECUTOR')
+ 80  	 IF sosl_util.has_role(l_user, 'SOSL_ADMIN')
  81  	 THEN
  82  	   l_from_result := sosl_server.set_config('SOSL_START_JOBS', p_from);
  83  	   l_to_result	 := sosl_server.set_config('SOSL_STOP_JOBS', p_to);
@@ -8094,8 +8148,8 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
 104  	     END IF;
 105  	   END IF;
 106  	 ELSE
-107  	   sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to set server timeframe to ' || p_from || ' - ' || p_to || ' without sufficient role rights.');
-108  	   l_return := 'ERROR insufficient privileges. Needs at least role SOSL_EXECUTOR.';
+107  	   sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to set server timeframe to ' || p_from || ' - ' || p_to || ' without sufficient role rights. Needs at least role SOSL_ADMIN.');
+108  	   l_return := 'ERROR insufficient privileges. Needs at least role SOSL_ADMIN.';
 109  	 END IF;
 110  	 RETURN l_return;
 111    EXCEPTION
@@ -8106,328 +8160,472 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_api
 116  	   RETURN 'ERROR executing SOSL_API.SET_TIMEFRAME see SOSL_SERVER_LOG for details';
 117    END set_timeframe;
 118  
-119    FUNCTION has_scripts
-120  	 RETURN NUMBER
+119    FUNCTION set_max_parallel(p_max_parallel IN NUMBER DEFAULT 8)
+120  	 RETURN VARCHAR2
 121    IS
-122  	 l_return NUMBER;
-123    BEGIN
-124  	 l_return := sosl_sys.has_scripts;
-125  	 RETURN l_return;
-126    EXCEPTION
-127  	 WHEN OTHERS THEN
-128  	   -- log the error instead of RAISE
-129  	   sosl_log.exception_log('sosl_api.has_scripts', 'SOSL_API', SQLERRM);
-130  	   RETURN -1;
-131    END has_scripts;
-132  
-133    FUNCTION has_run_scripts
-134  	 RETURN NUMBER
-135    IS
-136  	 l_return NUMBER;
-137    BEGIN
-138  	 l_return := sosl_server.has_scripts;
-139  	 RETURN l_return;
-140    EXCEPTION
-141  	 WHEN OTHERS THEN
-142  	   -- log the error instead of RAISE
-143  	   sosl_log.exception_log('sosl_api.has_run_scripts', 'SOSL_API', SQLERRM);
-144  	   RETURN -1;
-145    END has_run_scripts;
-146  
-147    FUNCTION create_executor( p_executor_name	 IN VARCHAR2
-148  			       , p_function_owner	 IN VARCHAR2
-149  			       , p_fn_has_scripts	 IN VARCHAR2
-150  			       , p_fn_get_next_script	 IN VARCHAR2
-151  			       , p_fn_set_script_status  IN VARCHAR2
-152  			       , p_cfg_file		 IN VARCHAR2
-153  			       , p_use_mail		 IN NUMBER     DEFAULT 0
-154  			       , p_fn_send_db_mail	 IN VARCHAR2   DEFAULT NULL
-155  			       , p_executor_description  IN VARCHAR2   DEFAULT NULL
-156  			       )
-157  	 RETURN NUMBER
-158    IS
-159  	 l_return	 NUMBER;
-160  	 l_user 	 VARCHAR2(128);
-161  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
-162  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.create_executor';
-163    BEGIN
-164  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
-165  	 l_return := sosl_util.create_executor( p_executor_name
-166  					       , l_user
-167  					       , p_function_owner
-168  					       , p_fn_has_scripts
-169  					       , p_fn_get_next_script
-170  					       , p_fn_set_script_status
-171  					       , p_cfg_file
-172  					       , p_use_mail
-173  					       , p_fn_send_db_mail
-174  					       , p_executor_description
-175  					       )
-176  	 ;
-177  	 RETURN l_return;
-178    EXCEPTION
-179  	 WHEN OTHERS THEN
-180  	   -- log the error instead of RAISE
-181  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
-182  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
-183  	   RETURN -1;
-184    END create_executor;
-185  
-186    FUNCTION activate_executor(p_executor_id IN NUMBER)
-187  	 RETURN VARCHAR2
-188    IS
-189  	 l_return	 VARCHAR2(4000);
-190  	 l_user 	 VARCHAR2(128);
-191  	 l_result	 NUMBER;
-192  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
-193  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.activate_executor';
-194    BEGIN
-195  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
-196  	 IF sosl_util.has_role(l_user, 'SOSL_EXECUTOR')
-197  	 THEN
-198  	   l_result := sosl_util.active_state_executor(p_executor_id, sosl_constants.NUM_YES);
-199  	   IF l_result = -1
-200  	   THEN
-201  	     l_return := 'ERROR activating executor with id ' || p_executor_id || ' see SOSL_SERVER_LOG for details';
-202  	   ELSE
-203  	     l_return := 'SUCCESS Activated executor with id ' || p_executor_id;
-204  	   END IF;
-205  	 ELSE
-206  	   sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to activate executor with id ' || p_executor_id || ' without sufficient role rights.');
-207  	   l_return := 'ERROR insufficient privileges. Needs at least role SOSL_EXECUTOR.';
-208  	 END IF;
-209  	 RETURN l_return;
-210    EXCEPTION
-211  	 WHEN OTHERS THEN
-212  	   -- log the error instead of RAISE
-213  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
-214  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
-215  	   RETURN 'ERROR executing SOSL_API.ACTIVATE_EXECUTOR see SOSL_SERVER_LOG for details';
-216    END activate_executor;
-217  
-218    FUNCTION deactivate_executor(p_executor_id IN NUMBER)
-219  	 RETURN VARCHAR2
-220    IS
-221  	 l_return	 VARCHAR2(4000);
-222  	 l_user 	 VARCHAR2(128);
-223  	 l_result	 NUMBER;
-224  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
-225  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.deactivate_executor';
-226    BEGIN
-227  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
-228  	 IF sosl_util.has_role(l_user, 'SOSL_EXECUTOR')
-229  	 THEN
-230  	   l_result := sosl_util.active_state_executor(p_executor_id, sosl_constants.NUM_NO);
-231  	   IF l_result = -1
-232  	   THEN
-233  	     l_return := 'ERROR deactivating executor with id ' || p_executor_id || ' see SOSL_SERVER_LOG for details';
-234  	   ELSE
-235  	     l_return := 'SUCCESS Deactivated executor with id ' || p_executor_id;
-236  	   END IF;
-237  	 ELSE
-238  	   sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to deactivate executor with id ' || p_executor_id || ' without sufficient role rights.');
-239  	   l_return := 'ERROR insufficient privileges. Needs at least role SOSL_EXECUTOR.';
-240  	 END IF;
-241  	 RETURN l_return;
-242    EXCEPTION
-243  	 WHEN OTHERS THEN
-244  	   -- log the error instead of RAISE
-245  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
-246  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
-247  	   RETURN 'ERROR executing SOSL_API.DEACTIVATE_EXECUTOR see SOSL_SERVER_LOG for details';
-248    END deactivate_executor;
-249  
-250    FUNCTION set_executor_reviewed(p_executor_id IN NUMBER)
-251  	 RETURN VARCHAR2
-252    IS
-253  	 l_return	 VARCHAR2(4000);
-254  	 l_user 	 VARCHAR2(128);
-255  	 l_result	 NUMBER;
-256  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
-257  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.set_executor_reviewed';
-258    BEGIN
-259  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
-260  	 IF sosl_util.has_role(l_user, 'SOSL_REVIEWER')
-261  	 THEN
-262  	   l_result := sosl_util.review_state_executor(p_executor_id, sosl_constants.NUM_YES);
-263  	   IF l_result = -1
-264  	   THEN
-265  	     l_return := 'ERROR set executor with id ' || p_executor_id || ' to reviewed see SOSL_SERVER_LOG for details';
-266  	   ELSE
-267  	     l_return := 'SUCCESS Set executor with id ' || p_executor_id || ' to reviewed';
-268  	   END IF;
-269  	 ELSE
-270  	   sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to set executor with id ' || p_executor_id || ' to reviewed without sufficient role rights.');
-271  	   l_return := 'ERROR insufficient privileges. Needs at least role SOSL_REVIEWER.';
-272  	 END IF;
-273  	 RETURN l_return;
-274    EXCEPTION
-275  	 WHEN OTHERS THEN
-276  	   -- log the error instead of RAISE
-277  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
-278  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
-279  	   RETURN 'ERROR executing SOSL_API.SET_EXECUTOR_REVIEWED see SOSL_SERVER_LOG for details';
-280    END set_executor_reviewed;
-281  
-282    FUNCTION revoke_executor_reviewed(p_executor_id IN NUMBER)
-283  	 RETURN VARCHAR2
-284    IS
-285  	 l_return	 VARCHAR2(4000);
-286  	 l_user 	 VARCHAR2(128);
-287  	 l_result	 NUMBER;
-288  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
-289  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.revoke_executor_reviewed';
-290    BEGIN
-291  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
-292  	 IF sosl_util.has_role(l_user, 'SOSL_REVIEWER')
-293  	 THEN
-294  	   l_result := sosl_util.review_state_executor(p_executor_id, sosl_constants.NUM_NO);
-295  	   IF l_result = -1
-296  	   THEN
-297  	     l_return := 'ERROR set executor with id ' || p_executor_id || ' to not reviewed see SOSL_SERVER_LOG for details';
-298  	   ELSE
-299  	     l_return := 'SUCCESS Set executor with id ' || p_executor_id || ' to not reviewed';
-300  	   END IF;
-301  	 ELSE
-302  	   sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to set executor with id ' || p_executor_id || ' to not reviewed without sufficient role rights.');
-303  	   l_return := 'ERROR insufficient privileges. Needs at least role SOSL_REVIEWER.';
-304  	 END IF;
-305  	 RETURN l_return;
-306    EXCEPTION
-307  	 WHEN OTHERS THEN
-308  	   -- log the error instead of RAISE
-309  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
-310  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
-311  	   RETURN 'ERROR executing SOSL_API.REVOKE_EXECUTOR_REVIEWED see SOSL_SERVER_LOG for details';
-312    END revoke_executor_reviewed;
-313  
-314    FUNCTION db_in_time
-315  	 RETURN BOOLEAN
-316    IS
-317  	 l_return	 BOOLEAN;
-318  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
-319  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.db_in_time';
-320    BEGIN
-321  	 l_return := sosl_util.db_in_time;
-322  	 RETURN l_return;
-323    EXCEPTION
-324  	 WHEN OTHERS THEN
-325  	   -- log the error instead of RAISE
-326  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
-327  	   RETURN FALSE;
-328    END db_in_time;
+122  	 l_max_parallel  INTEGER;
+123  	 l_conf_value	 VARCHAR2(38);
+124  	 l_result	 NUMBER;
+125  	 l_return	 VARCHAR2(4000);
+126  	 l_user 	 VARCHAR2(128);
+127  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+128  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.set_max_parallel';
+129    BEGIN
+130  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+131  	 IF sosl_util.has_role(l_user, 'SOSL_ADMIN')
+132  	 THEN
+133  	   -- convert implicite to integer first
+134  	   l_max_parallel := p_max_parallel;
+135  	   l_conf_value   := TRIM(TO_CHAR(l_max_parallel));
+136  	   l_result	  := sosl_server.set_config('SOSL_MAX_PARALLEL', l_conf_value);
+137  	   IF l_result = 0
+138  	   THEN
+139  	     l_return := 'SUCCESS set max parallel to ' || l_conf_value;
+140  	   ELSE
+141  	     l_return := 'ERROR executing sosl_server.set_config';
+142  	   END IF;
+143  	 ELSE
+144  	   l_return := 'ERROR insufficient privileges. Needs at least role SOSL_ADMIN.';
+145  	 END IF;
+146  	 RETURN l_return;
+147    EXCEPTION
+148  	 WHEN OTHERS THEN
+149  	   -- log the error instead of RAISE
+150  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+151  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+152  	   RETURN 'ERROR executing SOSL_API.SET_MAX_PARALLEL see SOSL_SERVER_LOG for details';
+153    END set_max_parallel;
+154  
+155    FUNCTION set_default_wait(p_default_seconds IN NUMBER DEFAULT 1)
+156  	 RETURN VARCHAR2
+157    IS
+158  	 l_wait_seconds  INTEGER;
+159  	 l_conf_value	 VARCHAR2(38);
+160  	 l_result	 NUMBER;
+161  	 l_return	 VARCHAR2(4000);
+162  	 l_user 	 VARCHAR2(128);
+163  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+164  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.set_default_wait';
+165    BEGIN
+166  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+167  	 IF sosl_util.has_role(l_user, 'SOSL_ADMIN')
+168  	 THEN
+169  	   -- convert implicite to integer first
+170  	   l_wait_seconds := p_default_seconds;
+171  	   l_conf_value   := TRIM(TO_CHAR(l_wait_seconds));
+172  	   l_result	  := sosl_server.set_config('SOSL_DEFAULT_WAIT', l_conf_value);
+173  	   IF l_result = 0
+174  	   THEN
+175  	     l_return := 'SUCCESS set default wait to ' || l_conf_value || ' seconds';
+176  	   ELSE
+177  	     l_return := 'ERROR executing sosl_server.set_config';
+178  	   END IF;
+179  	 ELSE
+180  	   l_return := 'ERROR insufficient privileges. Needs at least role SOSL_ADMIN.';
+181  	 END IF;
+182  	 RETURN l_return;
+183    EXCEPTION
+184  	 WHEN OTHERS THEN
+185  	   -- log the error instead of RAISE
+186  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+187  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+188  	   RETURN 'ERROR executing SOSL_API.SET_DEFAULT_WAIT see SOSL_SERVER_LOG for details';
+189    END set_default_wait;
+190  
+191    FUNCTION set_nojob_wait(p_nojob_seconds IN NUMBER DEFAULT 120)
+192  	 RETURN VARCHAR2
+193    IS
+194  	 l_wait_seconds  INTEGER;
+195  	 l_conf_value	 VARCHAR2(38);
+196  	 l_result	 NUMBER;
+197  	 l_return	 VARCHAR2(4000);
+198  	 l_user 	 VARCHAR2(128);
+199  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+200  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.set_nojob_wait';
+201    BEGIN
+202  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+203  	 IF sosl_util.has_role(l_user, 'SOSL_ADMIN')
+204  	 THEN
+205  	   -- convert implicite to integer first
+206  	   l_wait_seconds := p_nojob_seconds;
+207  	   l_conf_value   := TRIM(TO_CHAR(l_wait_seconds));
+208  	   l_result	  := sosl_server.set_config('SOSL_NOJOB_WAIT', l_conf_value);
+209  	   IF l_result = 0
+210  	   THEN
+211  	     l_return := 'SUCCESS set no job wait to ' || l_conf_value || ' seconds';
+212  	   ELSE
+213  	     l_return := 'ERROR executing sosl_server.set_config';
+214  	   END IF;
+215  	 ELSE
+216  	   l_return := 'ERROR insufficient privileges. Needs at least role SOSL_ADMIN.';
+217  	 END IF;
+218  	 RETURN l_return;
+219    EXCEPTION
+220  	 WHEN OTHERS THEN
+221  	   -- log the error instead of RAISE
+222  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+223  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+224  	   RETURN 'ERROR executing SOSL_API.SET_NOJOB_WAIT see SOSL_SERVER_LOG for details';
+225    END set_nojob_wait;
+226  
+227    FUNCTION set_pause_wait(p_pause_seconds IN NUMBER DEFAULT 3600)
+228  	 RETURN VARCHAR2
+229    IS
+230  	 l_wait_seconds  INTEGER;
+231  	 l_conf_value	 VARCHAR2(38);
+232  	 l_result	 NUMBER;
+233  	 l_return	 VARCHAR2(4000);
+234  	 l_user 	 VARCHAR2(128);
+235  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+236  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.set_pause_wait';
+237    BEGIN
+238  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+239  	 IF sosl_util.has_role(l_user, 'SOSL_ADMIN')
+240  	 THEN
+241  	   -- convert implicite to integer first
+242  	   l_wait_seconds := p_pause_seconds;
+243  	   l_conf_value   := TRIM(TO_CHAR(l_wait_seconds));
+244  	   l_result	  := sosl_server.set_config('SOSL_PAUSE_WAIT', l_conf_value);
+245  	   IF l_result = 0
+246  	   THEN
+247  	     l_return := 'SUCCESS set pause wait to ' || l_conf_value || ' seconds';
+248  	   ELSE
+249  	     l_return := 'ERROR executing sosl_server.set_config';
+250  	   END IF;
+251  	 ELSE
+252  	   l_return := 'ERROR insufficient privileges. Needs at least role SOSL_ADMIN.';
+253  	 END IF;
+254  	 RETURN l_return;
+255    EXCEPTION
+256  	 WHEN OTHERS THEN
+257  	   -- log the error instead of RAISE
+258  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+259  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+260  	   RETURN 'ERROR executing SOSL_API.SET_PAUSE_WAIT see SOSL_SERVER_LOG for details';
+261    END set_pause_wait;
+262  
+263    FUNCTION has_scripts
+264  	 RETURN NUMBER
+265    IS
+266  	 l_return NUMBER;
+267    BEGIN
+268  	 l_return := sosl_sys.has_scripts;
+269  	 RETURN l_return;
+270    EXCEPTION
+271  	 WHEN OTHERS THEN
+272  	   -- log the error instead of RAISE
+273  	   sosl_log.exception_log('sosl_api.has_scripts', 'SOSL_API', SQLERRM);
+274  	   RETURN -1;
+275    END has_scripts;
+276  
+277    FUNCTION has_run_scripts
+278  	 RETURN NUMBER
+279    IS
+280  	 l_return NUMBER;
+281    BEGIN
+282  	 l_return := sosl_server.has_scripts;
+283  	 RETURN l_return;
+284    EXCEPTION
+285  	 WHEN OTHERS THEN
+286  	   -- log the error instead of RAISE
+287  	   sosl_log.exception_log('sosl_api.has_run_scripts', 'SOSL_API', SQLERRM);
+288  	   RETURN -1;
+289    END has_run_scripts;
+290  
+291    FUNCTION create_executor( p_executor_name	 IN VARCHAR2
+292  			       , p_function_owner	 IN VARCHAR2
+293  			       , p_fn_has_scripts	 IN VARCHAR2
+294  			       , p_fn_get_next_script	 IN VARCHAR2
+295  			       , p_fn_set_script_status  IN VARCHAR2
+296  			       , p_cfg_file		 IN VARCHAR2
+297  			       , p_use_mail		 IN NUMBER     DEFAULT 0
+298  			       , p_fn_send_db_mail	 IN VARCHAR2   DEFAULT NULL
+299  			       , p_executor_description  IN VARCHAR2   DEFAULT NULL
+300  			       )
+301  	 RETURN NUMBER
+302    IS
+303  	 l_return	 NUMBER;
+304  	 l_user 	 VARCHAR2(128);
+305  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+306  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.create_executor';
+307    BEGIN
+308  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+309  	 l_return := sosl_util.create_executor( p_executor_name
+310  					       , l_user
+311  					       , p_function_owner
+312  					       , p_fn_has_scripts
+313  					       , p_fn_get_next_script
+314  					       , p_fn_set_script_status
+315  					       , p_cfg_file
+316  					       , p_use_mail
+317  					       , p_fn_send_db_mail
+318  					       , p_executor_description
+319  					       )
+320  	 ;
+321  	 RETURN l_return;
+322    EXCEPTION
+323  	 WHEN OTHERS THEN
+324  	   -- log the error instead of RAISE
+325  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+326  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+327  	   RETURN -1;
+328    END create_executor;
 329  
-330    PROCEDURE if_exception_log( p_caller	IN VARCHAR2
-331  				 , p_category	IN VARCHAR2
-332  				 , p_sqlerrmsg	IN VARCHAR2
-333  				 )
-334    IS
-335  	 l_user 	      VARCHAR2(128);
-336  	 l_self_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API interface';
-337  	 l_self_caller	      sosl_server_log.caller%TYPE	:= 'sosl_api.if_exception_log';
+330    FUNCTION activate_executor(p_executor_id IN NUMBER)
+331  	 RETURN VARCHAR2
+332    IS
+333  	 l_return	 VARCHAR2(4000);
+334  	 l_user 	 VARCHAR2(128);
+335  	 l_result	 NUMBER;
+336  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+337  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.activate_executor';
 338    BEGIN
-339  	 l_user := SYS_CONTEXT('USERENV', 'SESSION_USER');
+339  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
 340  	 IF sosl_util.has_role(l_user, 'SOSL_EXECUTOR')
 341  	 THEN
-342  	   sosl_log.exception_log(p_caller, p_category, p_sqlerrmsg);
-343  	 ELSE
-344  	   sosl_log.minimal_log( l_self_caller
-345  			       , l_self_log_category
-346  			       , sosl_constants.LOG_FATAL_TYPE
-347  			       , 'ERROR unauthorized access from user ' || l_user || ' (' || SYS_CONTEXT('USERENV', 'OS_USER') || ')'
-348  			       , 'given caller: ' || p_caller || ' given category: ' || p_category || ' given message: ' || p_sqlerrmsg
-349  			       )
-350  	   ;
-351  	 END IF;
-352    END if_exception_log;
-353  
-354    PROCEDURE if_generic_log( p_caller     IN VARCHAR2
-355  			       , p_category   IN VARCHAR2
-356  			       , p_log_type   IN VARCHAR2
-357  			       , p_short_msg  IN VARCHAR2
-358  			       , p_full_msg   IN CLOB	  DEFAULT NULL
-359  			       )
-360    IS
-361  	 l_user 	      VARCHAR2(128);
-362  	 l_self_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API interface';
-363  	 l_self_caller	      sosl_server_log.caller%TYPE	:= 'sosl_api.if_generic_log';
-364    BEGIN
-365  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
-366  	 IF sosl_util.has_role(l_user, 'SOSL_EXECUTOR')
-367  	 THEN
-368  	   IF p_log_type IN ( sosl_constants.LOG_INFO_TYPE
-369  			   , sosl_constants.LOG_WARNING_TYPE
-370  			   , sosl_constants.LOG_SUCCESS_TYPE
-371  			   , sosl_constants.LOG_ERROR_TYPE
-372  			   , sosl_constants.LOG_FATAL_TYPE
-373  			   )
-374  	   THEN
-375  	     sosl_log.minimal_log(p_caller, p_category, p_log_type, p_short_msg, p_full_msg);
-376  	   ELSE
-377  	     sosl_log.minimal_log(p_caller, p_category, sosl_constants.LOG_WARNING_TYPE, p_short_msg, p_full_msg);
-378  	   END IF;
-379  	 ELSE
-380  	   sosl_log.minimal_log( l_self_caller
-381  			       , l_self_log_category
-382  			       , sosl_constants.LOG_FATAL_TYPE
-383  			       , 'ERROR unauthorized access from user ' || l_user || ' (' || SYS_CONTEXT('USERENV', 'OS_USER') || ')'
-384  			       , 'With caller: ' || p_caller || ' category: ' || p_category || ' log type: ' || p_log_type ||
-385  				 ' short message: ' || p_short_msg || ' full message: ' || p_full_msg
-386  			       )
-387  	   ;
-388  	 END IF;
-389    END if_generic_log;
-390  
-391    PROCEDURE if_generic_log( p_caller     IN VARCHAR2
-392  			       , p_category   IN VARCHAR2
-393  			       , p_log_type   IN VARCHAR2
-394  			       , p_short_msg  IN VARCHAR2
-395  			       , p_full_msg   IN VARCHAR2
-396  			       )
-397    IS
-398    BEGIN
-399  	 sosl_api.if_generic_log(p_caller, p_category, p_log_type, p_short_msg, TO_CLOB(p_full_msg));
-400    END if_generic_log;
-401  
-402    FUNCTION if_display_log( p_caller     IN VARCHAR2
-403  			      , p_category   IN VARCHAR2
-404  			      , p_log_type   IN VARCHAR2
-405  			      , p_short_msg  IN VARCHAR2
-406  			      )
-407  	 RETURN VARCHAR2
-408    IS
-409    BEGIN
-410  	 sosl_api.if_generic_log(p_caller, p_category, p_log_type, p_short_msg, '');
-411  	 RETURN TRIM(SUBSTR(p_short_msg, 1, 4000));
-412    END if_display_log;
-413  
-414    FUNCTION if_get_payload(p_run_id IN NUMBER)
-415  	 RETURN SOSL_PAYLOAD
-416    IS
-417    BEGIN
-418  	 RETURN sosl_server.get_payload(p_run_id);
-419    END if_get_payload;
-420  
-421    FUNCTION if_has_run_id(p_run_id IN NUMBER)
-422  	 RETURN BOOLEAN
-423    IS
-424    BEGIN
-425  	 RETURN sosl_server.has_run_id(p_run_id);
-426    END if_has_run_id;
-427  
-428    FUNCTION if_dummy_mail( p_sender      IN VARCHAR2
-429  			     , p_recipients  IN VARCHAR2
-430  			     , p_subject     IN VARCHAR2
-431  			     , p_message     IN VARCHAR2
-432  			     )
-433  	 RETURN BOOLEAN
-434    IS
-435    BEGIN
-436  	 RETURN sosl_server.dummy_mail(p_sender, p_recipients, p_subject, p_message);
-437    END if_dummy_mail;
-438  
-439  END;
-440  /
+342  	   l_result := sosl_util.active_state_executor(p_executor_id, sosl_constants.NUM_YES);
+343  	   IF l_result = -1
+344  	   THEN
+345  	     l_return := 'ERROR activating executor with id ' || p_executor_id || ' see SOSL_SERVER_LOG for details';
+346  	   ELSE
+347  	     l_return := 'SUCCESS Activated executor with id ' || p_executor_id;
+348  	   END IF;
+349  	 ELSE
+350  	   sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to activate executor with id ' || p_executor_id || ' without sufficient role rights.');
+351  	   l_return := 'ERROR insufficient privileges. Needs at least role SOSL_EXECUTOR.';
+352  	 END IF;
+353  	 RETURN l_return;
+354    EXCEPTION
+355  	 WHEN OTHERS THEN
+356  	   -- log the error instead of RAISE
+357  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+358  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+359  	   RETURN 'ERROR executing SOSL_API.ACTIVATE_EXECUTOR see SOSL_SERVER_LOG for details';
+360    END activate_executor;
+361  
+362    FUNCTION deactivate_executor(p_executor_id IN NUMBER)
+363  	 RETURN VARCHAR2
+364    IS
+365  	 l_return	 VARCHAR2(4000);
+366  	 l_user 	 VARCHAR2(128);
+367  	 l_result	 NUMBER;
+368  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+369  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.deactivate_executor';
+370    BEGIN
+371  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+372  	 IF sosl_util.has_role(l_user, 'SOSL_EXECUTOR')
+373  	 THEN
+374  	   l_result := sosl_util.active_state_executor(p_executor_id, sosl_constants.NUM_NO);
+375  	   IF l_result = -1
+376  	   THEN
+377  	     l_return := 'ERROR deactivating executor with id ' || p_executor_id || ' see SOSL_SERVER_LOG for details';
+378  	   ELSE
+379  	     l_return := 'SUCCESS Deactivated executor with id ' || p_executor_id;
+380  	   END IF;
+381  	 ELSE
+382  	   sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to deactivate executor with id ' || p_executor_id || ' without sufficient role rights.');
+383  	   l_return := 'ERROR insufficient privileges. Needs at least role SOSL_EXECUTOR.';
+384  	 END IF;
+385  	 RETURN l_return;
+386    EXCEPTION
+387  	 WHEN OTHERS THEN
+388  	   -- log the error instead of RAISE
+389  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+390  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+391  	   RETURN 'ERROR executing SOSL_API.DEACTIVATE_EXECUTOR see SOSL_SERVER_LOG for details';
+392    END deactivate_executor;
+393  
+394    FUNCTION set_executor_reviewed(p_executor_id IN NUMBER)
+395  	 RETURN VARCHAR2
+396    IS
+397  	 l_return	 VARCHAR2(4000);
+398  	 l_user 	 VARCHAR2(128);
+399  	 l_result	 NUMBER;
+400  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+401  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.set_executor_reviewed';
+402    BEGIN
+403  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+404  	 IF sosl_util.has_role(l_user, 'SOSL_REVIEWER')
+405  	 THEN
+406  	   l_result := sosl_util.review_state_executor(p_executor_id, sosl_constants.NUM_YES);
+407  	   IF l_result = -1
+408  	   THEN
+409  	     l_return := 'ERROR set executor with id ' || p_executor_id || ' to reviewed see SOSL_SERVER_LOG for details';
+410  	   ELSE
+411  	     l_return := 'SUCCESS Set executor with id ' || p_executor_id || ' to reviewed';
+412  	   END IF;
+413  	 ELSE
+414  	   sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to set executor with id ' || p_executor_id || ' to reviewed without sufficient role rights.');
+415  	   l_return := 'ERROR insufficient privileges. Needs at least role SOSL_REVIEWER.';
+416  	 END IF;
+417  	 RETURN l_return;
+418    EXCEPTION
+419  	 WHEN OTHERS THEN
+420  	   -- log the error instead of RAISE
+421  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+422  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+423  	   RETURN 'ERROR executing SOSL_API.SET_EXECUTOR_REVIEWED see SOSL_SERVER_LOG for details';
+424    END set_executor_reviewed;
+425  
+426    FUNCTION revoke_executor_reviewed(p_executor_id IN NUMBER)
+427  	 RETURN VARCHAR2
+428    IS
+429  	 l_return	 VARCHAR2(4000);
+430  	 l_user 	 VARCHAR2(128);
+431  	 l_result	 NUMBER;
+432  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+433  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.revoke_executor_reviewed';
+434    BEGIN
+435  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+436  	 IF sosl_util.has_role(l_user, 'SOSL_REVIEWER')
+437  	 THEN
+438  	   l_result := sosl_util.review_state_executor(p_executor_id, sosl_constants.NUM_NO);
+439  	   IF l_result = -1
+440  	   THEN
+441  	     l_return := 'ERROR set executor with id ' || p_executor_id || ' to not reviewed see SOSL_SERVER_LOG for details';
+442  	   ELSE
+443  	     l_return := 'SUCCESS Set executor with id ' || p_executor_id || ' to not reviewed';
+444  	   END IF;
+445  	 ELSE
+446  	   sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to set executor with id ' || p_executor_id || ' to not reviewed without sufficient role rights.');
+447  	   l_return := 'ERROR insufficient privileges. Needs at least role SOSL_REVIEWER.';
+448  	 END IF;
+449  	 RETURN l_return;
+450    EXCEPTION
+451  	 WHEN OTHERS THEN
+452  	   -- log the error instead of RAISE
+453  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+454  	   -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+455  	   RETURN 'ERROR executing SOSL_API.REVOKE_EXECUTOR_REVIEWED see SOSL_SERVER_LOG for details';
+456    END revoke_executor_reviewed;
+457  
+458    FUNCTION db_in_time
+459  	 RETURN BOOLEAN
+460    IS
+461  	 l_return	 BOOLEAN;
+462  	 l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+463  	 l_caller	 sosl_server_log.caller%TYPE	   := 'sosl_api.db_in_time';
+464    BEGIN
+465  	 l_return := sosl_util.db_in_time;
+466  	 RETURN l_return;
+467    EXCEPTION
+468  	 WHEN OTHERS THEN
+469  	   -- log the error instead of RAISE
+470  	   sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+471  	   RETURN FALSE;
+472    END db_in_time;
+473  
+474    PROCEDURE if_exception_log( p_caller	IN VARCHAR2
+475  				 , p_category	IN VARCHAR2
+476  				 , p_sqlerrmsg	IN VARCHAR2
+477  				 )
+478    IS
+479  	 l_user 	      VARCHAR2(128);
+480  	 l_self_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API interface';
+481  	 l_self_caller	      sosl_server_log.caller%TYPE	:= 'sosl_api.if_exception_log';
+482    BEGIN
+483  	 l_user := SYS_CONTEXT('USERENV', 'SESSION_USER');
+484  	 IF sosl_util.has_role(l_user, 'SOSL_EXECUTOR')
+485  	 THEN
+486  	   sosl_log.exception_log(p_caller, p_category, p_sqlerrmsg);
+487  	 ELSE
+488  	   sosl_log.minimal_log( l_self_caller
+489  			       , l_self_log_category
+490  			       , sosl_constants.LOG_FATAL_TYPE
+491  			       , 'ERROR unauthorized access from user ' || l_user || ' (' || SYS_CONTEXT('USERENV', 'OS_USER') || ')'
+492  			       , 'given caller: ' || p_caller || ' given category: ' || p_category || ' given message: ' || p_sqlerrmsg
+493  			       )
+494  	   ;
+495  	 END IF;
+496    END if_exception_log;
+497  
+498    PROCEDURE if_generic_log( p_caller     IN VARCHAR2
+499  			       , p_category   IN VARCHAR2
+500  			       , p_log_type   IN VARCHAR2
+501  			       , p_short_msg  IN VARCHAR2
+502  			       , p_full_msg   IN CLOB	  DEFAULT NULL
+503  			       )
+504    IS
+505  	 l_user 	      VARCHAR2(128);
+506  	 l_self_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API interface';
+507  	 l_self_caller	      sosl_server_log.caller%TYPE	:= 'sosl_api.if_generic_log';
+508    BEGIN
+509  	 l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+510  	 IF sosl_util.has_role(l_user, 'SOSL_EXECUTOR')
+511  	 THEN
+512  	   IF p_log_type IN ( sosl_constants.LOG_INFO_TYPE
+513  			   , sosl_constants.LOG_WARNING_TYPE
+514  			   , sosl_constants.LOG_SUCCESS_TYPE
+515  			   , sosl_constants.LOG_ERROR_TYPE
+516  			   , sosl_constants.LOG_FATAL_TYPE
+517  			   )
+518  	   THEN
+519  	     sosl_log.minimal_log(p_caller, p_category, p_log_type, p_short_msg, p_full_msg);
+520  	   ELSE
+521  	     sosl_log.minimal_log(p_caller, p_category, sosl_constants.LOG_WARNING_TYPE, p_short_msg, p_full_msg);
+522  	   END IF;
+523  	 ELSE
+524  	   sosl_log.minimal_log( l_self_caller
+525  			       , l_self_log_category
+526  			       , sosl_constants.LOG_FATAL_TYPE
+527  			       , 'ERROR unauthorized access from user ' || l_user || ' (' || SYS_CONTEXT('USERENV', 'OS_USER') || ')'
+528  			       , 'With caller: ' || p_caller || ' category: ' || p_category || ' log type: ' || p_log_type ||
+529  				 ' short message: ' || p_short_msg || ' full message: ' || p_full_msg
+530  			       )
+531  	   ;
+532  	 END IF;
+533    END if_generic_log;
+534  
+535    PROCEDURE if_generic_log( p_caller     IN VARCHAR2
+536  			       , p_category   IN VARCHAR2
+537  			       , p_log_type   IN VARCHAR2
+538  			       , p_short_msg  IN VARCHAR2
+539  			       , p_full_msg   IN VARCHAR2
+540  			       )
+541    IS
+542    BEGIN
+543  	 sosl_api.if_generic_log(p_caller, p_category, p_log_type, p_short_msg, TO_CLOB(p_full_msg));
+544    END if_generic_log;
+545  
+546    FUNCTION if_display_log( p_caller     IN VARCHAR2
+547  			      , p_category   IN VARCHAR2
+548  			      , p_log_type   IN VARCHAR2
+549  			      , p_short_msg  IN VARCHAR2
+550  			      )
+551  	 RETURN VARCHAR2
+552    IS
+553    BEGIN
+554  	 sosl_api.if_generic_log(p_caller, p_category, p_log_type, p_short_msg, '');
+555  	 RETURN TRIM(SUBSTR(p_short_msg, 1, 4000));
+556    END if_display_log;
+557  
+558    FUNCTION if_get_payload(p_run_id IN NUMBER)
+559  	 RETURN SOSL_PAYLOAD
+560    IS
+561    BEGIN
+562  	 RETURN sosl_server.get_payload(p_run_id);
+563    END if_get_payload;
+564  
+565    FUNCTION if_has_run_id(p_run_id IN NUMBER)
+566  	 RETURN BOOLEAN
+567    IS
+568    BEGIN
+569  	 RETURN sosl_server.has_run_id(p_run_id);
+570    END if_has_run_id;
+571  
+572    FUNCTION if_dummy_mail( p_sender      IN VARCHAR2
+573  			     , p_recipients  IN VARCHAR2
+574  			     , p_subject     IN VARCHAR2
+575  			     , p_message     IN VARCHAR2
+576  			     )
+577  	 RETURN BOOLEAN
+578    IS
+579    BEGIN
+580  	 RETURN sosl_server.dummy_mail(p_sender, p_recipients, p_subject, p_message);
+581    END if_dummy_mail;
+582  
+583  END;
+584  /
 
 Package body created.
 
@@ -9825,189 +10023,200 @@ SQL> CREATE OR REPLACE PACKAGE BODY sosl_if
 518  	 -- adjust the variables to your function
 519  	 l_caller  VARCHAR2(256) := 'sosl_if.set_run_state';
 520    BEGIN
-521  	 -- replace this with your update routine
-522  	 UPDATE sosl_if_script
-523  	    SET run_state = p_run_state
-524  	  WHERE script_id = p_script_id
-525  	 ;
-526  	 COMMIT;
-527  	 RETURN 0;
-528    EXCEPTION
-529  	 WHEN OTHERS THEN
-530  	   -- log the error instead of RAISE
-531  	   sosl_if.log_exception(l_caller, SQLERRM);
-532  	   RETURN -1;
-533    END set_run_state;
-534  
-535    FUNCTION set_active_state( p_script_id	   IN NUMBER
-536  				, p_script_active  IN NUMBER DEFAULT 0
-537  				)
-538  	 RETURN NUMBER
-539    IS
-540  	 PRAGMA AUTONOMOUS_TRANSACTION;
-541  	 -- adjust the variables to your function
-542  	 l_caller  VARCHAR2(256) := 'sosl_if.set_active_state';
-543    BEGIN
-544  	 -- replace this with your update routine
-545  	 UPDATE sosl_if_script
-546  	    SET script_active = p_script_active
-547  	  WHERE script_id = p_script_id
-548  	 ;
-549  	 COMMIT;
-550  	 RETURN 0;
-551    EXCEPTION
-552  	 WHEN OTHERS THEN
-553  	   -- log the error instead of RAISE
-554  	   sosl_if.log_exception(l_caller, SQLERRM);
-555  	   RETURN -1;
-556    END set_active_state;
-557  
-558    FUNCTION reset_scripts
-559  	 RETURN NUMBER
-560    IS
-561  	 PRAGMA AUTONOMOUS_TRANSACTION;
-562  	 l_result  NUMBER;
-563  	 -- adjust the variables to your function
-564  	 l_caller  VARCHAR2(256) := 'sosl_if.reset_scripts';
-565  	 CURSOR cur_scripts
-566  	 IS
-567  	   SELECT script_id
-568  	     FROM sosl_if_script
-569  	    WHERE run_state != sosl_if.SCRIPT_WAITING
-570  	 ;
-571    BEGIN
-572  	 sosl_if.log_info(l_caller, 'Reset all scripts in SOSL_IF_SCRIPT to run_state WAITING');
-573  	 FOR rec IN cur_scripts
-574  	 LOOP
-575  	   -- errors should be already logged
-576  	   l_result := sosl_if.set_run_state(rec.script_id, sosl_if.SCRIPT_WAITING);
-577  	 END LOOP;
-578  	 RETURN 0;
-579    EXCEPTION
-580  	 WHEN OTHERS THEN
-581  	   -- log the error instead of RAISE
-582  	   sosl_if.log_exception(l_caller, SQLERRM);
-583  	   RETURN -1;
-584    END reset_scripts;
-585  
-586    FUNCTION activate_scripts
-587  	 RETURN NUMBER
-588    IS
-589  	 PRAGMA AUTONOMOUS_TRANSACTION;
-590  	 l_result  NUMBER;
-591  	 -- adjust the variables to your function
-592  	 l_caller  VARCHAR2(256) := 'sosl_if.activate_scripts';
-593  	 CURSOR cur_scripts
-594  	 IS
-595  	   SELECT script_id
-596  	     FROM sosl_if_script
-597  	    WHERE script_active != sosl_if.SCRIPT_ACTIVE
-598  	 ;
-599    BEGIN
-600  	 sosl_if.log_info(l_caller, 'Activate all scripts in SOSL_IF_SCRIPT to enable them for execution');
-601  	 FOR rec IN cur_scripts
-602  	 LOOP
-603  	   -- errors should be already logged
-604  	   l_result := sosl_if.set_active_state(rec.script_id, sosl_if.SCRIPT_ACTIVE);
-605  	 END LOOP;
-606  	 RETURN 0;
-607    EXCEPTION
-608  	 WHEN OTHERS THEN
-609  	   -- log the error instead of RAISE
-610  	   sosl_if.log_exception(l_caller, SQLERRM);
-611  	   RETURN -1;
-612    END activate_scripts;
-613  
-614    FUNCTION deactivate_scripts
-615  	 RETURN NUMBER
-616    IS
-617  	 PRAGMA AUTONOMOUS_TRANSACTION;
-618  	 l_result	 NUMBER;
-619  	 -- adjust the variables to your function
-620  	 l_caller	 VARCHAR2(256) := 'sosl_if.deactivate_scripts';
-621  	 CURSOR cur_scripts
-622  	 IS
-623  	   SELECT script_id
-624  	     FROM sosl_if_script
-625  	    WHERE script_active != sosl_if.SCRIPT_INACTIVE
-626  	 ;
-627    BEGIN
-628  	 sosl_if.log_info(l_caller, 'Deactivate all scripts in SOSL_IF_SCRIPT to disable them for execution');
-629  	 FOR rec IN cur_scripts
-630  	 LOOP
-631  	   -- errors should be already logged
-632  	   l_result := sosl_if.set_active_state(rec.script_id, sosl_if.SCRIPT_INACTIVE);
-633  	 END LOOP;
-634  	 RETURN 0;
-635    EXCEPTION
-636  	 WHEN OTHERS THEN
-637  	   -- log the error instead of RAISE
-638  	   sosl_if.log_exception(l_caller, SQLERRM);
-639  	   RETURN -1;
-640    END deactivate_scripts;
-641    -- ==============================
-642    -- eventually provide the interface functions for SOSL
-643  
-644    FUNCTION has_scripts
-645  	 RETURN NUMBER
-646    IS
-647  	 l_return	NUMBER;
-648  	 -- adjust the variables to your function
-649  	 l_caller	VARCHAR2(256) := 'sosl_if.has_scripts';
-650    BEGIN
-651  	 RETURN sosl_if.get_script_count;
-652    EXCEPTION
-653  	 WHEN OTHERS THEN
-654  	   -- log the error instead of RAISE
-655  	   sosl_if.log_exception(l_caller, SQLERRM);
-656  	   RETURN -1;
-657    END has_scripts;
-658  
-659    FUNCTION get_next_script
-660  	 RETURN &SOSL_SCHEMA..SOSL_PAYLOAD
-661    IS
-662  	 l_caller  VARCHAR2(256) := 'sosl_if.get_next_script';
-663    BEGIN
-664  	 RETURN sosl_if.provide_next_script;
-665    EXCEPTION
-666  	 WHEN OTHERS THEN
-667  	   -- log the error instead of RAISE
-668  	   sosl_if.log_exception(l_caller, SQLERRM);
-669  	   RETURN NULL;
-670    END get_next_script;
-671  
-672    FUNCTION set_script_status( p_run_id IN NUMBER
-673  				 , p_status IN NUMBER
-674  				 )
-675  	 RETURN NUMBER
-676    IS
-677  	 l_caller	 VARCHAR2(256) := 'sosl_if.set_script_status';
-678    BEGIN
-679  	 RETURN sosl_if.update_script_status(p_run_id, p_status);
-680    EXCEPTION
-681  	 WHEN OTHERS THEN
-682  	   -- log the error instead of RAISE
-683  	   sosl_if.log_exception(l_caller, SQLERRM);
-684  	   RETURN -1;
-685    END set_script_status;
-686  
-687    FUNCTION send_mail( p_run_id IN NUMBER
-688  			 , p_status IN NUMBER
-689  			 )
-690  	 RETURN NUMBER
-691    IS
-692  	 l_caller	 VARCHAR2(256) := 'sosl_if.send_mail';
-693    BEGIN
-694  	 RETURN sosl_if.deliver_mail(p_run_id, p_status);
-695    EXCEPTION
-696  	 WHEN OTHERS THEN
-697  	   -- log the error instead of RAISE
-698  	   sosl_if.log_exception(l_caller, SQLERRM);
-699  	   RETURN -1;
-700    END send_mail;
-701  
-702  END;
-703  /
+521  	 -- we are simple here, switching the active state to waiting switches also the delivered state to 0
+522  	 IF p_run_state = sosl_if.SCRIPT_WAITING
+523  	 THEN
+524  	   -- replace this with your update routine
+525  	   UPDATE sosl_if_script
+526  	     SET run_state = p_run_state
+527  	       , delivered = 0
+528  	   WHERE script_id = p_script_id
+529  	   ;
+530  	 ELSE
+531  	   -- replace this with your update routine
+532  	   UPDATE sosl_if_script
+533  	     SET run_state = p_run_state
+534  	   WHERE script_id = p_script_id
+535  	   ;
+536  	 END IF;
+537  	 COMMIT;
+538  	 RETURN 0;
+539    EXCEPTION
+540  	 WHEN OTHERS THEN
+541  	   -- log the error instead of RAISE
+542  	   sosl_if.log_exception(l_caller, SQLERRM);
+543  	   RETURN -1;
+544    END set_run_state;
+545  
+546    FUNCTION set_active_state( p_script_id	   IN NUMBER
+547  				, p_script_active  IN NUMBER DEFAULT 0
+548  				)
+549  	 RETURN NUMBER
+550    IS
+551  	 PRAGMA AUTONOMOUS_TRANSACTION;
+552  	 -- adjust the variables to your function
+553  	 l_caller  VARCHAR2(256) := 'sosl_if.set_active_state';
+554    BEGIN
+555  	 -- replace this with your update routine
+556  	 UPDATE sosl_if_script
+557  	   SET script_active = p_script_active
+558  	 WHERE script_id = p_script_id
+559  	 ;
+560  	 COMMIT;
+561  	 RETURN 0;
+562    EXCEPTION
+563  	 WHEN OTHERS THEN
+564  	   -- log the error instead of RAISE
+565  	   sosl_if.log_exception(l_caller, SQLERRM);
+566  	   RETURN -1;
+567    END set_active_state;
+568  
+569    FUNCTION reset_scripts
+570  	 RETURN NUMBER
+571    IS
+572  	 PRAGMA AUTONOMOUS_TRANSACTION;
+573  	 l_result  NUMBER;
+574  	 -- adjust the variables to your function
+575  	 l_caller  VARCHAR2(256) := 'sosl_if.reset_scripts';
+576  	 CURSOR cur_scripts
+577  	 IS
+578  	   SELECT script_id
+579  	     FROM sosl_if_script
+580  	    WHERE run_state != sosl_if.SCRIPT_WAITING
+581  	 ;
+582    BEGIN
+583  	 sosl_if.log_info(l_caller, 'Reset all scripts in SOSL_IF_SCRIPT to run_state WAITING');
+584  	 FOR rec IN cur_scripts
+585  	 LOOP
+586  	   -- errors should be already logged
+587  	   l_result := sosl_if.set_run_state(rec.script_id, sosl_if.SCRIPT_WAITING);
+588  	 END LOOP;
+589  	 RETURN 0;
+590    EXCEPTION
+591  	 WHEN OTHERS THEN
+592  	   -- log the error instead of RAISE
+593  	   sosl_if.log_exception(l_caller, SQLERRM);
+594  	   RETURN -1;
+595    END reset_scripts;
+596  
+597    FUNCTION activate_scripts
+598  	 RETURN NUMBER
+599    IS
+600  	 PRAGMA AUTONOMOUS_TRANSACTION;
+601  	 l_result  NUMBER;
+602  	 -- adjust the variables to your function
+603  	 l_caller  VARCHAR2(256) := 'sosl_if.activate_scripts';
+604  	 CURSOR cur_scripts
+605  	 IS
+606  	   SELECT script_id
+607  	     FROM sosl_if_script
+608  	    WHERE script_active != sosl_if.SCRIPT_ACTIVE
+609  	 ;
+610    BEGIN
+611  	 sosl_if.log_info(l_caller, 'Activate all scripts in SOSL_IF_SCRIPT to enable them for execution');
+612  	 FOR rec IN cur_scripts
+613  	 LOOP
+614  	   -- errors should be already logged
+615  	   l_result := sosl_if.set_active_state(rec.script_id, sosl_if.SCRIPT_ACTIVE);
+616  	 END LOOP;
+617  	 RETURN 0;
+618    EXCEPTION
+619  	 WHEN OTHERS THEN
+620  	   -- log the error instead of RAISE
+621  	   sosl_if.log_exception(l_caller, SQLERRM);
+622  	   RETURN -1;
+623    END activate_scripts;
+624  
+625    FUNCTION deactivate_scripts
+626  	 RETURN NUMBER
+627    IS
+628  	 PRAGMA AUTONOMOUS_TRANSACTION;
+629  	 l_result	 NUMBER;
+630  	 -- adjust the variables to your function
+631  	 l_caller	 VARCHAR2(256) := 'sosl_if.deactivate_scripts';
+632  	 CURSOR cur_scripts
+633  	 IS
+634  	   SELECT script_id
+635  	     FROM sosl_if_script
+636  	    WHERE script_active != sosl_if.SCRIPT_INACTIVE
+637  	 ;
+638    BEGIN
+639  	 sosl_if.log_info(l_caller, 'Deactivate all scripts in SOSL_IF_SCRIPT to disable them for execution');
+640  	 FOR rec IN cur_scripts
+641  	 LOOP
+642  	   -- errors should be already logged
+643  	   l_result := sosl_if.set_active_state(rec.script_id, sosl_if.SCRIPT_INACTIVE);
+644  	 END LOOP;
+645  	 RETURN 0;
+646    EXCEPTION
+647  	 WHEN OTHERS THEN
+648  	   -- log the error instead of RAISE
+649  	   sosl_if.log_exception(l_caller, SQLERRM);
+650  	   RETURN -1;
+651    END deactivate_scripts;
+652    -- ==============================
+653    -- eventually provide the interface functions for SOSL
+654  
+655    FUNCTION has_scripts
+656  	 RETURN NUMBER
+657    IS
+658  	 l_return	NUMBER;
+659  	 -- adjust the variables to your function
+660  	 l_caller	VARCHAR2(256) := 'sosl_if.has_scripts';
+661    BEGIN
+662  	 RETURN sosl_if.get_script_count;
+663    EXCEPTION
+664  	 WHEN OTHERS THEN
+665  	   -- log the error instead of RAISE
+666  	   sosl_if.log_exception(l_caller, SQLERRM);
+667  	   RETURN -1;
+668    END has_scripts;
+669  
+670    FUNCTION get_next_script
+671  	 RETURN &SOSL_SCHEMA..SOSL_PAYLOAD
+672    IS
+673  	 l_caller  VARCHAR2(256) := 'sosl_if.get_next_script';
+674    BEGIN
+675  	 RETURN sosl_if.provide_next_script;
+676    EXCEPTION
+677  	 WHEN OTHERS THEN
+678  	   -- log the error instead of RAISE
+679  	   sosl_if.log_exception(l_caller, SQLERRM);
+680  	   RETURN NULL;
+681    END get_next_script;
+682  
+683    FUNCTION set_script_status( p_run_id IN NUMBER
+684  				 , p_status IN NUMBER
+685  				 )
+686  	 RETURN NUMBER
+687    IS
+688  	 l_caller	 VARCHAR2(256) := 'sosl_if.set_script_status';
+689    BEGIN
+690  	 RETURN sosl_if.update_script_status(p_run_id, p_status);
+691    EXCEPTION
+692  	 WHEN OTHERS THEN
+693  	   -- log the error instead of RAISE
+694  	   sosl_if.log_exception(l_caller, SQLERRM);
+695  	   RETURN -1;
+696    END set_script_status;
+697  
+698    FUNCTION send_mail( p_run_id IN NUMBER
+699  			 , p_status IN NUMBER
+700  			 )
+701  	 RETURN NUMBER
+702    IS
+703  	 l_caller	 VARCHAR2(256) := 'sosl_if.send_mail';
+704    BEGIN
+705  	 RETURN sosl_if.deliver_mail(p_run_id, p_status);
+706    EXCEPTION
+707  	 WHEN OTHERS THEN
+708  	   -- log the error instead of RAISE
+709  	   sosl_if.log_exception(l_caller, SQLERRM);
+710  	   RETURN -1;
+711    END send_mail;
+712  
+713  END;
+714  /
 old  13:     &SOSL_SCHEMA..sosl_api.if_exception_log(p_caller, sosl_if.LOG_CATEGORY, p_sqlerrmsg);
 new  13:     SOSL.sosl_api.if_exception_log(p_caller, sosl_if.LOG_CATEGORY, p_sqlerrmsg);
 old  22:     &SOSL_SCHEMA..sosl_api.if_generic_log(p_caller, sosl_if.LOG_CATEGORY, &SOSL_SCHEMA..sosl_constants.LOG_INFO_TYPE, NULL, p_message);
@@ -10066,8 +10275,8 @@ old 381:                     , p_sosl_payload   IN &SOSL_SCHEMA..SOSL_PAYLOAD
 new 381:                     , p_sosl_payload   IN SOSL.SOSL_PAYLOAD
 old 439:     l_payload       &SOSL_SCHEMA..SOSL_PAYLOAD;
 new 439:     l_payload       SOSL.SOSL_PAYLOAD;
-old 660:     RETURN &SOSL_SCHEMA..SOSL_PAYLOAD
-new 660:     RETURN SOSL.SOSL_PAYLOAD
+old 671:     RETURN &SOSL_SCHEMA..SOSL_PAYLOAD
+new 671:     RETURN SOSL.SOSL_PAYLOAD
 
 Package body created.
 

@@ -167,7 +167,7 @@ AS
   ;
 
   /** Function SOSL_API.SET_TIMEFRAME
-  * REQUIRES role SOSL_EXECUTOR or higher.
+  * REQUIRES role SOSL_ADMIN.
   * Set the timeframe where the server is allowed to connect to the database. If the server detects that it is
   * running out of the given timeframe it will not connect to the database and using the wait time defined for
   * SOSL_PAUSE_WAIT. Take care on setting this times that pause wait time is not too long and leads to overlaps
@@ -194,6 +194,60 @@ AS
   FUNCTION set_timeframe( p_from IN VARCHAR2 DEFAULT '07:55'
                         , p_to   IN VARCHAR2 DEFAULT '18:00'
                         )
+    RETURN VARCHAR2
+  ;
+
+  /** Function SOSL_API.SET_MAX_PARALLEL
+  * REQUIRES role SOSL_ADMIN.
+  * Sets the maximum of parallel script runs for the SOSL server.
+  *
+  * @param p_max_parallel The maximum amount of parallel script runs from SOSL server. Default is 8.
+  *
+  * @return A success or error text message.
+  */
+  FUNCTION set_max_parallel(p_max_parallel IN NUMBER DEFAULT 8)
+    RETURN VARCHAR2
+  ;
+
+  /** Function SOSL_API.SET_DEFAULT_WAIT
+  * REQUIRES role SOSL_ADMIN.
+  * Sets the wait time in seconds for the default situation, where scripts are available
+  * and should be executed. Keep this value small, but give other applications on the SOSL
+  * server also time to execute.
+  *
+  * @param p_default_seconds The default wait time between script runs of the SOSL server. Default is 1.
+  *
+  * @return A success or error text message.
+  */
+  FUNCTION set_default_wait(p_default_seconds IN NUMBER DEFAULT 1)
+    RETURN VARCHAR2
+  ;
+
+  /** Function SOSL_API.SET_NOJOB_WAIT
+  * REQUIRES role SOSL_ADMIN.
+  * Sets the wait time in seconds for the no job situation, where no scripts are available
+  * to be executed. New scripts available may be delayed for this wait time, if getting available
+  * directly after a new wait started.
+  *
+  * @param p_nojob_seconds The default wait time if no scripts are available to execute. Default is 120, two minutes.
+  *
+  * @return A success or error text message.
+  */
+  FUNCTION set_nojob_wait(p_nojob_seconds IN NUMBER DEFAULT 120)
+    RETURN VARCHAR2
+  ;
+
+  /** Function SOSL_API.SET_PAUSE_WAIT
+  * REQUIRES role SOSL_ADMIN.
+  * Sets the wait time in seconds if the server run mode is set to PAUSE or the time frame defined for the SOSL server
+  * does not match current time. If the server is switched to PAUSE while running, it will enter PAUSE mode after all
+  * current running scripts have finished.
+  *
+  * @param p_pause_seconds The default wait time for SOSL server PAUSE mode. Default is 3600, one hour.
+  *
+  * @return A success or error text message.
+  */
+  FUNCTION set_pause_wait(p_pause_seconds IN NUMBER DEFAULT 3600)
     RETURN VARCHAR2
   ;
 

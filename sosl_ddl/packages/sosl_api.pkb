@@ -80,7 +80,7 @@ AS
     l_caller        sosl_server_log.caller%TYPE       := 'sosl_api.set_timeframe';
   BEGIN
     l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
-    IF sosl_util.has_role(l_user, 'SOSL_EXECUTOR')
+    IF sosl_util.has_role(l_user, 'SOSL_ADMIN')
     THEN
       l_from_result := sosl_server.set_config('SOSL_START_JOBS', p_from);
       l_to_result   := sosl_server.set_config('SOSL_STOP_JOBS', p_to);
@@ -107,8 +107,8 @@ AS
         END IF;
       END IF;
     ELSE
-      sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to set server timeframe to ' || p_from || ' - ' || p_to || ' without sufficient role rights.');
-      l_return := 'ERROR insufficient privileges. Needs at least role SOSL_EXECUTOR.';
+      sosl_log.minimal_warning_log(l_caller, l_log_category, 'User ' || l_user || ' wanted to set server timeframe to ' || p_from || ' - ' || p_to || ' without sufficient role rights. Needs at least role SOSL_ADMIN.');
+      l_return := 'ERROR insufficient privileges. Needs at least role SOSL_ADMIN.';
     END IF;
     RETURN l_return;
   EXCEPTION
@@ -118,6 +118,150 @@ AS
       -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
       RETURN 'ERROR executing SOSL_API.SET_TIMEFRAME see SOSL_SERVER_LOG for details';
   END set_timeframe;
+
+  FUNCTION set_max_parallel(p_max_parallel IN NUMBER DEFAULT 8)
+    RETURN VARCHAR2
+  IS
+    l_max_parallel  INTEGER;
+    l_conf_value    VARCHAR2(38);
+    l_result        NUMBER;
+    l_return        VARCHAR2(4000);
+    l_user          VARCHAR2(128);
+    l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+    l_caller        sosl_server_log.caller%TYPE       := 'sosl_api.set_max_parallel';
+  BEGIN
+    l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+    IF sosl_util.has_role(l_user, 'SOSL_ADMIN')
+    THEN
+      -- convert implicite to integer first
+      l_max_parallel := p_max_parallel;
+      l_conf_value   := TRIM(TO_CHAR(l_max_parallel));
+      l_result       := sosl_server.set_config('SOSL_MAX_PARALLEL', l_conf_value);
+      IF l_result = 0
+      THEN
+        l_return := 'SUCCESS set max parallel to ' || l_conf_value;
+      ELSE
+        l_return := 'ERROR executing sosl_server.set_config';
+      END IF;
+    ELSE
+      l_return := 'ERROR insufficient privileges. Needs at least role SOSL_ADMIN.';
+    END IF;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN 'ERROR executing SOSL_API.SET_MAX_PARALLEL see SOSL_SERVER_LOG for details';
+  END set_max_parallel;
+
+  FUNCTION set_default_wait(p_default_seconds IN NUMBER DEFAULT 1)
+    RETURN VARCHAR2
+  IS
+    l_wait_seconds  INTEGER;
+    l_conf_value    VARCHAR2(38);
+    l_result        NUMBER;
+    l_return        VARCHAR2(4000);
+    l_user          VARCHAR2(128);
+    l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+    l_caller        sosl_server_log.caller%TYPE       := 'sosl_api.set_default_wait';
+  BEGIN
+    l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+    IF sosl_util.has_role(l_user, 'SOSL_ADMIN')
+    THEN
+      -- convert implicite to integer first
+      l_wait_seconds := p_default_seconds;
+      l_conf_value   := TRIM(TO_CHAR(l_wait_seconds));
+      l_result       := sosl_server.set_config('SOSL_DEFAULT_WAIT', l_conf_value);
+      IF l_result = 0
+      THEN
+        l_return := 'SUCCESS set default wait to ' || l_conf_value || ' seconds';
+      ELSE
+        l_return := 'ERROR executing sosl_server.set_config';
+      END IF;
+    ELSE
+      l_return := 'ERROR insufficient privileges. Needs at least role SOSL_ADMIN.';
+    END IF;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN 'ERROR executing SOSL_API.SET_DEFAULT_WAIT see SOSL_SERVER_LOG for details';
+  END set_default_wait;
+
+  FUNCTION set_nojob_wait(p_nojob_seconds IN NUMBER DEFAULT 120)
+    RETURN VARCHAR2
+  IS
+    l_wait_seconds  INTEGER;
+    l_conf_value    VARCHAR2(38);
+    l_result        NUMBER;
+    l_return        VARCHAR2(4000);
+    l_user          VARCHAR2(128);
+    l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+    l_caller        sosl_server_log.caller%TYPE       := 'sosl_api.set_nojob_wait';
+  BEGIN
+    l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+    IF sosl_util.has_role(l_user, 'SOSL_ADMIN')
+    THEN
+      -- convert implicite to integer first
+      l_wait_seconds := p_nojob_seconds;
+      l_conf_value   := TRIM(TO_CHAR(l_wait_seconds));
+      l_result       := sosl_server.set_config('SOSL_NOJOB_WAIT', l_conf_value);
+      IF l_result = 0
+      THEN
+        l_return := 'SUCCESS set no job wait to ' || l_conf_value || ' seconds';
+      ELSE
+        l_return := 'ERROR executing sosl_server.set_config';
+      END IF;
+    ELSE
+      l_return := 'ERROR insufficient privileges. Needs at least role SOSL_ADMIN.';
+    END IF;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN 'ERROR executing SOSL_API.SET_NOJOB_WAIT see SOSL_SERVER_LOG for details';
+  END set_nojob_wait;
+
+  FUNCTION set_pause_wait(p_pause_seconds IN NUMBER DEFAULT 3600)
+    RETURN VARCHAR2
+  IS
+    l_wait_seconds  INTEGER;
+    l_conf_value    VARCHAR2(38);
+    l_result        NUMBER;
+    l_return        VARCHAR2(4000);
+    l_user          VARCHAR2(128);
+    l_log_category  sosl_server_log.log_category%TYPE := 'SOSL_API';
+    l_caller        sosl_server_log.caller%TYPE       := 'sosl_api.set_pause_wait';
+  BEGIN
+    l_user   := SYS_CONTEXT('USERENV', 'SESSION_USER');
+    IF sosl_util.has_role(l_user, 'SOSL_ADMIN')
+    THEN
+      -- convert implicite to integer first
+      l_wait_seconds := p_pause_seconds;
+      l_conf_value   := TRIM(TO_CHAR(l_wait_seconds));
+      l_result       := sosl_server.set_config('SOSL_PAUSE_WAIT', l_conf_value);
+      IF l_result = 0
+      THEN
+        l_return := 'SUCCESS set pause wait to ' || l_conf_value || ' seconds';
+      ELSE
+        l_return := 'ERROR executing sosl_server.set_config';
+      END IF;
+    ELSE
+      l_return := 'ERROR insufficient privileges. Needs at least role SOSL_ADMIN.';
+    END IF;
+    RETURN l_return;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- log the error instead of RAISE
+      sosl_log.exception_log(l_caller, l_log_category, SQLERRM);
+      -- sosl_constants.NUM_ERROR can be tweaked by modifying the package, make sure, value is below zero
+      RETURN 'ERROR executing SOSL_API.SET_PAUSE_WAIT see SOSL_SERVER_LOG for details';
+  END set_pause_wait;
 
   FUNCTION has_scripts
     RETURN NUMBER

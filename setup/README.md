@@ -28,7 +28,7 @@ The path for default configuration file with the login credentials must exist, i
 
 To uninstall the SOSL database user, use the script [sosl_dba_cleanup.sql](sosl_dba_cleanup.sql).
 ## Schema objects
-To install or uninstall the schema objects use the description and scripts in [sosl_cmd](../sosl_cmd/README.md) or [sosl_sh](../sosl_sh/README.md), depending on the server version you want to run. This scripts will use the configured SOSL login configuration file and do not need any input. The configuration file of the server flavor ([sosl_config.cmd](../sosl_cmd/sosl_config.cmd), [sosl_config.sh](../sosl_sh/sosl_config.sh)) must be configured before if not using the defaults.
+To install or uninstall the schema objects use the description and scripts in [sosl_cmd](../sosl_cmd/README.md) or [sosl_sh](../sosl_sh/README.md), depending on the server version you want to run. This scripts will use the configured SOSL login configuration file and do not need any input. The configuration file of the server flavor ([sosl_config.cmd](../sosl_cmd/sosl_config.cmd) or [sosl_config.sh](../sosl_sh/sosl_config.sh)) must be configured before if not using the defaults.
 
 Scripts available are
 - SOSL CMD server

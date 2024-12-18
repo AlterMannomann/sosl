@@ -34,6 +34,8 @@ Supported values for column RUN_STATE
 - 4 Finished
 - -1 Error
 
+Apart from Error which can be applied at any RUN_STATE, the RUN_STATE must be applied in the correct order as listed. One way street, no rerun possible or intended. Queue the script again after fixing it to rerun a script.
+
 There is a strong foreign key using EXECUTOR_ID (NOT NULL) on table SOSL_EXECUTOR_DEFINITION, which will delete all referenced data, if an executor is deleted.
 
 The internal SOSL primary key is RUN_ID. The ID provided by the executor is in EXT_SCRIPT_ID.

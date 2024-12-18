@@ -526,11 +526,22 @@ AS
     -- adjust the variables to your function
     l_caller  VARCHAR2(256) := 'sosl_if.set_run_state';
   BEGIN
-    -- replace this with your update routine
-    UPDATE sosl_if_script
-       SET run_state = p_run_state
-     WHERE script_id = p_script_id
-    ;
+    -- we are simple here, switching the active state to waiting switches also the delivered state to 0
+    IF p_run_state = sosl_if.SCRIPT_WAITING
+    THEN
+      -- replace this with your update routine
+      UPDATE sosl_if_script
+        SET run_state = p_run_state
+          , delivered = 0
+      WHERE script_id = p_script_id
+      ;
+    ELSE
+      -- replace this with your update routine
+      UPDATE sosl_if_script
+        SET run_state = p_run_state
+      WHERE script_id = p_script_id
+      ;
+    END IF;
     COMMIT;
     RETURN 0;
   EXCEPTION
@@ -551,8 +562,8 @@ AS
   BEGIN
     -- replace this with your update routine
     UPDATE sosl_if_script
-       SET script_active = p_script_active
-     WHERE script_id = p_script_id
+      SET script_active = p_script_active
+    WHERE script_id = p_script_id
     ;
     COMMIT;
     RETURN 0;

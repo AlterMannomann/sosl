@@ -35,22 +35,22 @@ To enhance security you may limit access to SOSL schema and check the compile da
 
 Find a better solution. If you know what scripts to execute, put them in the database. You should not quick fix production systems as they have an reliable and accepted state. Use a hotfix for those issues and avoid those issues before going to production due to proper testing. If you, nevertheless, use SOSL for production systems, please remember: **This is your decision and you have to deal with all consequences**.
 ## Roles
-On database level several cascading roles are available: SOSL_ADMIN, SOSL_EXECUTOR, SOSL_REVIEWER, SOSL_USER, SOSL_GUEST.
+On database level several cascading roles are available: SOSL_ADMIN, SOSL_EXECUTOR, SOSL_REVIEWER, SOSL_USER.
 
     SOSL_ADMIN
-    |- DELETE rights
+    |- additional delete and execute rights
     |_ SOSL_EXECUTOR
-      |- select, insert and update rights, execute rights
+      |- additional insert and execute rights
       |_ SOSL_REVIEWER
-        |- select rights, limited update rights
+        |- additional update and execute rights
         |_ SOSL_USER
-          |- select rights
-          |_ SOSL_GUEST
-            |- limited select rights
+          |- basic select and execute rights
 
 The application manages necessary role grants for configured function owners. Only reviewed executors will get the role SOSL_EXECUTOR granted, otherwise this role, if it exists for an invalid executor, gets revoked. Roles higher or equal to SOSL_USER can use the SQL Developer reports.
 
-Grant any privilege needed to the role SOSL_EXECUTOR instead of granting it directly to SOSL schema. You should not grant SOSL objects to SOSL roles. Grant a SOSL role to database users according to their tasks. For database users that differ from the function owner, it is quite enough to grant the SOSL_USER role. The roles SOSL_EXECUTOR and SOSL_ADMIN should be used very limited. For creating a new executor you need at least SOSL_EXECUTOR rights. It is recommended that you use the function owner, granted SOSL_EXECUTOR role, to create the executor. Or you define a database user with SOSL_EXECUTOR role that creates the executors.
+Roles are owned and created by the DBA user during basic install and granted with ADMIN option to SOSL. Use SOSL schema owner or DBA to grant the roles to database users. The SOSL_EXECUTOR grants are managed for defined executors. SOSL will grant or revoke SOSL_EXECUTOR to a defined executor function owner automatically. Other roles have to be granted manually, as well as EXECUTE grants for SOSL_EXECUTOR on the defined executor API functions.
+
+It is not recommended to grant object rights to SOSL directly. Use a role instead. If SOSL can't access the objects to grant to a specific role use a DBA account.
 ## Disclaimer
 Use this software at your own risk. No liabilities or warranties are given, no support is guaranteed. Any result of executing this software is under the responsibility of the legal entity using this software. For details see license.
 
