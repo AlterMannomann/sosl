@@ -1,4 +1,5 @@
 -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+-- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 -- Not allowed to be used as AI training material without explicite permission.
 -- short version of GV$SESSION for SOSL user, machine/terminal and function owners
 -- including a basic join on GV$SQL
@@ -51,13 +52,7 @@ AS
        , gsn.time_since_last_wait_micro
     FROM gv$session gsn
     LEFT OUTER JOIN gv$sql gsq
-      ON gsn.sql_id             = gsq.sql_id
-     AND gsn.inst_id            = gsq.inst_id
-     AND gsn.con_id             = gsq.con_id
-     AND gsn.module_hash        = gsq.module_hash
-     AND gsn.action_hash        = gsq.action_hash
-     AND NVL(gsn.module, 'N/A') = NVL(gsq.module, 'N/A')
-     AND NVL(gsn.action, 'N/A') = NVL(gsq.action, 'N/A')
+      ON gsn.sql_id = gsq.sql_id
    WHERE gsn.username IS NOT NULL -- exclude oracle system
      AND (   gsn.username          = (SELECT sosl_schema FROM sosl_install_v)
           OR gsn.schemaname        = (SELECT sosl_schema FROM sosl_install_v)

@@ -1,6 +1,7 @@
-@ECHO OFF
 REM (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+REM and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 REM Not allowed to be used as AI training material without explicite permission.
+@ECHO OFF
 REM CMD expansion necessary
 SETLOCAL ENABLEEXTENSIONS
 REM CMD must be executed in this directory to make relative paths work. On execution will try
@@ -133,8 +134,9 @@ SET SOSL_EXITCODE=-1
 REM Variable to store the current count of running processes.
 SET SOSL_RUNCOUNT=0
 REM Create lock file. Contains the run mode at start. Can be overwritten locally to stop
-REM the CMD server with stop_sosl_locally.cmd. Pause mode can only be set by database table SOSL_CONFIG.
-ECHO %SOSL_RUNMODE% > %LOCK_FILE%
+REM the CMD server with stop_sosl_locally.cmd. Pause mode can only be set by database table SOSL_CONFIG
+REM and should not be used, if the database runmode is PAUSE.
+ECHO RUN>%LOCK_FILE%
 REM *****************************************************************************************************
 REM Create log entries
 CALL sosl_log.cmd "SOSL configuration loaded, running on %SOSL_OS%" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
@@ -181,8 +183,11 @@ IF NOT %SOSL_EXITCODE%==0 (
 :SHORT_LOOP
 REM Get local settings and check running scripts. Overwrite RUNMODE if scripts still running.
 CALL sosl_read_local.cmd
-REM Check runmode and adjust wait time based on run mode
-IF %SOSL_RUNMODE%==STOP GOTO :SOSL_EXIT
+REM Check runmode and adjust wait time based on run mode, do not exit, if scripts running
+IF %SOSL_RUNMODE%==STOP (
+  IF %SOSL_RUNCOUNT% GTR 0 GOTO :SOSL_WAIT
+  GOTO :SOSL_EXIT
+)
 REM Check defined run hours, if not successful will return to this point
 CALL sosl_run_hours.cmd
 IF %CUR_RUNTIME_OK%==-1 (
@@ -191,11 +196,12 @@ IF %CUR_RUNTIME_OK%==-1 (
   CALL sosl_wait.cmd
   GOTO :SHORT_LOOP
 )
+REM if normal PAUSE mode we must check the db to know if PAUSE mode is disabled
 IF %SOSL_RUNMODE%==PAUSE (
   SET CUR_WAIT_TIME=%SOSL_PAUSE_WAIT%
   CALL sosl_log.cmd "Server set to wait. Set wait time to %CUR_WAIT_TIME% seconds" "%SOSL_PATH_LOG%%SOSL_START_LOG%.%SOSL_EXT_LOG%"
   CALL sosl_wait.cmd
-  GOTO :SHORT_LOOP
+  GOTO :SOSL_LOOP
 )
 REM Get a guid for has scripts
 CALL sosl_guid.cmd

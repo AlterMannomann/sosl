@@ -3,10 +3,20 @@
 <folder>
 	<name><![CDATA[SOSL]]></name>
 	<tooltip><![CDATA[SOSL reports]]></tooltip>
-	<description><![CDATA[Contains reports for SOSL]]></description>
+	<description><![CDATA[Contains reports for SOSL
+
+-- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt 
+-- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
+-- Not allowed to be used as AI training material without explicite permission.
+]]></description>
 		<display id="3b018ecf-0193-1000-8003-c0a801807479" type="" style="Table" enable="true">
 		<name><![CDATA[SOSL server]]></name>
-		<description><![CDATA[Details on the current state and configuration of the SOSL server]]></description>
+		<description><![CDATA[Details on the current state and configuration of the SOSL server
+
+-- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt 
+-- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
+-- Not allowed to be used as AI training material without explicite permission.
+]]></description>
 		<tooltip><![CDATA[SOSL server state]]></tooltip>
 		<drillclass><![CDATA[]]></drillclass>
 		<CustomValues>
@@ -201,7 +211,12 @@ SELECT 'Available'
 	</display>
 	<display id="3b6b2e95-0193-1000-8001-c0a80180ff0d" type="" style="Table" enable="true">
 		<name><![CDATA[SOSL run queue]]></name>
-		<description><![CDATA[List of scripts running or finished ordered by latest script first]]></description>
+		<description><![CDATA[List of scripts running or finished ordered by latest script first
+
+-- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt 
+-- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
+-- Not allowed to be used as AI training material without explicite permission.
+]]></description>
 		<tooltip><![CDATA[SOSL run queue]]></tooltip>
 		<drillclass><![CDATA[]]></drillclass>
 		<CustomValues>
@@ -255,6 +270,14 @@ SELECT 'Available'
 				<sql><![CDATA[SELECT *
   FROM sosl_executors_v
  WHERE executor_id = :EXECUTOR_ID]]></sql>
+				<binds>
+					<bind id="EXECUTOR_ID">
+						<prompt><![CDATA[EXECUTOR_ID]]></prompt>
+						<tooltip><![CDATA[EXECUTOR_ID]]></tooltip>
+						<value><![CDATA[NULL_VALUE]]></value>
+						<bracket><![CDATA[null]]></bracket>
+					</bind>
+				</binds>
 			</query>
 		</display>
 		<display id="" type="" style="Table" enable="true">
@@ -315,7 +338,12 @@ SELECT 'ERROR' AS run_state
 	</display>
 	<display id="3cb69751-0193-1000-8008-c0a80180ff0d" type="" style="Table" enable="true">
 		<name><![CDATA[SOSL logs]]></name>
-		<description><![CDATA[Lists current SOSL logs.]]></description>
+		<description><![CDATA[Lists current SOSL logs.
+
+-- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt 
+-- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
+-- Not allowed to be used as AI training material without explicite permission.
+]]></description>
 		<tooltip><![CDATA[SOSL logs]]></tooltip>
 		<drillclass><![CDATA[]]></drillclass>
 		<CustomValues>
@@ -520,20 +548,17 @@ SELECT 'ERROR' AS run_state
 				<sql><![CDATA[SELECT *
   FROM sosl_sperrorlog_v
  WHERE identifier = :SOSL_IDENTIFIER]]></sql>
-				<binds>
-					<bind id="SOSL_IDENTIFIER">
-						<prompt><![CDATA[SOSL_IDENTIFIER]]></prompt>
-						<tooltip><![CDATA[SOSL_IDENTIFIER]]></tooltip>
-						<value><![CDATA[NULL_VALUE]]></value>
-						<bracket><![CDATA[null]]></bracket>
-					</bind>
-				</binds>
 			</query>
 		</display>
 	</display>
 	<display id="415c18f8-0193-1000-8003-c0a801804315" type="" style="Table" enable="true">
 		<name><![CDATA[SOSL executors]]></name>
-		<description><![CDATA[Executors and related jobs]]></description>
+		<description><![CDATA[Executors and related jobs
+
+-- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt 
+-- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
+-- Not allowed to be used as AI training material without explicite permission.
+]]></description>
 		<tooltip><![CDATA[SOSL executors]]></tooltip>
 		<drillclass><![CDATA[]]></drillclass>
 		<CustomValues>
@@ -686,7 +711,12 @@ SELECT run_state
 	</display>
 	<display id="832f61f7-0193-1000-8001-c0a801800d26" type="" style="Table" enable="true">
 		<name><![CDATA[SOSL sessions]]></name>
-		<description><![CDATA[List the current sessions of SOSL and executors]]></description>
+		<description><![CDATA[List the current sessions of SOSL and executors
+
+-- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt 
+-- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
+-- Not allowed to be used as AI training material without explicite permission.
+]]></description>
 		<tooltip><![CDATA[SOSL sessions]]></tooltip>
 		<drillclass><![CDATA[]]></drillclass>
 		<CustomValues>
@@ -699,13 +729,15 @@ SELECT run_state
          THEN sosl_constants.green
          ELSE sosl_constants.yellow
        END AS run_state  
+     , username
+     , osuser
      , sid
      , serial#
      , status
-     , blocking_session_status
-     , wait_status
      , short_sql
      , sql_exec_start
+     , blocking_session_status
+     , wait_status
      , logon_time
      , machine
      , terminal
@@ -714,8 +746,6 @@ SELECT run_state
      , event
      , action
      , schemaname
-     , username
-     , osuser
      , sql_id
      , inst_id
      , con_id
@@ -724,7 +754,7 @@ SELECT run_state
   FROM sosl_sessions_v
  ORDER BY machine, terminal, status]]></sql>
 		</query>
-		<display id="" type="" style="Table" enable="true">
+		<display id="null" type="" style="Table" enable="true">
 			<name><![CDATA[SQL details]]></name>
 			<description><![CDATA[Details on SQL executed by the selected session.]]></description>
 			<tooltip><![CDATA[SQL details]]></tooltip>
@@ -746,7 +776,7 @@ SELECT run_state
 				</binds>
 			</query>
 		</display>
-		<display id="" type="" style="Table" enable="true">
+		<display id="null" type="" style="Table" enable="true">
 			<name><![CDATA[Blocking details]]></name>
 			<description><![CDATA[]]></description>
 			<tooltip><![CDATA[]]></tooltip>
@@ -766,7 +796,7 @@ SELECT run_state
    AND serial# = :SERIAL#]]></sql>
 			</query>
 		</display>
-		<display id="" type="" style="Table" enable="true">
+		<display id="null" type="" style="Table" enable="true">
 			<name><![CDATA[Wait details]]></name>
 			<description><![CDATA[]]></description>
 			<tooltip><![CDATA[]]></tooltip>

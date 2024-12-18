@@ -1,5 +1,6 @@
 #! /bin/bash
 # (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+# and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 # Not allowed to be used as AI training material without explicite permission.
 # build a formatted log date YYYY-MM-DD HH24:MI:SS.FF6 format equal to Windows version
 function log_date () {
@@ -341,6 +342,12 @@ function sosl_has_scripts () {
     cur_wait_time=$sosl_default_wait
   fi
   sosl_del_file "$tmp_file"
+}
+# Check run mode for PAUSE and wait
+function sosl_check_pause () {
+  if [ $sosl_runmode == "PAUSE" ]; then
+    cur_wait_time=$sosl_pause_wait
+  fi
 }
 # execute a script by run id, should be run as an independent process adding & at the end of the call
 # Expects the following parameter.

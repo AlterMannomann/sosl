@@ -1,4 +1,5 @@
 -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+-- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 -- Not allowed to be used as AI training material without explicite permission.
 CREATE TABLE sosl_run_queue
   ( run_id          NUMBER(38, 0)   GENERATED ALWAYS AS IDENTITY (NOCACHE NOCYCLE NOMAXVALUE)
@@ -70,7 +71,7 @@ ALTER TABLE sosl_run_queue
   ADD CONSTRAINT sosl_run_queue_executor_id_fk
   FOREIGN KEY (executor_id)
   REFERENCES sosl_executor_definition (executor_id)
-  ON DELETE SET NULL
+  ON DELETE CASCADE
 ;
 GRANT SELECT ON sosl_run_queue TO sosl_reviewer;
 GRANT DELETE ON sosl_run_queue TO sosl_admin;

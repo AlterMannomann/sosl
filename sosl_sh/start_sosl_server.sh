@@ -1,5 +1,6 @@
 #! /bin/bash
 # (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+# and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 # Not allowed to be used as AI training material without explicite permission.
 # Starts the SOSL server, if no parameters are given, the output will be displayed
 # and the server starts in interactive mode
@@ -8,6 +9,9 @@
 local_cur_dir=$(pwd)
 local_sosl_rundir=$(dirname $(realpath -s "$0"))
 cd $local_sosl_rundir
+# Fetch configured values
+. sosl_config.sh
+local_log="$sosl_path_log$sosl_start_log.$sosl_ext_log"
 # check parameter
 if [ -z $1 ]; then
   /bin/bash sosl_server.sh

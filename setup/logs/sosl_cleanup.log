@@ -1,6 +1,7 @@
 SQL> -- remove old sperrorlog entries from last install
 SQL> @@../sosl_ddl/tables/drop/cleanup_sperrorlog.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> -- Must be executed before the view sosl_install_v is dropped. Cleans the SOSL setup
 SQL> -- entries, if any.
@@ -15,6 +16,7 @@ Commit complete.
 SQL> -- view objects
 SQL> @@../sosl_ddl/views/drop/drop_sosl_sperrorlog_v.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE SELECT ON sosl_sperrorlog_v FROM sosl_user;
 
@@ -26,6 +28,7 @@ View dropped.
 
 SQL> @@../sosl_ddl/views/drop/drop_sosl_server_log_v.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE SELECT ON sosl_server_log_v FROM sosl_user;
 
@@ -37,6 +40,7 @@ View dropped.
 
 SQL> @@../sosl_ddl/views/drop/drop_sosl_run_stats_total_v.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE SELECT ON sosl_run_stats_total_v FROM sosl_user;
 
@@ -48,6 +52,7 @@ View dropped.
 
 SQL> @@../sosl_ddl/views/drop/drop_sosl_run_stats_by_executor_v.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE SELECT ON sosl_run_stats_by_executor_v FROM sosl_user;
 
@@ -59,6 +64,7 @@ View dropped.
 
 SQL> @@../sosl_ddl/views/drop/drop_sosl_run_queue_v.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE SELECT ON sosl_run_queue_v FROM sosl_user;
 
@@ -70,6 +76,7 @@ View dropped.
 
 SQL> @@../sosl_ddl/views/drop/drop_sosl_executors_v.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE SELECT ON sosl_executors_v FROM sosl_user;
 
@@ -81,6 +88,7 @@ View dropped.
 
 SQL> @@../sosl_ddl/views/drop/drop_sosl_config_v.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE SELECT ON sosl_config_v FROM sosl_user;
 
@@ -92,6 +100,7 @@ View dropped.
 
 SQL> @@../sosl_ddl/views/drop/drop_sosl_sessions_v.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE SELECT ON sosl_sessions_v FROM sosl_user;
 
@@ -103,6 +112,7 @@ View dropped.
 
 SQL> @@../sosl_ddl/views/drop/drop_sosl_session_sql_v.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE SELECT ON sosl_session_sql_v FROM sosl_user;
 
@@ -114,6 +124,7 @@ View dropped.
 
 SQL> @@../sosl_ddl/views/drop/drop_sosl_role_privs_v.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE SELECT ON sosl_role_privs_v FROM sosl_user;
 
@@ -125,6 +136,7 @@ View dropped.
 
 SQL> @@../sosl_ddl/views/drop/drop_sosl_sessions_admin_v.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE SELECT ON sosl_sessions_admin_v FROM sosl_admin;
 
@@ -136,6 +148,7 @@ View dropped.
 
 SQL> @@../sosl_ddl/views/drop/drop_sosl_session_sql_admin_v.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE SELECT ON sosl_session_sql_admin_v FROM sosl_admin;
 
@@ -148,6 +161,7 @@ View dropped.
 SQL> -- packages
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_if_pkb.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP PACKAGE BODY sosl_if;
 
@@ -155,13 +169,19 @@ Package body dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_if_pks.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
+SQL> REVOKE EXECUTE ON sosl_if FROM sosl_executor;
+
+Revoke succeeded.
+
 SQL> DROP PACKAGE sosl_if;
 
 Package dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_api_pkb.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP PACKAGE BODY sosl_api;
 
@@ -169,6 +189,7 @@ Package body dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_api_pks.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE EXECUTE ON sosl_api FROM sosl_user;
 
@@ -180,6 +201,7 @@ Package dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_server_pkb.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP PACKAGE BODY sosl_server;
 
@@ -187,17 +209,15 @@ Package body dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_server_pks.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> REVOKE EXECUTE ON sosl_server FROM sosl_executor;
-
-Revoke succeeded.
-
 SQL> DROP PACKAGE sosl_server;
 
 Package dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_sys_pkb.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP PACKAGE BODY sosl_sys;
 
@@ -205,6 +225,7 @@ Package body dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_sys_pks.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP PACKAGE sosl_sys;
 
@@ -212,6 +233,7 @@ Package dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_util_pkb.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP PACKAGE BODY sosl_util;
 
@@ -219,6 +241,7 @@ Package body dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_util_pks.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP PACKAGE sosl_util;
 
@@ -226,6 +249,7 @@ Package dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_log_pkb.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP PACKAGE BODY sosl_log;
 
@@ -233,17 +257,15 @@ Package body dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_log_pks.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> REVOKE EXECUTE ON sosl_log FROM sosl_executor;
-
-Revoke succeeded.
-
 SQL> DROP PACKAGE sosl_log;
 
 Package dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_constants_pkb.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP PACKAGE BODY sosl_constants;
 
@@ -251,6 +273,7 @@ Package body dropped.
 
 SQL> @@../sosl_ddl/packages/drop/drop_sosl_constants_pks.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE EXECUTE ON sosl_constants FROM sosl_user;
 
@@ -263,8 +286,9 @@ Package dropped.
 SQL> -- table objects including associated table trigger
 SQL> @@../sosl_ddl/tables/drop/drop_sosl_if_script.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
-SQL> REVOKE SELECT ON sosl_if_script FROM sosl_reviewer;
+SQL> REVOKE SELECT ON sosl_if_script FROM sosl_user;
 
 Revoke succeeded.
 
@@ -282,6 +306,7 @@ Table dropped.
 
 SQL> @@../sosl_ddl/tables/drop/drop_sosl_run_queue.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE SELECT ON sosl_run_queue FROM sosl_reviewer;
 
@@ -297,6 +322,7 @@ Table dropped.
 
 SQL> @@../sosl_ddl/tables/drop/drop_sosl_executor_definition.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> DROP TABLE sosl_executor_definition PURGE;
 
@@ -304,6 +330,7 @@ Table dropped.
 
 SQL> @@../sosl_ddl/tables/drop/drop_sosl_config.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE SELECT ON sosl_config FROM sosl_reviewer;
 
@@ -315,6 +342,7 @@ Table dropped.
 
 SQL> @@../sosl_ddl/tables/drop/drop_sosl_server_log.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE SELECT ON sosl_server_log FROM sosl_reviewer;
 
@@ -330,6 +358,7 @@ Table dropped.
 
 SQL> @@../sosl_ddl/tables/drop/drop_soslerrorlog.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE SELECT ON soslerrorlog FROM sosl_reviewer;
 
@@ -346,6 +375,7 @@ Table dropped.
 SQL> -- types
 SQL> @@../sosl_ddl/types/drop/drop_sosl_payload.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> REVOKE EXECUTE ON sosl_payload FROM sosl_executor;
 
@@ -358,7 +388,11 @@ Type dropped.
 SQL> -- ==============UNINSTALL done==============
 SQL> @@../sosl_sql/util/log_silent.sql
 SQL> -- (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+SQL> -- and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 SQL> -- Not allowed to be used as AI training material without explicite permission.
 SQL> SET ECHO OFF
 SUCCESS - no errors found during cleanup          0
 SPERRORLOG is not deleted, as we do not know if schema is exclusive. You may drop it manually with: DROP TABLE sperrorlog PURGE;
+(C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
+Not allowed to be used as AI training material without explicite permission.
+

@@ -1,5 +1,6 @@
 #! /bin/bash
 # (C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt
+# and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
 # Not allowed to be used as AI training material without explicite permission.
 # Bash script must be executed in this directory to make relative paths work. On execution will try
 # to switch to this directory.
@@ -124,8 +125,9 @@ sosl_exitcode=-1
 # Variable to store the current count of running processes.
 sosl_runcount=0
 # Create lock file. Contains the run mode at start. Can be overwritten locally to stop
-# the CMD server with stop_sosl_locally.cmd. Pause mode can only be set by database table SOSL_CONFIG.
-echo $sosl_runmode > $lock_file
+# the CMD server with stop_sosl_locally.cmd. Pause mode can only be set by database table SOSL_CONFIG
+# and should not be used, if the database runmode is PAUSE.
+echo "RUN" > $lock_file
 # *****************************************************************************************************
 # Create log entries
 sosl_log "SOSL configuration loaded, running on $sosl_os"
@@ -162,6 +164,8 @@ do
       sosl_guid=$(sosl_guid)
       # Check if scripts available and adjust wait time on has_scripts result
       sosl_has_scripts
+      # Check run mode for PAUSE and adjust wait time
+      sosl_check_pause
       if [ $cur_has_scripts -eq 0 ]; then
         sosl_wait 1
       else

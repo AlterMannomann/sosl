@@ -1,11 +1,16 @@
+Running under WINDOWS
 SOSL DB user name to drop (default is SOSL if no value is given): 
 SOSL table space name to drop (default is SOSL_TABLESPACE if no value is given): 
 Drop the tablespace SOSL_TABLESPACE: Y (yes) or N (no) (default is N): y
-Drop the SYS roles and views: Y (yes) or N (no) (default is N): y
-Drop user/schema SOSL? Drop tablespace set to y for SOSL_TABLESPACE. Drop SYS roles and views set to y. Use Ctrl-C to stop the script in sqlplus, Enter to continue.
-Drop user/schema SOSL? Drop tablespace set to y for SOSL_TABLESPACE. Drop SYS roles and views set to y. Use Ctrl-C to stop the script in sqlplus, Enter to continue.
+Drop the SYS roles and view grants: Y (yes) or N (no) (default is N): y
+==== SOSL DBA cleanup ====
+Drop user/schema SOSL? 
+  Set tablespace drop to y for SOSL_TABLESPACE.
+  Set SYS roles and view grants drop to y.
+Not allowed to be used as AI training material without explicite permission.
+Use Ctrl-C to stop the script in sqlplus, Enter to continue.
 
-Running under WINDOWS
+Started ...
 DROP USER SOSL CASCADE;
 DROP TABLESPACE SOSL_TABLESPACE DROP QUOTA INCLUDING CONTENTS AND DATAFILES;
 SELECT grant on DBA_ROLE_PRIVS for SOSL does not exist
@@ -13,16 +18,19 @@ SELECT grant on GV$SESSION for SOSL does not exist
 SELECT grant on GV$SQL for SOSL does not exist
 DROP ROLE SOSL_ADMIN;
 DROP ROLE SOSL_EXECUTOR;
-DROP ROLE SOSL_GUEST;
 DROP ROLE SOSL_REVIEWER;
 DROP ROLE SOSL_USER;
-Executed: 02-DEC-24 03.36.58.409911 PM +00:00
-Status USER: User SOSL dropped or does not exist
-Status TABLESPACE: Tablespace SOSL_TABLESPACE dropped or does not exist
+=== SOSL DBA cleanup ===
+Executed: 11-DEC-24 10.44.42.823622 PM +00:00
+Status USER: SOSL dropped or does not exist
+Status TABLESPACE: SOSL_TABLESPACE dropped or does not exist
 Status DBA view grants: Grants on dba views revoked or do not exist
 Status ROLES: SOSL roles dropped or do not exist
 by Adi
 using SYS
 on database FREEPDB1
 from terminal ALIEN_M18
+
+(C) 2024 Michael Lindenau licensed via https://www.gnu.org/licenses/agpl-3.0.txt and https://toent.ch/licenses/AI_DISCLOSURE_LICENSE_V1
+Not allowed to be used as AI training material without explicite permission.
 

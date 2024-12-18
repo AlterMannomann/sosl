@@ -1,24 +1,37 @@
-# UNDER CONSTRUCTION
-Current state: beta version of CMD and shell server. Basically working with a bunch of files and defined executors. Path format is important depending on the system SOSL is running. For Windows \ notation is mandatory, for bash /. Shell version tested with git bash on Windows.
+# Beta version
+Current state: Beta version of CMD and bash server. Basically working with a bunch of files and defined executors. Path format is important depending on the system SOSL is running. For Windows \ notation is mandatory, for bash /. Shell version tested with git bash on Windows. CMD version tested with Windows 11 Pro.
 
-Stopped working on Powershell, not stable enough, problems with pipe to sqlplus and environment not inherited correctly using Powershell 5.1.
+On hold until [SOBS](https://github.com/AlterMannomann/sobs) and [OTAP](https://github.com/AlterMannomann/otap) is developed and tested. Together with this tools and intensive testing is possible.
 
 **Important note:** SQL Developer in versions 23.x is not at all stable. It doesn't recognize database changes and delivers wrong result until restarted. SQL Plus is still reliable.
 
 # SOSL - Simple Oracle Script Loader
 This is a very simple solution for loading and executing scripts from anywhere that has an Oracle Client and sqlplus installed. It will come in the flavors CMD and Bash.
+
 Basic components are database packages and OS script files. Basically an OS script acts as a server and loops over a list of files, that is given by package functions and configuration tables.
-## What it is not
+
+- [What it is NOT](#what-it-is-not)
+- [What it is](#what-it-is)
+- [Requirements](#requirements)
+- [Limitations](#limitations)
+- [SQL Developer reports (minimal GUI)](#sql-developer-reports-minimal-gui)
+- [Installation](#installation)
+- [Design](#design)
+- [Interface](#interface)
+- [Security](#security)
+- [Disclaimer](#disclaimer)
+- [AI disclosure](#ai-restriction-and-training-exclusion)
+## What it is NOT
 This project is **not** a click here and there, fire and forget application.
 
 - You will have to setup your environment and server or need a working connection to a server with SQLPlus from your machine.
 - You may need to setup TNSNAMES.ORA.
 - You will have to setup the logins for the schemas to run.
-- You will have to setup the API.
+- You will have to setup and develop your executor API.
 
 **Remember, this is not an out-of-the-box application.**
 ## What it is
-This is an interface application that can be integrated into your projects to load scripts from a defined location triggered by the database. It can be used to run for example test scripts by database triggers or maintenance check scripts on events. The integration framework cannot be covered by this project, you will have to create it on your own depending on your system and application. See [sosl_if package](./sosl_ddl/packages/sosl_if.pks) for examples. This is the SOSL internal interface for simple script execution using SOSL.
+This is an interface application that can be integrated into your projects to load scripts from a defined location triggered by the database. It can be used to run for example test scripts by database triggers or maintenance check scripts on events. The integration framework cannot be covered by this project, you will have to create it on your own depending on your system and application. See [sosl_if package](sosl_ddl/packages/sosl_if.pks) for examples. This is the SOSL internal interface for simple script execution using SOSL. An [example installation](examples/README.md) is provided for every SOSL server type.
 ## Requirements
 - A working Oracle Client including SQLPlus installed on the preferred OS.
 - An Oracle version >= 12c, DDLs using IDENTITY column syntax.
@@ -26,12 +39,16 @@ This is an interface application that can be integrated into your projects to lo
 - Sufficient rights to create the SOSL schema or sufficient rights to install the SOSL components in an own schema.
 - Sufficient rights to prepare the API (GRANT to SOSL) on the schemas that will run scripts.
 - Ability to orchestrate the script run, especially if running scripts for more than one schema.
-## Limits
+## Limitations
+**SOSL CMD server works only in active sessions**. Running it in background leads to the same errors that forced me to stop working on a PowerShell solution. Pipe behavior is wrong and SQL scripts do not start correctly. Under Windows only the SOSL bash server is reliable and can be run as a background process on the server using git bash and the Windows Task Scheduler.
+
+Scripts run by the SOSL server must be saved with encoding UTF-8. **UTF-8 with BOM will lead to errors** as SQLPlus can't handle this files correctly.
+
 As the Simple Oracle Script Loader under optimal conditions can read and execute a job within 3 seconds, the daily limit for scripts to be chained for execution is between 25.000 and 30.000 script execution under optimal conditions. If too much executors with too much scripts for one day are registered, the script execution time gets unpredictable. There are options to prioritize executors, but this in the end leads to unpredictable execution times for lower priorities. If this happens, split SOSL using different execution servers and schemas or PDBs.
 
 Memory is another limiting factor. If there are many parallel running longrunner scripts, every SQLPlus session will reserve some memory. If memory gets to its limits it is most probably that scripts are not started correctly or hang. Check out your system configuration and the amount of maximum possible SQLPlus sessions. Limit maximum parallel running scripts to this value.
 ## SQL Developer reports (minimal GUI)
-A small set of reports to check and control the server state, the run queue and the logs. Users with role SOSL_USER should set the session to SOSL before using this user defined reports in SQL Developer. Just open [sosl_reports.xml](./sosl_templates/reports/sosl_reports.xml) under user defined reports as a report.
+A small set of reports to check and control the server state, the run queue and the logs. Users with role SOSL_USER should set the session to SOSL before using this user defined reports in SQL Developer. Just open [sosl_reports.xml](sosl_templates/reports/sosl_reports.xml) under user defined reports as a report.
 
     ALTER SESSION SET CURRENT_SCHEMA = SOSL;
 
