@@ -1,7 +1,11 @@
-# Beta version
-Current state: Beta version of CMD and bash server. Basically working with a bunch of files and defined executors. Path format is important depending on the system SOSL is running. For Windows \ notation is mandatory, for bash /. Shell version tested with git bash on Windows. CMD version tested with Windows 11 Pro.
+# Current state
+Version: SOSL server [v1.0.0-beta.1](https://github.com/AlterMannomann/sosl/releases/tag/v1.0.0-beta.1)
 
-On hold until [SOBS](https://github.com/AlterMannomann/sobs) and [OTAP](https://github.com/AlterMannomann/otap) is developed and tested. Together with this tools and intensive testing is possible.
+See also [releases](https://github.com/AlterMannomann/sosl/releases).
+
+Beta version of CMD and bash server. Basically working with a bunch of files and defined executors. Path format is important depending on the system SOSL is running. For Windows \ notation is mandatory, for bash /. Shell version tested with git bash on Windows. CMD version tested with Windows 11 Pro.
+
+On hold until [SOBS](https://github.com/AlterMannomann/sobs) and [OTAP](https://github.com/AlterMannomann/otap) is developed and tested. Together with this tools an intensive testing is possible.
 
 **Important note:** SQL Developer in versions 23.x is not at all stable. It doesn't recognize database changes and delivers wrong result until restarted. SQL Plus is still reliable.
 

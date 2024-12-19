@@ -1,5 +1,5 @@
 # SOSL testing
-This folder contains the test scripts for the Simple Oracle Script Loader. The content is very basic at the moment. Need to develop SOBS (Simple Oracle Batch System) and OTAP (Oracle Test Any Protocol) before improving this section.
+This folder contains the test scripts for the Simple Oracle Script Loader. The content is very basic at the moment. Need to develop SOBS (Simple Oracle Batch System) and OTAP (Oracle Test Automation Protocol) before improving this section.
 
 - [CMD tests](#cmd-tests)
 - [SQL tests](#sql-tests)

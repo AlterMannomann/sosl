@@ -1,5 +1,14 @@
 # Installation
 The setup folder contains the SQL install/remove scripts for the Simple Oracle Script Loader.
+
+- [Database user](#database-user)
+- [Schema objects](#schema-objects)
+- [Example data](#example-data)
+- [SQL Developer reports](#sql-developer-reports)
+- [Disclaimer](#disclaimer)
+- [AI disclosure](#ai-restriction-and-training-exclusion)
+- [Back to main](../README.md)
+
 ## Database user
 To setup the SOSL user, use the [sosl_dba_setup.sql](sosl_dba_setup.sql) script. You must have DBA rights on the database or PDB you are using. The script will create a login configuration file with the given username, password and instance, that works with SOSL. You may use this file as template for your executor definitions. See example file [sosl_login.cfg](../sosl_templates/sosl_login.cfg). If the given user already exists, the script will create a file [illegal_login_overwrite.cfg](../sosl_templates/illegal_login_overwrite.cfg) instead to avoid overwrites of existing login configuration files.
 
@@ -28,7 +37,7 @@ The path for default configuration file with the login credentials must exist, i
 
 To uninstall the SOSL database user, use the script [sosl_dba_cleanup.sql](sosl_dba_cleanup.sql).
 ## Schema objects
-To install or uninstall the schema objects use the description and scripts in [sosl_cmd](../sosl_cmd/README.md) or [sosl_sh](../sosl_sh/README.md), depending on the server version you want to run. This scripts will use the configured SOSL login configuration file and do not need any input. The configuration file of the server flavor ([sosl_config.cmd](../sosl_cmd/sosl_config.cmd) or [sosl_config.sh](../sosl_sh/sosl_config.sh)) must be configured before if not using the defaults.
+To install or uninstall the schema objects use the description and scripts in [sosl_cmd](../sosl_cmd/README.md) or [sosl_sh](../sosl_sh/README.md), depending on the server version you want to run. This scripts will use the configured SOSL login configuration file and do not need any input. The configuration file of the server flavor ([sosl_config.cmd](../sosl_cmd/sosl_config.cmd) or [sosl_config.sh](../sosl_sh/sosl_config.sh)) must be configured before.
 
 Scripts available are
 - SOSL CMD server
@@ -47,7 +56,6 @@ To install example test data it is important to use the version for the intended
 After installing the schema objects you may install the user-defined reports for SQL Developer.
 
 Use the context menu of user defined reports and choose *Open report ...* to open [sosl_reports.xml](../sosl_templates/reports/sosl_reports.xml). You will find all reports under the folder SOSL. The role SOSL_USER is required to successfully execute the reports.
-
 ## Disclaimer
 Use this software at your own risk. No liabilities or warranties are given, no support is guaranteed. Any result of executing this software is under the responsibility of the legal entity using this software. For details see license.
 
