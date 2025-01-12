@@ -1,3 +1,4 @@
+![Logo](https://github.com/AlterMannomann/sosl/blob/beta1/media/SOSL_logo.jpg)
 # Current state
 Version: SOSL server [v1.0.0-beta.1](https://github.com/AlterMannomann/sosl/releases/tag/v1.0.0-beta.1)
 

@@ -144,7 +144,7 @@ BEGIN
     DBMS_OUTPUT.PUT_LINE('Role SOSL_EXECUTOR already granted to SOSL_ADMIN, do nothing');
   END IF;
   -- SOSL user
-  SELECT COUNT(*) INTO l_count FROM dba_users WHERE username = '&SOSL_USER';
+  SELECT COUNT(*) INTO l_count FROM dba_users WHERE username = UPPER('&SOSL_USER');
   IF l_count = 0
   THEN
     l_statement := 'CREATE USER &SOSL_USER. IDENTIFIED BY &SOSL_PASS.';
